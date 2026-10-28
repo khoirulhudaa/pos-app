@@ -1,0 +1,22 @@
+{
+  "name": "pos-sederhana",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "server": "node --env-file=.env server.js",
+    "client": "vite",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "mongoose": "^8.9.0",
+    "qrcode": "^1.5.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^5.4.11"
+  }
+}

@@ -1,0 +1,507 @@
+import { useEffect, useMemo, useState } from "react";
+
+const rp = (n) => "Rp " + Number(n || 0).toLocaleString("id-ID");
+const emoji = (c) => (c === "minuman" ? "🥤" : "🍜");
+
+// ---------- Ikon (SVG inline, tanpa library tambahan) ----------
+const P = {
+  home: "M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10",
+  box: "M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z M3.27 6.96L12 12.01l8.73-5.05 M12 22.08V12",
+  cart: "M9 22a1 1 0 1 0 0-2 1 1 0 0 0 0 2z M20 22a1 1 0 1 0 0-2 1 1 0 0 0 0 2z M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6",
+  list: "M8 6h13 M8 12h13 M8 18h13 M3 6h.01 M3 12h.01 M3 18h.01",
+  down: "M23 18l-9.5-9.5-5 5L1 6 M17 18h6v-6",
+  up: "M23 6l-9.5 9.5-5-5L1 18 M17 6h6v6",
+  plus: "M12 5v14 M5 12h14",
+  out: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9",
+  check: "M20 6L9 17l-5-5",
+  trash: "M3 6h18 M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6 M10 11v6 M14 11v6 M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2",
+  edit: "M12 20h9 M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z",
+  x: "M18 6L6 18 M6 6l12 12",
+  moon: "M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z",
+  alert: "M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z M12 9v4 M12 17h.01",
+  search: "M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16z M21 21l-4.35-4.35",
+};
+const Ic = ({ n, s = 20 }) => (
+  <svg viewBox="0 0 24 24" width={s} height={s} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d={P[n]} />
+  </svg>
+);
+
+async function req(path, method = "GET", body) {
+  const r = await fetch("/api" + path, {
+    method,
+    headers: { "Content-Type": "application/json", "x-pass": localStorage.getItem("pos_pass") || "" },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw Object.assign(new Error(d.message || "Terjadi kesalahan"), { status: r.status });
+  return d;
+}
+
+// ---------- Komponen umum ----------
+const Top = ({ title, sub, right }) => (
+  <div className="top">
+    <div><h1>{title}</h1>{sub && <p>{sub}</p>}</div>
+    {right}
+  </div>
+);
+
+const Modal = ({ title, onClose, children }) => (
+  <div className="modal-wrap" onClick={onClose}>
+    <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-h"><h3>{title}</h3><button className="icon-btn dark" onClick={onClose}><Ic n="x" /></button></div>
+      {children}
+    </div>
+  </div>
+);
+
+function Login({ onOk }) {
+  const [pw, setPw] = useState("");
+  const [err, setErr] = useState("");
+  const submit = async (e) => {
+    e.preventDefault();
+    localStorage.setItem("pos_pass", pw);
+    try { await req("/products"); onOk(); }
+    catch (x) { localStorage.removeItem("pos_pass"); setErr(x.message); }
+  };
+  return (
+    <div className="login">
+      <div className="login-top">
+        <div className="logo">K</div>
+        <h1>KasirKu</h1>
+        <p>Catat penjualan, stok, dan keuangan tokomu</p>
+      </div>
+      <form className="login-card" onSubmit={submit}>
+        <label>Password</label>
+        <input type="password" placeholder="Masukkan password" value={pw} onChange={(e) => setPw(e.target.value)} autoFocus />
+        {err && <p className="err small">{err}</p>}
+        <button className="btn gold">Masuk</button>
+      </form>
+    </div>
+  );
+}
+
+// ---------- Beranda ----------
+function Beranda({ txs, products, go, closeDay, logout }) {
+  const today = new Date().toDateString();
+  const tt = txs.filter((t) => new Date(t.createdAt).toDateString() === today);
+  const inc = tt.filter((t) => t.type === "income").reduce((s, t) => s + t.total, 0);
+  const exp = tt.filter((t) => t.type === "expense").reduce((s, t) => s + t.total, 0);
+  const low = products.filter((p) => p.stock < 5);
+  const h = new Date().getHours();
+  const greet = h < 11 ? "Selamat pagi" : h < 15 ? "Selamat siang" : h < 18 ? "Selamat sore" : "Selamat malam";
+  const menu = [
+    ["cart", "Kasir", () => go("kasir")],
+    ["box", "Produk", () => go("produk")],
+    ["down", "Pengeluaran", () => go("keluar")],
+    ["list", "Riwayat", () => go("riwayat")],
+    ["moon", "Tutup hari", closeDay],
+  ];
+  return (
+    <>
+      <div className="hero">
+        <div className="hero-row">
+          <div className="avatar">K</div>
+          <div className="grow"><small>{greet},</small><b>Pemilik Toko</b></div>
+          <button className="icon-btn" onClick={logout} title="Keluar"><Ic n="out" /></button>
+        </div>
+        <div className="balance">
+          <span>Laba hari ini</span>
+          <strong>{rp(inc - exp)}</strong>
+          <div className="bal-row">
+            <div><small>Pemasukan</small><b className="ok">{rp(inc)}</b></div>
+            <div><small>Pengeluaran</small><b className="err">{rp(exp)}</b></div>
+            <div><small>Transaksi</small><b>{tt.length}</b></div>
+          </div>
+        </div>
+      </div>
+
+      <div className="page pull">
+        <div className="menu">
+          {menu.map(([i, l, fn]) => (
+            <button key={l} onClick={fn}><span className="mi"><Ic n={i} s={22} /></span>{l}</button>
+          ))}
+        </div>
+
+        {low.length > 0 && (
+          <div className="card warn">
+            <div className="warn-h"><Ic n="alert" s={18} /> Stok menipis</div>
+            {low.slice(0, 5).map((p) => (
+              <div className="li" key={p._id}><span>{emoji(p.category)} {p.name}</span><b className="err">sisa {p.stock}</b></div>
+            ))}
+          </div>
+        )}
+
+        <div className="sec-h"><h3>Transaksi terbaru</h3><button className="link" onClick={() => go("riwayat")}>Lihat semua</button></div>
+        {txs.slice(0, 5).map((t) => <TxRow key={t._id} t={t} />)}
+        {!txs.length && <p className="muted center">Belum ada transaksi.</p>}
+      </div>
+    </>
+  );
+}
+
+function TxRow({ t, children }) {
+  const inc = t.type === "income";
+  return (
+    <div className="card tx">
+      <div className="tx-main">
+        <span className={`tx-ic ${inc ? "in" : "outc"}`}><Ic n={inc ? "up" : "down"} s={18} /></span>
+        <div className="grow">
+          <b className="tx-t">{inc ? t.items.map((i) => `${i.name} ×${i.qty}`).join(", ") : t.description}</b>
+          <small className="muted">
+            {new Date(t.createdAt).toLocaleString("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+            {inc && ` · ${t.method === "qris" ? "QRIS" : "Tunai"}`}
+          </small>
+        </div>
+        <b className={inc ? "ok" : "err"}>{inc ? "+" : "−"}{rp(t.total)}</b>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// ---------- Kasir ----------
+function Kasir({ products, reload }) {
+  const [cart, setCart] = useState({});
+  const [cash, setCash] = useState("");
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const [cat, setCat] = useState("all");
+  const [done, setDone] = useState(null);
+
+  const shown = products.filter((p) => (cat === "all" || p.category === cat) && (p.name || "").toLowerCase().includes(q.toLowerCase()));
+  const lines = products.filter((p) => cart[p._id]);
+  const total = lines.reduce((s, p) => s + p.price * cart[p._id], 0);
+  const count = lines.reduce((s, p) => s + cart[p._id], 0);
+  const change = Number(cash || 0) - total;
+  const canPay = lines.length && cash !== "" && change >= 0;
+
+  const add = (p, d) => setCart((c) => {
+    const n = { ...c };
+    const v = Math.max(0, Math.min(p.stock, (c[p._id] || 0) + d));
+    if (v) n[p._id] = v; else delete n[p._id];
+    return n;
+  });
+
+  const pay = async () => {
+    setBusy(true);
+    try {
+      const items = lines.map((p) => ({ product: p._id, qty: cart[p._id] }));
+      const paid = Number(cash);
+      await req("/transactions", "POST", { type: "income", items, method: "cash", cashReceived: paid, note });
+      setDone({ total, paid, change: paid - total });
+      setCart({}); setCash(""); setNote(""); setOpen(false);
+      await reload();
+    } catch (e) { alert(e.message); }
+    setBusy(false);
+  };
+
+  return (
+    <div className="kasir">
+      <div>
+        <div className="search"><Ic n="search" s={18} /><input placeholder="Cari produk..." value={q} onChange={(e) => setQ(e.target.value)} /></div>
+        <div className="pills">
+          {[["all", "Semua"], ["makanan", "Makanan"], ["minuman", "Minuman"]].map(([k, l]) => (
+            <button key={k} className={cat === k ? "on" : ""} onClick={() => setCat(k)}>{l}</button>
+          ))}
+        </div>
+        <div className="products">
+          {shown.map((p) => {
+            const qty = cart[p._id] || 0;
+            const level = p.stock < 1 ? "empty" : p.stock < 5 ? "low" : "good";
+            return (
+              <div key={p._id} className={"prod" + (qty ? " active" : "") + (p.stock < 1 ? " out" : "")}>
+                <div className="prod-top">
+                  <span className="pe">{emoji(p.category)}</span>
+                  <span className="price">{rp(p.price)}</span>
+                </div>
+                <div className="prod-name">
+                  <b>{p.name}</b>
+                  <span className={"stock " + level}>{p.stock < 1 ? "Habis" : `Stok ${p.stock}`}</span>
+                </div>
+                <div className="stepper">
+                  <button onClick={() => add(p, -1)} disabled={qty < 1}>
+                    <span style={{position: 'relative', top: -3.2}}>
+                      −
+                    </span>
+                  </button>
+                  <span>{qty}</span>
+                  <button onClick={() => add(p, 1)} disabled={qty >= p.stock}>
+                    <span style={{position: 'relative', top: -3.2}}>
+                      +
+                    </span>
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {!shown.length && <p className="muted center">{products.length ? "Produk tidak ditemukan" : "Belum ada produk. Tambahkan di menu Produk."}</p>}
+      </div>
+
+      {open && <div className="scrim" onClick={() => setOpen(false)} />}
+      <div className={"cart-panel" + (open ? " open" : "")}>
+        <div className="modal-h"><h3>Keranjang</h3><button className="icon-btn dark sheet-x" onClick={() => setOpen(false)}><Ic n="x" /></button></div>
+        {lines.map((p) => (
+          <div className="row" key={p._id}>
+            <div className="grow"><b>{p.name}</b><br /><small className="muted">{rp(p.price)}</small></div>
+            <div className="qty"><button onClick={() => add(p, -1)}>−</button><span>{cart[p._id]}</span><button onClick={() => add(p, 1)}>+</button></div>
+            <b className="w">{rp(p.price * cart[p._id])}</b>
+          </div>
+        ))}
+        {!lines.length && <p className="muted center">Pilih produk untuk memulai</p>}
+
+        <div className="total"><span>Total</span><b>{rp(total)}</b></div>
+
+        <label>Uang diterima</label>
+        <input type="number" inputMode="numeric" value={cash} onChange={(e) => setCash(e.target.value)} placeholder="0" />
+        <div className="chips">
+          <button onClick={() => setCash(total)}>Uang pas</button>
+          {[20000, 50000, 100000].map((n) => <button key={n} onClick={() => setCash(n)}>{n / 1000}rb</button>)}
+        </div>
+        <div className={"change " + (cash !== "" && change < 0 ? "bad" : "")}>
+          <span>{cash !== "" && change < 0 ? "Kurang" : "Kembalian"}</span>
+          <b>{cash === "" ? "-" : rp(Math.abs(change))}</b>
+        </div>
+
+        <input placeholder="Catatan (opsional)" value={note} onChange={(e) => setNote(e.target.value)} />
+        <button className="btn gold" disabled={!canPay || busy} onClick={pay}>
+          {busy ? "Memproses..." : "Bayar sekarang"}
+        </button>
+      </div>
+
+      {count > 0 && !open && (
+        <button className="cbar" onClick={() => setOpen(true)}>
+          <span className="cbar-l"><Ic n="cart" s={18} /> {count} item</span>
+          <b>{rp(total)}</b>
+          <span className="cbar-r">Bayar ›</span>
+        </button>
+      )}
+
+      {done && (
+        <div className="modal-wrap center-m">
+          <div className="modal success">
+            <div className="ok-ic"><Ic n="check" s={34} /></div>
+            <h3>Pembayaran Berhasil</h3>
+            <strong>{rp(done.total)}</strong>
+            <div className="rcp">
+              <div><span>Diterima</span><b>{rp(done.paid)}</b></div>
+              <div><span>Kembalian</span><b className="ok">{rp(done.change)}</b></div>
+            </div>
+            <button className="btn gold" onClick={() => setDone(null)}>Selesai</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------- Produk ----------
+function Produk({ products, reload, closeDay }) {
+  const empty = { name: "", category: "makanan", price: "", stockInitial: "" };
+  const [f, setF] = useState(empty);
+  const [editId, setEditId] = useState(null);
+  const [show, setShow] = useState(false);
+  const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+  const close = () => { setShow(false); setEditId(null); setF(empty); };
+
+  const submit = async (e) => {
+    e.preventDefault();
+    try {
+      await (editId ? req(`/products/${editId}`, "PUT", f) : req("/products", "POST", f));
+      close(); reload();
+    } catch (x) { alert(x.message); }
+  };
+  const edit = (p) => { setEditId(p._id); setF({ name: p.name, category: p.category, price: p.price, stockInitial: p.stockInitial }); setShow(true); };
+  const del = async (p) => { if (confirm(`Hapus ${p.name}?`)) { await req(`/products/${p._id}`, "DELETE"); reload(); } };
+
+  return (
+    <>
+      <div className="row-actions">
+        <button className="btn gold" onClick={() => setShow(true)}><Ic n="plus" s={18} /> Tambah produk</button>
+        <button className="btn ghost" onClick={closeDay}><Ic n="moon" s={18} /> Tutup hari</button>
+      </div>
+
+      <div className="plist">
+        {products.map((p) => (
+          <div className="card pc" key={p._id}>
+            <div className="pc-h">
+              <span className="pe">{emoji(p.category)}</span>
+              <div className="grow"><b>{p.name}</b><br /><small className="chip">{p.category}</small></div>
+              <b className="price">{rp(p.price)}</b>
+            </div>
+            <div className="stats4">
+              <div><small>Stok awal</small><b>{p.stockInitial}</b></div>
+              <div><small>Terjual</small><b>{p.sold}</b></div>
+              <div className="hl"><small>Sekarang</small><b>{p.stock}</b></div>
+              <div><small>Stok akhir</small><b>{p.stockEnd ?? "-"}</b></div>
+            </div>
+            <div className="pc-a">
+              <button onClick={() => edit(p)}><Ic n="edit" s={15} /> Edit</button>
+              <button className="d" onClick={() => del(p)}><Ic n="trash" s={15} /> Hapus</button>
+            </div>
+          </div>
+        ))}
+      </div>
+      {!products.length && <p className="muted center">Belum ada produk.</p>}
+
+      {show && (
+        <Modal title={editId ? "Edit produk" : "Tambah produk"} onClose={close}>
+          <form onSubmit={submit}>
+            <label>Nama produk</label>
+            <input placeholder="Mis. Nasi Goreng" value={f.name} onChange={set("name")} required />
+            <label>Kategori</label>
+            <select value={f.category} onChange={set("category")}><option value="makanan">Makanan</option><option value="minuman">Minuman</option></select>
+            <label>Harga</label>
+            <input type="number" inputMode="numeric" placeholder="0" value={f.price} onChange={set("price")} required />
+            <label>Stok awal</label>
+            <input type="number" inputMode="numeric" placeholder="0" value={f.stockInitial} onChange={set("stockInitial")} required />
+            <button className="btn gold">{editId ? "Simpan perubahan" : "Tambah produk"}</button>
+          </form>
+        </Modal>
+      )}
+    </>
+  );
+}
+
+// ---------- Pengeluaran ----------
+function Pengeluaran({ products, reload }) {
+  const blank = { description: "", amount: "", product: "", qty: "", note: "" };
+  const [f, setF] = useState(blank);
+  const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+  const submit = async (e) => {
+    e.preventDefault();
+    try {
+      const items = f.product && f.qty ? [{ product: f.product, qty: Number(f.qty) }] : [];
+      await req("/transactions", "POST", { type: "expense", description: f.description, amount: Number(f.amount), items, note: f.note });
+      setF(blank); reload(); alert("Pengeluaran tercatat");
+    } catch (x) { alert(x.message); }
+  };
+  return (
+    <form className="card" onSubmit={submit}>
+      <label>Keterangan</label>
+      <input placeholder="Mis. Belanja bahan" value={f.description} onChange={set("description")} required />
+      <label>Nominal</label>
+      <input type="number" inputMode="numeric" placeholder="0" value={f.amount} onChange={set("amount")} required />
+      <label>Tambah stok produk (opsional)</label>
+      <select value={f.product} onChange={set("product")}>
+        <option value="">Tidak menambah stok</option>
+        {products.map((p) => <option key={p._id} value={p._id}>{p.name}</option>)}
+      </select>
+      {f.product && <><label>Jumlah stok dibeli</label><input type="number" inputMode="numeric" value={f.qty} onChange={set("qty")} required /></>}
+      <label>Catatan</label>
+      <input placeholder="Opsional" value={f.note} onChange={set("note")} />
+      <button className="btn gold">Simpan pengeluaran</button>
+    </form>
+  );
+}
+
+// ---------- Riwayat ----------
+function Riwayat({ txs, reload }) {
+  const [range, setRange] = useState("today");
+  const list = useMemo(() => {
+    const today = new Date().toDateString();
+    return range === "all" ? txs : txs.filter((t) => new Date(t.createdAt).toDateString() === today);
+  }, [txs, range]);
+  const inc = list.filter((t) => t.type === "income").reduce((s, t) => s + t.total, 0);
+  const exp = list.filter((t) => t.type === "expense").reduce((s, t) => s + t.total, 0);
+
+  const del = async (t) => { if (confirm("Hapus transaksi? Stok akan dikembalikan.")) { await req(`/transactions/${t._id}`, "DELETE"); reload(); } };
+  const edit = async (t) => {
+    const note = prompt("Catatan:", t.note || "");
+    if (note === null) return;
+    const body = { note };
+    if (t.type === "expense") {
+      const d = prompt("Keterangan:", t.description); if (d) body.description = d;
+      const a = prompt("Nominal:", t.total); if (a) body.amount = a;
+    }
+    await req(`/transactions/${t._id}`, "PUT", body); reload();
+  };
+
+  return (
+    <>
+      <div className="seg">
+        <button className={range === "today" ? "on" : ""} onClick={() => setRange("today")}>Hari ini</button>
+        <button className={range === "all" ? "on" : ""} onClick={() => setRange("all")}>Semua</button>
+      </div>
+      <div className="sum3">
+        <div className="card"><small>Pemasukan</small><b className="ok">{rp(inc)}</b></div>
+        <div className="card"><small>Pengeluaran</small><b className="err">{rp(exp)}</b></div>
+        <div className="card"><small>Laba</small><b>{rp(inc - exp)}</b></div>
+      </div>
+      {list.map((t) => (
+        <TxRow key={t._id} t={t}>
+          {(t.note || (t.type === "income" && t.method === "cash")) && (
+            <small className="muted tx-sub">
+              {t.type === "income" && t.method === "cash" && `Diterima ${rp(t.cashReceived)} · Kembali ${rp(t.change)}`}
+              {t.note && ` · ${t.note}`}
+            </small>
+          )}
+          <div className="pc-a">
+            <button onClick={() => edit(t)}><Ic n="edit" s={15} /> Edit</button>
+            <button className="d" onClick={() => del(t)}><Ic n="trash" s={15} /> Hapus</button>
+          </div>
+        </TxRow>
+      ))}
+      {!list.length && <p className="muted center">Belum ada transaksi.</p>}
+    </>
+  );
+}
+
+// ---------- App ----------
+export default function App() {
+  const [authed, setAuthed] = useState(!!localStorage.getItem("pos_pass"));
+  const [tab, setTab] = useState("home");
+  const [products, setProducts] = useState([]);
+  const [txs, setTxs] = useState([]);
+
+  const logout = () => { localStorage.removeItem("pos_pass"); setAuthed(false); };
+  const reload = async () => {
+    try {
+      const [p, t] = await Promise.all([req("/products"), req("/transactions")]);
+      setProducts(Array.isArray(p) ? p.filter((x) => x && x.name) : []);
+      setTxs(Array.isArray(t) ? t : []);
+    } catch (e) { if (e.status === 401) logout(); else alert(e.message); }
+  };
+  useEffect(() => { if (authed) reload(); }, [authed]);
+
+  const closeDay = async () => {
+    if (confirm("Tutup hari? Stok sekarang disimpan sebagai Stok Akhir dan jadi Stok Awal besok.")) {
+      await req("/close-day", "POST"); reload();
+    }
+  };
+
+  if (!authed) return <Login onOk={() => setAuthed(true)} />;
+
+  const titles = { kasir: ["Kasir", "Pilih produk & terima pembayaran"], produk: ["Produk", "Kelola menu & stok"], keluar: ["Pengeluaran", "Catat biaya & belanja stok"], riwayat: ["Riwayat", "Semua transaksi tokomu"] };
+  const nav = [["home", "Beranda", "home"], ["produk", "Produk", "box"], ["kasir", "Kasir", "cart"], ["keluar", "Pengeluaran", "down"], ["riwayat", "Riwayat", "list"]];
+
+  return (
+    <div className="app">
+      {tab === "home" ? (
+        <Beranda txs={txs} products={products} go={setTab} closeDay={closeDay} logout={logout} />
+      ) : (
+        <>
+          <Top title={titles[tab][0]} sub={titles[tab][1]} />
+          <div className="page pull">
+            {tab === "kasir" && <Kasir products={products} reload={reload} />}
+            {tab === "produk" && <Produk products={products} reload={reload} closeDay={closeDay} />}
+            {tab === "keluar" && <Pengeluaran products={products} reload={reload} />}
+            {tab === "riwayat" && <Riwayat txs={txs} reload={reload} />}
+          </div>
+        </>
+      )}
+
+      <nav className="nav">
+        {nav.map(([k, l, i]) => (
+          <button key={k} className={(tab === k ? "on " : "") + (k === "kasir" ? "mid" : "")} onClick={() => setTab(k)}>
+            <span className="ni"><Ic n={i} s={k === "kasir" ? 26 : 22} /></span>
+            <small>{l}</small>
+          </button>
+        ))}
+      </nav>
+    </div>
+  );
+}
