@@ -347,7 +347,7 @@ function Kasir({ products, reload }) {
                   letterSpacing: "-0.2px"
                 }}>
                   {p.promo?.enabled 
-                    ? `Promo ${p.promo.buyQty} = ${rp(p.promo.payAmount)}` 
+                    ? `${p.promo.buyQty} / ${rp(p.promo.payAmount)}` 
                     : "Harga normal"}
                 </div>
 
