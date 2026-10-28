@@ -254,7 +254,9 @@ function Beranda({ txs, products, go, closeDay, logout, settings = {} }) {
         )}
 
         <div className="sec-h"><h3>Transaksi terbaru</h3><button className="link" onClick={() => go("riwayat")}>Lihat semua</button></div>
-        {txs.slice(0, 5).map((t) => <TxRow key={t._id} t={t} />)}
+        {displayTxs.map((t) => (
+          <TxRow key={t._id} t={t} />
+        ))}
         {!txs.length && <p className="muted center">Belum ada transaksi.</p>}
       </div>
     </>
@@ -1094,10 +1096,56 @@ export default function App() {
     if (authed && tab === "home") reload();
   }, [tab, authed]);
 
-  const closeDay = async () => {
-    if (confirm("Tutup hari? Stok sekarang disimpan sebagai Stok Akhir dan jadi Stok Awal besok.")) {
-      await req("/close-day", "POST"); reload();
-    }
+  const closeDay = () => {
+    toast((t) => (
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 220 }}>
+        <b>Tutup hari sekarang?</b>
+        <p style={{ margin: 0, fontSize: 13, color: "#64748b" }}>
+          Stok sekarang akan disimpan sebagai Stok Akhir dan menjadi Stok Awal besok.
+        </p>
+        <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+          <button
+            onClick={() => toast.dismiss(t.id)}
+            style={{
+              flex: 1,
+              padding: "8px 0",
+              borderRadius: 10,
+              background: "#e2e8f0",
+              fontWeight: 600,
+              fontSize: 13,
+            }}
+          >
+            Batal
+          </button>
+          <button
+            onClick={async () => {
+              toast.dismiss(t.id);
+              try {
+                await req("/close-day", "POST");
+                reload();
+                toast.success("Hari berhasil ditutup");
+              } catch (e) {
+                toast.error(e.message);
+              }
+            }}
+            style={{
+              flex: 1,
+              padding: "8px 0",
+              borderRadius: 10,
+              background: "#0a66c2",
+              color: "white",
+              fontWeight: 600,
+              fontSize: 13,
+            }}
+          >
+            Ya, Tutup
+          </button>
+        </div>
+      </div>
+    ), {
+      duration: 10000, // biar tidak cepat hilang
+      position: "top-center",
+    });
   };
 
   if (!authed) return <Login onOk={() => setAuthed(true)} />;
