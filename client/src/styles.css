@@ -79,19 +79,194 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); backgro
 
 /* ================= Tombol ================= */
 .btn { width: 100%; padding: 15px; border-radius: 15px; font-weight: 700; font-size: 15px; display: flex; align-items: center; justify-content: center; gap: 7px; margin-top: 14px; transition: transform .1s, filter .15s; }
-.btn.gold { background: linear-gradient(180deg, #ffc04d, var(--gold)); color: var(--navy); box-shadow: 0 8px 18px rgba(251, 176, 45, .35); }
 .btn.ghost { background: var(--surface); border: 1.5px solid var(--line); color: var(--accent); }
 .btn:hover:not(:disabled) { filter: brightness(1.04); } .btn:active:not(:disabled) { transform: scale(.98); }
 .btn:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
 .row-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .row-actions .btn { margin-top: 0; }
 
-/* ================= Login ================= */
-.login { min-height: 100vh; background: radial-gradient(100% 80% at 100% 0%, #1a7fe0, transparent 60%), linear-gradient(160deg, var(--navy), var(--blue)); display: flex; flex-direction: column; justify-content: center; padding: 24px; }
-.login-top { text-align: center; color: #fff; margin-bottom: 28px; } .login-top p { opacity: .8; font-size: 14px; margin-top: 6px; }
-.login-top h1 { font-size: 30px; font-weight: 800; margin-top: 14px; letter-spacing: -.02em; }
-.logo { width: 72px; height: 72px; border-radius: 24px; background: var(--gold); color: var(--navy); font-size: 34px; font-weight: 800; display: grid; place-items: center; margin: 0 auto; box-shadow: 0 12px 28px rgba(251, 176, 45, .4); }
-.login-card { background: var(--surface); border-radius: 26px; padding: 24px; max-width: 420px; width: 100%; margin: 0 auto; box-shadow: 0 24px 48px rgba(0, 0, 0, .3); }
+/* ================= LOGIN ================= */
+.login {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  padding: 24px 3vw;
+  background: #f0f4f8;
+}
+
+.login-bg {
+  position: absolute;
+  inset: 0;
+  background-image: url('/tech6.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 1;
+  pointer-events: none;
+}
+
+.login-content {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 420px;
+}
+
+/* Hanya di mobile */
+@media (max-width: 570px) {
+  .login-content {
+    width: 96vw;
+    max-width: none;
+  }
+}
+
+.login-top {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.login-top .logo {
+  width: 72px;
+  height: 72px;
+  border-radius: 22px;
+  background: linear-gradient(145deg, #2563eb, #1d4ed8);
+  color: #fff;
+  font-size: 32px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+  box-shadow: 0 12px 32px rgba(37, 99, 235, 0.35);
+}
+
+.login-top h1 {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  margin: 0 0 8px;
+  color: #fff;
+}
+
+.login-top p {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.login-card {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(37, 99, 235, 0.1);
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 8px 32px rgba(37, 99, 235, 0.08);
+  backdrop-filter: blur(12px);
+}
+
+.login-card label {
+  display: block;
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.login-card input {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #1e293b;
+  font-size: 16px;
+  margin-bottom: 16px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+}
+
+.login-card input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.login-card .btn {
+  width: 100%;
+  padding: 14px;
+  font-size: 15px;
+  font-weight: 700;
+  border-radius: 12px;
+}
+
+.login-card .err {
+  color: #dc2626;
+  margin: -8px 0 12px;
+}
+
+/* Tombol biru di login */
+.login .btn.gold {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+  color: #fff !important;
+  border: none;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+}
+.login .btn.gold:hover,
+.login .btn.gold:active {
+  background: linear-gradient(135deg, #1d4ed8, #1e40af) !important;
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.4);
+}
+.login .btn.gold:disabled {
+  opacity: 0.6;
+  box-shadow: none;
+}
+
+/* Install box */
+.install-box {
+  margin-top: 20px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(37, 99, 235, 0.25);
+  border-radius: 16px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.08);
+}
+.install-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.install-icon { font-size: 28px; line-height: 1; }
+.install-info b {
+  display: block;
+  font-size: 14px;
+  color: #1e3a5f;
+  margin-bottom: 2px;
+}
+.install-info small {
+  font-size: 12px;
+  color: #64748b;
+}
+.install-btn {
+  flex-shrink: 0;
+  padding: 10px 18px !important;
+  font-size: 13px !important;
+  border-radius: 10px !important;
+}
+
+.login-footer {
+  text-align: center;
+  margin-top: 28px;
+  font-size: 12px;
+  color: #94a3b8;
+}
 
 /* ================= Kasir ================= */
 .kasir { display: grid; grid-template-columns: 1fr; gap: 16px; align-items: start; }
@@ -102,8 +277,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); backgro
 .pills button { padding: 9px 18px; border-radius: 22px; background: var(--surface); border: 1px solid var(--line); font-weight: 600; font-size: 13px; white-space: nowrap; }
 .pills .on { background: var(--blue); border-color: var(--blue); color: #fff; }
 .products { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 12px; }
-.prod { gap: 0; padding: 12px; border-radius: 20px; }
-.prod { background: var(--surface);border-radius: 20px; }
+.prod { gap: 0; padding: 12px; border-radius: 20px; background: var(--surface); }
 .prod.active { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(10, 102, 194, .2), var(--shadow); }
 .prod.out { opacity: .55; }
 
@@ -130,12 +304,6 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); backgro
 .pe { width: 46px; height: 46px; border-radius: 15px; background: linear-gradient(135deg, var(--tb), var(--surface2)); display: grid; place-items: center; font-size: 23px; margin-bottom: 6px; flex-shrink: 0; }
 .price { color: var(--accent); font-weight: 800; }
 .badge { position: absolute; top: 10px; right: 10px; min-width: 26px; height: 26px; border-radius: 13px; background: var(--gold); color: var(--navy); font-weight: 800; font-size: 12px; display: grid; place-items: center; padding: 0 7px; box-shadow: 0 4px 10px rgba(251, 176, 45, .45); }
-.prod.out { opacity: .55; }
-.stepper { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; background: var(--surface2); border-radius: 14px; padding: 4px; font-weight: 700; }
-.stepper span { min-width: 28px; text-align: center; }
-.stepper button { width: 38px; height: 38px; border-radius: 11px; background: var(--surface); color: var(--accent); font-size: 20px; font-weight: 800; box-shadow: 0 1px 3px rgba(0, 0, 0, .08); }
-.stepper button:active:not(:disabled) { transform: scale(.92); }
-.stepper button:disabled { opacity: .35; }
 
 .cart-panel { background: var(--surface); padding: 18px; position: fixed; left: 0; right: 0; bottom: 0; margin: 0 auto; width: 100%; max-width: 600px; max-height: 90vh; overflow-y: auto; border-radius: 28px 28px 0 0; z-index: 70; transform: translateY(105%); transition: transform .3s cubic-bezier(.2, .8, .2, 1); box-shadow: 0 -12px 48px rgba(0, 0, 0, .28); padding-bottom: max(18px, env(safe-area-inset-bottom)); }
 .cart-panel.open { transform: none; }

@@ -58,25 +58,79 @@ const Modal = ({ title, onClose, children }) => (
 function Login({ onOk }) {
   const [pw, setPw] = useState("");
   const [err, setErr] = useState("");
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [showInstall, setShowInstall] = useState(false);
+
+  useEffect(() => {
+    const handler = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setShowInstall(true);
+    };
+    window.addEventListener("beforeinstallprompt", handler);
+
+    if (window.matchMedia("(display-mode: standalone)").matches) {
+      setShowInstall(false);
+    }
+
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+
+  const installApp = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === "accepted") setShowInstall(false);
+    setDeferredPrompt(null);
+  };
+
   const submit = async (e) => {
     e.preventDefault();
     localStorage.setItem("pos_pass", pw);
-    try { await req("/products"); onOk(); }
-    catch (x) { localStorage.removeItem("pos_pass"); setErr(x.message); }
+    try {
+      await req("/products");
+      onOk();
+    } catch (x) {
+      localStorage.removeItem("pos_pass");
+      setErr(x.message);
+    }
   };
+
   return (
     <div className="login">
-      <div className="login-top">
-        <div className="logo">K</div>
-        <h1>KasirKu</h1>
-        <p>Catat penjualan, stok, dan keuangan tokomu</p>
+      {/* Background gambar */}
+      <div className="login-bg" />
+
+      <div className="login-content">
+        <div className="login-top">
+          <div className="logo">K</div>
+          <h1>KasirKu</h1>
+          <p>Catat penjualan, stok, dan keuangan toko dengan mudah</p>
+        </div>
+
+        <form className="login-card" onSubmit={submit}>
+          <label>Password</label>
+          <input
+            type="password"
+            placeholder="Masukkan password toko"
+            value={pw}
+            onChange={(e) => setPw(e.target.value)}
+            autoFocus
+          />
+          {err && <p className="err small">{err}</p>}
+          <button className="btn gold" type="submit">
+            Masuk ke Kasir
+          </button>
+        </form>
+
+        {showInstall && (
+          <div className="install-box">
+            <button className="btn gold install-btn" onClick={installApp}>
+              Install
+            </button>
+          </div>
+        )}
       </div>
-      <form className="login-card" onSubmit={submit}>
-        <label>Password</label>
-        <input type="password" placeholder="Masukkan password" value={pw} onChange={(e) => setPw(e.target.value)} autoFocus />
-        {err && <p className="err small">{err}</p>}
-        <button className="btn gold">Masuk</button>
-      </form>
     </div>
   );
 }
