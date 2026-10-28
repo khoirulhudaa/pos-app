@@ -20,6 +20,13 @@ const Product = mongoose.models.Product || mongoose.model("Product", new mongoos
   stock: { type: Number, default: 0 },
   stockEnd: { type: Number, default: null },
   sold: { type: Number, default: 0 },
+
+  // ===== PROMO =====
+  promo: {
+    enabled: { type: Boolean, default: false },
+    buyQty: { type: Number, min: 2 },      // contoh: 4
+    payAmount: { type: Number, min: 0 },   // contoh: 10000
+  },
 }, { timestamps: true }));
 
 const Tx = mongoose.models.Tx || mongoose.model("Tx", new mongoose.Schema({
@@ -71,14 +78,27 @@ app.post("/api/products", async (req, res) => {
 app.put("/api/products/:id", async (req, res) => {
   const p = await Product.findById(req.params.id);
   if (!p) return res.status(404).json({ message: "Produk tidak ditemukan" });
-  const { name, category, price, stockInitial } = req.body;
+
+  const { name, category, price, stockInitial, promo } = req.body;
+
   if (name) p.name = name;
   if (category) p.category = category;
   if (price != null) p.price = Number(price);
+
   if (stockInitial != null) {
     p.stock += Number(stockInitial) - p.stockInitial;
     p.stockInitial = Number(stockInitial);
   }
+
+  // ===== PROMO =====
+  if (promo) {
+    p.promo = {
+      enabled: !!promo.enabled,
+      buyQty: promo.enabled ? Number(promo.buyQty) : undefined,
+      payAmount: promo.enabled ? Number(promo.payAmount) : undefined,
+    };
+  }
+
   res.json(await p.save());
 });
 
@@ -100,6 +120,7 @@ app.get("/api/transactions", async (_, res) =>
   res.json(await Tx.find().sort({ createdAt: -1 }).limit(500))
 );
 
+// ==================== POST /api/transactions (bagian income) ====================
 app.post("/api/transactions", async (req, res) => {
   const {
     type,
@@ -113,24 +134,34 @@ app.post("/api/transactions", async (req, res) => {
 
   if (type === "income") {
     if (!items.length) return bad(res, "Keranjang kosong");
+
     const prods = await Product.find({ _id: { $in: items.map((i) => i.product) } });
     const lines = [];
+    let total = 0;
+
     for (const i of items) {
       const p = prods.find((x) => String(x._id) === String(i.product));
       const qty = Math.floor(Number(i.qty));
       if (!p || qty < 1) return bad(res, "Item tidak valid");
       if (p.stock < qty) return bad(res, `Stok ${p.name} tidak cukup (sisa ${p.stock})`);
+
+      const lineTotal = calcLineTotal(p, qty);
+      total += lineTotal;
+
       lines.push({
         product: p._id,
         name: p.name,
-        price: p.price,
+        price: p.price,               // tetap simpan harga normal
         qty,
-        category: p.category || "makanan",   // ← simpan category
+        category: p.category || "makanan",
+        // opsional: simpan juga lineTotal kalau mau
+        // lineTotal,
       });
     }
-    const total = lines.reduce((s, l) => s + l.price * l.qty, 0);
+
     const paid = method === "qris" ? total : Number(cashReceived);
     if (!(paid >= total)) return bad(res, "Uang diterima kurang dari total");
+
     await Product.bulkWrite(
       lines.map((l) => ({
         updateOne: {
@@ -139,11 +170,12 @@ app.post("/api/transactions", async (req, res) => {
         },
       }))
     );
+
     return res.json(
       await Tx.create({
         type,
         items: lines,
-        total,
+        total,                    // ← total sudah pakai promo
         method,
         cashReceived: paid,
         change: paid - total,

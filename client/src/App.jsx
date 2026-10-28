@@ -267,6 +267,16 @@ function TxRow({ t, children }) {
   );
 }
 
+// ==================== HELPER HITUNG PROMO ====================
+function calcLineTotal(product, qty) {
+  if (!product.promo?.enabled || !product.promo.buyQty || qty < product.promo.buyQty) {
+    return product.price * qty;
+  }
+  const fullSets = Math.floor(qty / product.promo.buyQty);
+  const remainder = qty % product.promo.buyQty;
+  return (fullSets * product.promo.payAmount) + (remainder * product.price);
+}
+
 // ---------- Kasir ----------
 function Kasir({ products, reload }) {
   const [cart, setCart] = useState({});
@@ -280,7 +290,7 @@ function Kasir({ products, reload }) {
 
   const shown = products.filter((p) => (cat === "all" || p.category === cat) && (p.name || "").toLowerCase().includes(q.toLowerCase()));
   const lines = products.filter((p) => cart[p._id]);
-  const total = lines.reduce((s, p) => s + p.price * cart[p._id], 0);
+  const total = lines.reduce((s, p) => s + calcLineTotal(p, cart[p._id]), 0);
   const count = lines.reduce((s, p) => s + cart[p._id], 0);
   const change = Number(cash || 0) - total;
   const canPay = lines.length && cash !== "" && change >= 0;
@@ -322,13 +332,28 @@ function Kasir({ products, reload }) {
             const level = p.stock < 1 ? "empty" : p.stock < 5 ? "low" : "good";
             return (
               <div key={p._id} className={"prod" + (qty ? " active" : "") + (p.stock < 1 ? " out" : "")}>
-                <div className="prod-top">
-                  <span className="pe">{emoji(p.category)}</span>
-                  <span className="price">{rp(p.price)}</span>
-                </div>
+                {/* Badge Promo */}
+                {p.promo?.enabled && (
+                  <div style={{
+                    background: "linear-gradient(135deg, #fbb02d, #f59e0b)",
+                    color: "#00264d",
+                    fontSize: 10.5,
+                    fontWeight: 800,
+                    padding: "3px 8px",
+                    borderRadius: 20,
+                    marginTop: 6,
+                    display: "inline-block",
+                    letterSpacing: "-0.2px"
+                  }}>
+                    Promo {p.promo.buyQty} = {rp(p.promo.payAmount)}
+                  </div>
+                )}
+
                 <div className="prod-name">
                   <b>{p.name}</b>
-                  <span className={"stock " + level}>{p.stock < 1 ? "Habis" : `Stok ${p.stock}`}</span>
+                  <span className={"stock " + level}>
+                    {p.stock < 1 ? "Habis" : `Stok ${p.stock}`}
+                  </span>
                 </div>
                 <div className="stepper">
                   <button onClick={() => add(p, -1)} disabled={qty < 1}>
@@ -353,13 +378,47 @@ function Kasir({ products, reload }) {
       {open && <div className="scrim" onClick={() => setOpen(false)} />}
       <div className={"cart-panel" + (open ? " open" : "")}>
         <div className="modal-h"><h3>Keranjang</h3><button className="icon-btn dark sheet-x" onClick={() => setOpen(false)}><Ic n="x" /></button></div>
-        {lines.map((p) => (
-          <div className="row" key={p._id}>
-            <div className="grow"><b>{p.name}</b><br /><small className="muted">{rp(p.price)}</small></div>
-            <div className="qty"><button onClick={() => add(p, -1)}>−</button><span>{cart[p._id]}</span><button onClick={() => add(p, 1)}>+</button></div>
-            <b className="w">{rp(p.price * cart[p._id])}</b>
-          </div>
-        ))}
+        {lines.map((p) => {
+          const qty = cart[p._id];
+          const lineTotal = calcLineTotal(p, qty);
+          const normalTotal = p.price * qty;
+          const hasPromo = p.promo?.enabled && qty >= p.promo.buyQty;
+
+          return (
+            <div className="row" key={p._id}>
+              <div className="grow">
+                <b>{p.name}</b>
+                <br />
+                <small className="muted">
+                  {rp(p.price)} × {qty}
+                  {hasPromo && (
+                    <span style={{ color: "var(--ok)", fontWeight: 700 }}>
+                      {" "}→ Promo
+                    </span>
+                  )}
+                </small>
+              </div>
+              <div className="qty">
+                <button onClick={() => add(p, -1)}>−</button>
+                <span>{qty}</span>
+                <button onClick={() => add(p, 1)}>+</button>
+              </div>
+              <b className="w" style={{ color: hasPromo ? "var(--ok)" : undefined }}>
+                {rp(lineTotal)}
+                {hasPromo && normalTotal !== lineTotal && (
+                  <small style={{ 
+                    display: "block", 
+                    fontSize: 11, 
+                    color: "var(--muted)", 
+                    textDecoration: "line-through" 
+                  }}>
+                    {rp(normalTotal)}
+                  </small>
+                )}
+              </b>
+            </div>
+          );
+        })}
         {!lines.length && <p className="muted center">Pilih produk untuk memulai</p>}
 
         <div className="total"><span>Total</span><b>{rp(total)}</b></div>
@@ -409,23 +468,62 @@ function Kasir({ products, reload }) {
 
 // ---------- Produk ----------
 function Produk({ products, reload, closeDay }) {
-  const empty = { name: "", category: "makanan", price: "", stockInitial: "" };
+  const empty = { 
+    name: "", 
+    category: "makanan", 
+    price: "", 
+    stockInitial: "",
+    promoEnabled: false,
+    promoBuyQty: "",
+    promoPayAmount: "",
+  };
   const [f, setF] = useState(empty);
   const [editId, setEditId] = useState(null);
   const [show, setShow] = useState(false);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const close = () => { setShow(false); setEditId(null); setF(empty); };
 
+  // Di submit:
   const submit = async (e) => {
     e.preventDefault();
     try {
-      await (editId ? req(`/products/${editId}`, "PUT", f) : req("/products", "POST", f));
-      close(); reload();
+      const payload = {
+        name: f.name,
+        category: f.category,
+        price: Number(f.price),
+        stockInitial: Number(f.stockInitial),
+        promo: {
+          enabled: !!f.promoEnabled,
+          buyQty: f.promoEnabled ? Number(f.promoBuyQty) : undefined,
+          payAmount: f.promoEnabled ? Number(f.promoPayAmount) : undefined,
+        },
+      };
+
+      await (editId 
+        ? req(`/products/${editId}`, "PUT", payload) 
+        : req("/products", "POST", payload)
+      );
+      close();
+      reload();
     } catch (x) {
       toast.error(x.message);
     }
   };
-  const edit = (p) => { setEditId(p._id); setF({ name: p.name, category: p.category, price: p.price, stockInitial: p.stockInitial }); setShow(true); };
+
+  // Di fungsi edit:
+  const edit = (p) => {
+    setEditId(p._id);
+    setF({
+      name: p.name,
+      category: p.category,
+      price: p.price,
+      stockInitial: p.stockInitial,
+      promoEnabled: p.promo?.enabled || false,
+      promoBuyQty: p.promo?.buyQty || "",
+      promoPayAmount: p.promo?.payAmount || "",
+    });
+    setShow(true);
+  };
   const del = async (p) => { if (confirm(`Hapus ${p.name}?`)) { await req(`/products/${p._id}`, "DELETE"); reload(); } };
 
   return (
@@ -469,6 +567,55 @@ function Produk({ products, reload, closeDay }) {
             <input type="number" inputMode="numeric" placeholder="0" value={f.price} onChange={set("price")} required />
             <label>Stok awal</label>
             <input type="number" inputMode="numeric" placeholder="0" value={f.stockInitial} onChange={set("stockInitial")} required />
+            {/* ===== PROMO ===== */}
+            <label style={{ marginTop: 16, display: "flex", alignItems: "center", gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={f.promoEnabled}
+                onChange={(e) => setF({ ...f, promoEnabled: e.target.checked })}
+                style={{ width: 18, height: 18 }}
+              />
+              Aktifkan Promo
+            </label>
+
+            {f.promoEnabled && (
+              <div style={{ 
+                background: "var(--ty)", 
+                borderRadius: 14, 
+                padding: "12px 14px", 
+                marginTop: 8,
+                border: "1px solid rgba(251,176,45,.4)"
+              }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <div>
+                    <label style={{ marginTop: 0 }}>Beli berapa</label>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      placeholder="4"
+                      value={f.promoBuyQty}
+                      onChange={set("promoBuyQty")}
+                      required={f.promoEnabled}
+                      min={2}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ marginTop: 0 }}>Bayar (Rp)</label>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      placeholder="10000"
+                      value={f.promoPayAmount}
+                      onChange={set("promoPayAmount")}
+                      required={f.promoEnabled}
+                    />
+                  </div>
+                </div>
+                <small style={{ color: "var(--warnt)", display: "block", marginTop: 6 }}>
+                  Contoh: Beli 4 bayar 10.000 → sisa dihitung harga normal
+                </small>
+              </div>
+            )}
             <button className="btn gold">{editId ? "Simpan perubahan" : "Tambah produk"}</button>
           </form>
         </Modal>
