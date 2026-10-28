@@ -52,6 +52,16 @@ const Tx = mongoose.models.Tx || mongoose.model("Tx", new mongoose.Schema({
 
 const bad = (res, m) => res.status(400).json({ message: m });
 
+// ==================== HELPER HITUNG PROMO ====================
+function calcLineTotal(product, qty) {
+  if (!product?.promo?.enabled || !product.promo.buyQty || qty < product.promo.buyQty) {
+    return product.price * qty;
+  }
+  const fullSets = Math.floor(qty / product.promo.buyQty);
+  const remainder = qty % product.promo.buyQty;
+  return (fullSets * product.promo.payAmount) + (remainder * product.price);
+}
+
 app.use("/api", async (req, res, next) => {
   if (req.headers["x-pass"] !== process.env.APP_PASSWORD) {
     return res.status(401).json({ message: "Password salah" });
@@ -64,15 +74,27 @@ app.use("/api", async (req, res, next) => {
 app.get("/api/products", async (_, res) => res.json(await Product.find().sort({ name: 1 })));
 
 app.post("/api/products", async (req, res) => {
-  const { name, category, price, stockInitial = 0 } = req.body;
+  const { name, category, price, stockInitial = 0, promo } = req.body;
   if (!name || !(Number(price) >= 0)) return bad(res, "Nama & harga wajib diisi");
-  res.json(await Product.create({
+
+  const data = {
     name,
     category,
     price: Number(price),
     stockInitial: Number(stockInitial),
     stock: Number(stockInitial),
-  }));
+  };
+
+  // Terima promo saat create
+  if (promo) {
+    data.promo = {
+      enabled: !!promo.enabled,
+      buyQty: promo.enabled ? Number(promo.buyQty) : undefined,
+      payAmount: promo.enabled ? Number(promo.payAmount) : undefined,
+    };
+  }
+
+  res.json(await Product.create(data));
 });
 
 app.put("/api/products/:id", async (req, res) => {
