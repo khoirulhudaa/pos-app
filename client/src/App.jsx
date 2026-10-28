@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import toast from "react-hot-toast";
 
 const rp = (n) => "Rp " + Number(n || 0).toLocaleString("id-ID");
 const emoji = (c) => (c === "minuman" ? "🥤" : "🍜");
@@ -149,9 +150,9 @@ function Beranda({ txs, products, go, closeDay, logout }) {
   const menu = [
     ["cart", "Kasir", () => go("kasir")],
     ["box", "Produk", () => go("produk")],
-    ["down", "Pengeluaran", () => go("keluar")],
+    ["down", "Belanja", () => go("keluar")],
     ["list", "Riwayat", () => go("riwayat")],
-    ["moon", "Tutup hari", closeDay],
+    ["moon", "Tutup", closeDay],
   ];
   return (
     <>
@@ -206,7 +207,12 @@ function TxRow({ t, children }) {
           <b className="tx-t">{inc ? t.items.map((i) => `${i.name} ×${i.qty}`).join(", ") : t.description}</b>
           <small className="muted">
             {new Date(t.createdAt).toLocaleString("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
-            {inc && ` · ${t.method === "qris" ? "QRIS" : "Tunai"}`}
+            {inc
+              ? ` · ${t.method === "qris" ? "QRIS" : t.method === "transfer" ? "Transfer" : t.method === "ewallet" ? "E-Wallet" : "Tunai"}`
+              : t.method
+                ? ` · ${t.method === "transfer" ? "Transfer" : t.method === "ewallet" ? "E-Wallet" : "Tunai"}`
+                : ""
+            }
           </small>
         </div>
         <b className={inc ? "ok" : "err"}>{inc ? "+" : "−"}{rp(t.total)}</b>
@@ -250,7 +256,9 @@ function Kasir({ products, reload }) {
       setDone({ total, paid, change: paid - total });
       setCart({}); setCash(""); setNote(""); setOpen(false);
       await reload();
-    } catch (e) { alert(e.message); }
+    } catch (e) {
+      toast.error(e.message);
+    }
     setBusy(false);
   };
 
@@ -368,7 +376,9 @@ function Produk({ products, reload, closeDay }) {
     try {
       await (editId ? req(`/products/${editId}`, "PUT", f) : req("/products", "POST", f));
       close(); reload();
-    } catch (x) { alert(x.message); }
+    } catch (x) {
+      toast.error(x.message);
+    }
   };
   const edit = (p) => { setEditId(p._id); setF({ name: p.name, category: p.category, price: p.price, stockInitial: p.stockInitial }); setShow(true); };
   const del = async (p) => { if (confirm(`Hapus ${p.name}?`)) { await req(`/products/${p._id}`, "DELETE"); reload(); } };
@@ -424,31 +434,85 @@ function Produk({ products, reload, closeDay }) {
 
 // ---------- Pengeluaran ----------
 function Pengeluaran({ products, reload }) {
-  const blank = { description: "", amount: "", product: "", qty: "", note: "" };
+  const blank = { description: "", amount: "", product: "", qty: "", note: "", method: "cash" };
   const [f, setF] = useState(blank);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+
   const submit = async (e) => {
     e.preventDefault();
     try {
       const items = f.product && f.qty ? [{ product: f.product, qty: Number(f.qty) }] : [];
-      await req("/transactions", "POST", { type: "expense", description: f.description, amount: Number(f.amount), items, note: f.note });
-      setF(blank); reload(); alert("Pengeluaran tercatat");
-    } catch (x) { alert(x.message); }
+      await req("/transactions", "POST", {
+        type: "expense",
+        description: f.description,
+        amount: Number(f.amount),
+        items,
+        note: f.note,
+        method: f.method, // tunai / transfer / e-wallet
+      });
+      setF(blank);
+      reload();
+      toast.success("Pengeluaran tercatat");
+    } catch (x) {
+      toast.error(x.message);
+    }
   };
+
   return (
     <form className="card" onSubmit={submit}>
       <label>Keterangan</label>
-      <input placeholder="Mis. Belanja bahan" value={f.description} onChange={set("description")} required />
+      <input
+        placeholder="Mis. Belanja bahan"
+        value={f.description}
+        onChange={set("description")}
+        required
+      />
+
       <label>Nominal</label>
-      <input type="number" inputMode="numeric" placeholder="0" value={f.amount} onChange={set("amount")} required />
+      <input
+        type="number"
+        inputMode="numeric"
+        placeholder="0"
+        value={f.amount}
+        onChange={set("amount")}
+        required
+      />
+
+      <label>Metode pembayaran</label>
+      <select value={f.method} onChange={set("method")}>
+        <option value="cash">Tunai</option>
+        <option value="transfer">Transfer</option>
+        <option value="ewallet">E-Wallet</option>
+      </select>
+
       <label>Tambah stok produk (opsional)</label>
       <select value={f.product} onChange={set("product")}>
         <option value="">Tidak menambah stok</option>
-        {products.map((p) => <option key={p._id} value={p._id}>{p.name}</option>)}
+        {products.map((p) => (
+          <option key={p._id} value={p._id}>{p.name}</option>
+        ))}
       </select>
-      {f.product && <><label>Jumlah stok dibeli</label><input type="number" inputMode="numeric" value={f.qty} onChange={set("qty")} required /></>}
+
+      {f.product && (
+        <>
+          <label>Jumlah stok dibeli</label>
+          <input
+            type="number"
+            inputMode="numeric"
+            value={f.qty}
+            onChange={set("qty")}
+            required
+          />
+        </>
+      )}
+
       <label>Catatan</label>
-      <input placeholder="Opsional" value={f.note} onChange={set("note")} />
+      <input
+        placeholder="Opsional"
+        value={f.note}
+        onChange={set("note")}
+      />
+
       <button className="btn gold">Simpan pengeluaran</button>
     </form>
   );
@@ -464,7 +528,16 @@ function Riwayat({ txs, reload }) {
   const inc = list.filter((t) => t.type === "income").reduce((s, t) => s + t.total, 0);
   const exp = list.filter((t) => t.type === "expense").reduce((s, t) => s + t.total, 0);
 
-  const del = async (t) => { if (confirm("Hapus transaksi? Stok akan dikembalikan.")) { await req(`/transactions/${t._id}`, "DELETE"); reload(); } };
+  const del = async (t) => {
+    if (!confirm("Hapus transaksi? Stok akan dikembalikan.")) return;
+    try {
+      await req(`/transactions/${t._id}`, "DELETE");
+      reload();
+      toast.success("Transaksi dihapus");
+    } catch (e) {
+      toast.error(e.message);
+    }
+  };
   const edit = async (t) => {
     const note = prompt("Catatan:", t.note || "");
     if (note === null) return;
@@ -519,13 +592,21 @@ export default function App() {
       const [p, t] = await Promise.all([req("/products"), req("/transactions")]);
       setProducts(Array.isArray(p) ? p.filter((x) => x && x.name) : []);
       setTxs(Array.isArray(t) ? t : []);
-    } catch (e) { if (e.status === 401) logout(); else alert(e.message); }
+    } catch (e) {
+      if (e.status === 401) logout();
+      else toast.error(e.message);
+    }
   };
 
   // WAJIB: load data setiap kali sudah login / setelah refresh
   useEffect(() => {
     if (authed) reload();
   }, [authed]);
+
+  // Auto-reload setiap kali buka halaman Beranda
+  useEffect(() => {
+    if (authed && tab === "home") reload();
+  }, [tab, authed]);
 
   const closeDay = async () => {
     if (confirm("Tutup hari? Stok sekarang disimpan sebagai Stok Akhir dan jadi Stok Awal besok.")) {
