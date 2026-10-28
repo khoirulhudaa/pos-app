@@ -510,7 +510,11 @@ export default function App() {
   const [tab, setTab] = useState("home");
   const [products, setProducts] = useState([]);
   const [txs, setTxs] = useState([]);
-  const [booting, setBooting] = useState(true);
+  const [booting, setBooting] = useState(() => {
+    // Hanya true jika dibuka sebagai app terinstall (bukan browser biasa)
+    return window.matchMedia("(display-mode: standalone)").matches
+      || window.navigator.standalone === true; // iOS
+  });
 
   const logout = () => { localStorage.removeItem("pos_pass"); setAuthed(false); };
   const reload = async () => {
@@ -520,11 +524,12 @@ export default function App() {
       setTxs(Array.isArray(t) ? t : []);
     } catch (e) { if (e.status === 401) logout(); else alert(e.message); }
   };
-    
+  
   useEffect(() => {
+    if (!booting) return;
     const t = setTimeout(() => setBooting(false), 900);
     return () => clearTimeout(t);
-  }, []);
+  }, [booting]);
 
   if (booting) {
     return (
