@@ -617,7 +617,7 @@ export default function App() {
   if (!authed) return <Login onOk={() => setAuthed(true)} />;
 
   const titles = { kasir: ["Kasir", "Pilih produk & terima pembayaran"], produk: ["Produk", "Kelola menu & stok"], keluar: ["Pengeluaran", "Catat biaya & belanja stok"], riwayat: ["Riwayat", "Semua transaksi tokomu"] };
-  const nav = [["home", "Beranda", "home"], ["produk", "Produk", "box"], ["kasir", "Kasir", "cart"], ["keluar", "Pengeluaran", "down"], ["riwayat", "Riwayat", "list"]];
+  const nav = [["home", "Beranda", "home"], ["produk", "Produk", "box"], ["kasir", "Kasir", "cart"], ["keluar", "Belanja", "down"], ["riwayat", "Riwayat", "list"]];
 
   return (
     <div className="app">
