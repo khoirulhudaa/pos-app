@@ -499,5 +499,5 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); backgro
   background: var(--blue2);
 }
 .switch-row input[type="checkbox"]:checked::before {
-  left: 23px;
+  left: 21px;
 }
