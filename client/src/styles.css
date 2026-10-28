@@ -80,6 +80,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); backgro
 /* ================= Tombol ================= */
 .btn { width: 100%; padding: 15px; border-radius: 15px; font-weight: 700; font-size: 15px; display: flex; align-items: center; justify-content: center; gap: 7px; margin-top: 14px; transition: transform .1s, filter .15s; }
 .btn.ghost { background: var(--surface); border: 1.5px solid var(--line); color: var(--accent); }
+.btn.gold { background: rgb(1, 103, 219); border: 1.5px solid var(--line); color: white; }
 .btn:hover:not(:disabled) { filter: brightness(1.04); } .btn:active:not(:disabled) { transform: scale(.98); }
 .btn:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
 .row-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
