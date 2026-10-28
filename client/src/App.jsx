@@ -393,7 +393,7 @@ function TxRow({ t, children }) {
               minute: "2-digit",
             })}
             {inc
-              ? ` · ${
+              ? `, ${
                   t.method === "qris"
                     ? "QRIS"
                     : t.method === "transfer"
@@ -403,7 +403,7 @@ function TxRow({ t, children }) {
                     : "Tunai"
                 }`
               : t.method
-              ? ` · ${
+              ? `, ${
                   t.method === "transfer"
                     ? "Transfer"
                     : t.method === "ewallet"
