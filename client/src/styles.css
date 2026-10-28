@@ -132,7 +132,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); backgro
 /* Hanya di mobile */
 @media (max-width: 570px) {
   .login-content {
-    width: 96vw;
+    width: 92vw;
     max-width: none;
   }
 }
