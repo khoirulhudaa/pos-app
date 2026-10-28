@@ -59,7 +59,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); backgro
 .hero-row { display: flex; align-items: center; gap: 12px; }
 .hero-row small { display: block; opacity: .8; } .hero-row b { font-size: 16px; }
 .avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--blue2); color: white ; display: grid; place-items: center; font-weight: 800; }
-.icon-btn { width: 42px; height: 42px; border-radius: 13px; background: rgba(255, 255, 255, .16); display: grid; place-items: center; color: #fff; transition: background .15s; }
+.icon-btn { width: 44px; height: 44px; border-radius: 13px; background: rgba(255, 255, 255, .16); display: grid; place-items: center; color: #fff; transition: background .15s; }
 .icon-btn:hover { background: rgba(255, 255, 255, .26); }
 .icon-btn.dark { background: var(--surface2); color: var(--text); }
 .balance {
@@ -458,4 +458,46 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); backgro
 @media (max-width: 380px) {
   .menu { padding: 14px 2px; } .mi { width: 44px; height: 44px; } .menu button { font-size: 10.5px; }
   .products { gap: 8px; } .prod { padding: 12px; } .sum3 b { font-size: 13px; }
+}
+
+.switch-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+  font-weight: 600;
+  font-size: 14px;
+}
+.switch-row:last-child {
+  border-bottom: none;
+}
+.switch-row input[type="checkbox"] {
+  width: 46px;
+  height: 26px;
+  appearance: none;
+  background: #cbd5e1;
+  border-radius: 30px;
+  position: relative;
+  cursor: pointer;
+  transition: 0.2s;
+  margin: 0;
+}
+.switch-row input[type="checkbox"]::before {
+  content: "";
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: white;
+  top: 3px;
+  left: 3px;
+  transition: 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.switch-row input[type="checkbox"]:checked {
+  background: var(--blue2);
+}
+.switch-row input[type="checkbox"]:checked::before {
+  left: 23px;
 }

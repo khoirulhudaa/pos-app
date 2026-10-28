@@ -139,7 +139,18 @@ function Login({ onOk }) {
 }
 
 // ---------- Beranda ----------
-function Beranda({ txs, products, go, closeDay, logout }) {
+function Beranda({ txs, products, go, closeDay, logout, settings = {} }) {
+
+  // kasih nilai default biar tidak error
+  const {
+    hideNominal = false,
+    hidePengeluaran = false,
+    hideLaba = false,
+    maxRiwayatBeranda = 5,
+    filterJenis = "all",
+    filterKategori = "all",
+  } = settings;
+
   const today = new Date().toDateString();
   const tt = txs.filter((t) => new Date(t.createdAt).toDateString() === today);
   const inc = tt.filter((t) => t.type === "income").reduce((s, t) => s + t.total, 0);
@@ -154,20 +165,66 @@ function Beranda({ txs, products, go, closeDay, logout }) {
     { img: "/riwayat.png", label: "Riwayat", fn: () => go("riwayat") },
     { img: "/tutup.png", label: "Tutup", fn: closeDay },
   ];
+
+  // Filter transaksi sesuai pengaturan
+  let filteredTxs = [...txs];
+
+  if (settings.filterJenis !== "all") {
+    filteredTxs = filteredTxs.filter(t => t.type === settings.filterJenis);
+  }
+
+  if (settings.filterKategori !== "all") {
+    filteredTxs = filteredTxs.filter(t => 
+      t.items?.some(i => i.category === settings.filterKategori)
+    );
+  }
+
+  const displayTxs = filteredTxs.slice(0, settings.maxRiwayatBeranda);
+
+  // Helper untuk menyembunyikan nominal
+  const money = (value) => {
+    if (settings.hideNominal) return "••••••";
+    return rp(value);
+  };
+
   return (
     <>
       <div className="hero">
         <div className="hero-row">
           <div className="avatar">K</div>
-          <div className="grow"><small>{greet},</small><b>Pemilik Toko</b></div>
-          <button className="icon-btn" onClick={logout} title="Keluar"><Ic n="out" /></button>
+          <div className="grow">
+            <small>{greet},</small>
+            <b>Pemilik Toko</b>
+          </div>
+
+          {/* Tombol Settings + Logout */}
+          <div style={{ display: "flex", gap: 8 }}>
+            <button 
+              
+              style={{borderRadius: '9999px'}}
+              className="icon-btn" 
+              onClick={() => go("setting")} 
+              title="Pengaturan"
+            >
+              <Ic n="edit" /> {/* atau buat icon settings baru */}
+            </button>
+            <button 
+            style={{borderRadius: '9999px'}}
+            className="icon-btn" onClick={logout} title="Keluar">
+              <Ic n="out" />
+            </button>
+          </div>
         </div>
         <div className="balance">
           <span>Laba hari ini</span>
-          <strong>{rp(inc - exp)}</strong>
+          <strong>{hideLaba ? "••••••" : money(inc - exp)}</strong>
           <div className="bal-row">
-            <div><small>Pemasukan</small><b className="ok">{rp(inc)}</b></div>
-            <div><small>Pengeluaran</small><b className="err">{rp(exp)}</b></div>
+            <div><small>Pemasukan</small>
+              <b className="ok">{money(inc)}</b>
+            </div>
+            <div><small>Pengeluaran</small>
+            <b className="err">{hidePengeluaran ? "••••••" : money(exp)}</b>
+            </div>
             <div><small>Transaksi</small><b>{tt.length}</b></div>
           </div>
         </div>
@@ -210,6 +267,101 @@ const getTxImg = (t) => {
   }
   return "/drink.png"; // default untuk pengeluaran biasa
 };
+
+function Setting({ settings, setSettings, go }) {
+  const update = (key, value) => {
+    setSettings((prev) => ({ ...prev, [key]: value }));
+  };
+
+  return (
+    <>
+      <Top 
+        title="Pengaturan" 
+        sub="Atur tampilan & privasi aplikasi"
+        right={
+          <button className="icon-btn dark" onClick={() => go("home")}>
+            <Ic n="x" />
+          </button>
+        }
+      />
+
+      <div className="page pull">
+        {/* ===== PRIVASI NOMINAL ===== */}
+        <div className="card">
+          <h3 style={{ marginBottom: 16 }}>Privasi Nominal</h3>
+
+          <label className="switch-row">
+            <span>Sembunyikan semua nominal</span>
+            <input
+              type="checkbox"
+              checked={settings.hideNominal}
+              onChange={(e) => update("hideNominal", e.target.checked)}
+            />
+          </label>
+
+          <label className="switch-row">
+            <span>Sembunyikan Pengeluaran</span>
+            <input
+              type="checkbox"
+              checked={settings.hidePengeluaran}
+              onChange={(e) => update("hidePengeluaran", e.target.checked)}
+            />
+          </label>
+
+          <label className="switch-row">
+            <span>Sembunyikan Laba</span>
+            <input
+              type="checkbox"
+              checked={settings.hideLaba}
+              onChange={(e) => update("hideLaba", e.target.checked)}
+            />
+          </label>
+        </div>
+
+        {/* ===== BERANDA ===== */}
+        <div className="card" style={{ marginTop: 16 }}>
+          <h3 style={{ marginBottom: 16 }}>Tampilan Beranda</h3>
+
+          <label>Jumlah maksimal transaksi di Beranda</label>
+          <select
+            value={settings.maxRiwayatBeranda}
+            onChange={(e) => update("maxRiwayatBeranda", Number(e.target.value))}
+          >
+            <option value={3}>3 transaksi</option>
+            <option value={5}>5 transaksi</option>
+            <option value={8}>8 transaksi</option>
+            <option value={10}>10 transaksi</option>
+            <option value={15}>15 transaksi</option>
+          </select>
+
+          <label style={{ marginTop: 16 }}>Tampilkan jenis transaksi</label>
+          <select
+            value={settings.filterJenis}
+            onChange={(e) => update("filterJenis", e.target.value)}
+          >
+            <option value="all">Semua (Masuk + Keluar)</option>
+            <option value="income">Hanya Pemasukan</option>
+            <option value="expense">Hanya Pengeluaran</option>
+          </select>
+
+          <label style={{ marginTop: 16 }}>Filter kategori produk</label>
+          <select
+            value={settings.filterKategori}
+            onChange={(e) => update("filterKategori", e.target.value)}
+          >
+            <option value="all">Semua kategori</option>
+            <option value="makanan">Hanya Makanan</option>
+            <option value="minuman">Hanya Minuman</option>
+          </select>
+        </div>
+
+        <p className="muted center" style={{ marginTop: 24, fontSize: 13 }}>
+          Pengaturan disimpan otomatis di perangkat ini
+        </p>
+      </div>
+    </>
+  );
+}
 
 function TxRow({ t, children }) {
   const inc = t.type === "income";
@@ -891,6 +1043,33 @@ export default function App() {
   const [products, setProducts] = useState([]);
   const [txs, setTxs] = useState([]);
 
+  const [settings, setSettings] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("pos_settings")) || {
+        hideNominal: false,        // sembunyikan semua nominal uang
+        hidePengeluaran: false,    // sembunyikan pengeluaran
+        hideLaba: false,           // sembunyikan laba
+        maxRiwayatBeranda: 5,      // jumlah transaksi di beranda
+        filterJenis: "all",        // all | income | expense
+        filterKategori: "all",     // all | makanan | minuman
+      };
+    } catch {
+      return {
+        hideNominal: false,
+        hidePengeluaran: false,
+        hideLaba: false,
+        maxRiwayatBeranda: 5,
+        filterJenis: "all",
+        filterKategori: "all",
+      };
+    }
+  });
+
+  // Simpan otomatis setiap settings berubah
+  useEffect(() => {
+    localStorage.setItem("pos_settings", JSON.stringify(settings));
+  }, [settings]);
+
   const logout = () => { localStorage.removeItem("pos_pass"); setAuthed(false); };
   const reload = async () => {
     try {
@@ -933,8 +1112,13 @@ const nav = [
   return (
     <div className="app">
       {tab === "home" ? (
-        <Beranda txs={txs} products={products} go={setTab} closeDay={closeDay} logout={logout} />
-      ) : (
+        <Beranda txs={txs} products={products} go={setTab} closeDay={closeDay} logout={logout} settings={settings} />
+      ): tab === "setting" ? (
+        <Setting 
+          settings={settings} 
+          setSettings={setSettings} 
+          go={setTab} 
+        />): (
         <>
           <Top title={titles[tab][0]} sub={titles[tab][1]} />
           <div className="page pull">
