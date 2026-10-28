@@ -1113,6 +1113,7 @@ export default function App() {
               background: "#e2e8f0",
               fontWeight: 600,
               fontSize: 13,
+              color: 'black'
             }}
           >
             Batal
