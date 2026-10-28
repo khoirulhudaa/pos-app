@@ -332,22 +332,24 @@ function Kasir({ products, reload }) {
             const level = p.stock < 1 ? "empty" : p.stock < 5 ? "low" : "good";
             return (
               <div key={p._id} className={"prod" + (qty ? " active" : "") + (p.stock < 1 ? " out" : "")}>
-                {/* Badge Promo */}
-                {p.promo?.enabled && (
-                  <div style={{
-                    background: "linear-gradient(135deg, #fbb02d, #f59e0b)",
-                    color: "#00264d",
-                    fontSize: 10.5,
-                    fontWeight: 800,
-                    padding: "3px 8px",
-                    borderRadius: 20,
-                    marginTop: 6,
-                    display: "inline-block",
-                    letterSpacing: "-0.2px"
-                  }}>
-                    Promo {p.promo.buyQty} = {rp(p.promo.payAmount)}
-                  </div>
-                )}
+                {/* Badge Harga / Promo */}
+                <div style={{
+                  background: p.promo?.enabled 
+                    ? "linear-gradient(135deg, #fbb02d, #f59e0b)" 
+                    : "#e5e7eb",
+                  color: p.promo?.enabled ? "#00264d" : "#6b7280",
+                  fontSize: 10.5,
+                  fontWeight: 800,
+                  padding: "3px 8px",
+                  borderRadius: 20,
+                  marginTop: 6,
+                  display: "inline-block",
+                  letterSpacing: "-0.2px"
+                }}>
+                  {p.promo?.enabled 
+                    ? `Promo ${p.promo.buyQty} = ${rp(p.promo.payAmount)}` 
+                    : "Harga normal"}
+                </div>
 
                 <div className="prod-name">
                   <b>{p.name}</b>
