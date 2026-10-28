@@ -522,6 +522,11 @@ export default function App() {
     } catch (e) { if (e.status === 401) logout(); else alert(e.message); }
   };
 
+  // WAJIB: load data setiap kali sudah login / setelah refresh
+  useEffect(() => {
+    if (authed) reload();
+  }, [authed]);
+
   const closeDay = async () => {
     if (confirm("Tutup hari? Stok sekarang disimpan sebagai Stok Akhir dan jadi Stok Awal besok.")) {
       await req("/close-day", "POST"); reload();
