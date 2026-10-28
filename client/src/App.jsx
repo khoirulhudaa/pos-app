@@ -103,7 +103,9 @@ function Login({ onOk }) {
 
       <div className="login-content">
         <div className="login-top">
-          <div className="logo">K</div>
+          <div className="logo">
+            <img src="/icon-192.png" alt="icon" style={{width: '100%', transform: 'scale(1.1)'}} />
+          </div>
           <h1>KasirKu</h1>
           <p>Catat penjualan, stok, dan keuangan toko dengan mudah</p>
         </div>
@@ -524,7 +526,7 @@ export default function App() {
       setTxs(Array.isArray(t) ? t : []);
     } catch (e) { if (e.status === 401) logout(); else alert(e.message); }
   };
-  
+
   useEffect(() => {
     if (!booting) return;
     const t = setTimeout(() => setBooting(false), 900);
