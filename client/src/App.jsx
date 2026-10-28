@@ -31,28 +31,11 @@ const Ic = ({ n, s = 20 }) => (
 async function req(path, method = "GET", body) {
   const r = await fetch("/api" + path, {
     method,
-    headers: {
-      "Content-Type": "application/json",
-      "x-pass": localStorage.getItem("pos_pass") || "",
-    },
+    headers: { "Content-Type": "application/json", "x-pass": localStorage.getItem("pos_pass") || "" },
     body: body ? JSON.stringify(body) : undefined,
   });
-
   const d = await r.json().catch(() => ({}));
-
-  if (!r.ok) {
-    // ===== OTOMATIS LOGOUT KALAU PASSWORD SALAH =====
-    if (r.status === 401) {
-      localStorage.removeItem("pos_pass");
-      // Kirim event supaya App component langsung set authed = false
-      window.dispatchEvent(new CustomEvent("pos-logout"));
-    }
-
-    throw Object.assign(new Error(d.message || "Terjadi kesalahan"), {
-      status: r.status,
-    });
-  }
-
+  if (!r.ok) throw Object.assign(new Error(d.message || "Terjadi kesalahan"), { status: r.status });
   return d;
 }
 
@@ -802,11 +785,8 @@ export default function App() {
       setProducts(Array.isArray(p) ? p.filter((x) => x && x.name) : []);
       setTxs(Array.isArray(t) ? t : []);
     } catch (e) {
-      // 401 sudah ditangani di req → langsung logout
-      // Jadi di sini cukup tampilkan error selain 401
-      if (e.status !== 401) {
-        toast.error(e.message);
-      }
+      if (e.status === 401) logout();
+      else toast.error(e.message);
     }
   };
 
@@ -814,16 +794,6 @@ export default function App() {
   useEffect(() => {
     if (authed) reload();
   }, [authed]);
-
-  // Otomatis logout & ke halaman Login kalau ada error password
-  useEffect(() => {
-    const handleLogout = () => {
-      setAuthed(false);
-    };
-
-    window.addEventListener("pos-logout", handleLogout);
-    return () => window.removeEventListener("pos-logout", handleLogout);
-  }, []);
 
   // Auto-reload setiap kali buka halaman Beranda
   useEffect(() => {
