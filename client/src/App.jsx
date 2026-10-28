@@ -374,7 +374,7 @@ function Produk({ products, reload, closeDay }) {
   return (
     <>
       <div className="row-actions">
-        <button className="btn gold" onClick={() => setShow(true)}><Ic n="plus" s={18} /> Tambah produk</button>
+        <button className="btn ghost" style={{backgroundColor: 'white'}} onClick={() => setShow(true)}><Ic n="plus" s={18} /> Tambah produk</button>
         <button className="btn ghost" onClick={closeDay}><Ic n="moon" s={18} /> Tutup hari</button>
       </div>
 
