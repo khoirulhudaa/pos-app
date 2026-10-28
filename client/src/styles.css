@@ -77,6 +77,11 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); backgro
 .menu { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 22px; padding: 16px 6px; box-shadow: var(--shadow); margin-bottom: 18px; }
 .menu button { display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 11.5px; font-weight: 600; text-align: center; padding: 2px; }
 .mi { width: 50px; height: 50px; border-radius: 17px; background: var(--ty); color: var(--accent); display: grid; place-items: center; transition: transform .15s; }
+.mi img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
 .menu button:hover .mi { transform: translateY(-2px); } .menu button:active .mi { transform: scale(.94); }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 16px; box-shadow: var(--shadow); margin-bottom: 12px; }
 .sec-h { display: flex; justify-content: space-between; align-items: center; margin: 10px 2px 12px; }

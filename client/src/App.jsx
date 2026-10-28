@@ -148,11 +148,11 @@ function Beranda({ txs, products, go, closeDay, logout }) {
   const h = new Date().getHours();
   const greet = h < 11 ? "Selamat pagi" : h < 15 ? "Selamat siang" : h < 18 ? "Selamat sore" : "Selamat malam";
   const menu = [
-    ["cart", "Kasir", () => go("kasir")],
-    ["box", "Produk", () => go("produk")],
-    ["down", "Belanja", () => go("keluar")],
-    ["list", "Riwayat", () => go("riwayat")],
-    ["moon", "Tutup", closeDay],
+    { img: "/kasir2.png", label: "Kasir", fn: () => go("kasir") },
+    { img: "/produk.png", label: "Produk", fn: () => go("produk") },
+    { img: "/keranjang.png", label: "Belanja", fn: () => go("keluar") },
+    { img: "/riwayat.png", label: "Riwayat", fn: () => go("riwayat") },
+    { img: "/tutup.png", label: "Tutup", fn: closeDay },
   ];
   return (
     <>
@@ -175,8 +175,13 @@ function Beranda({ txs, products, go, closeDay, logout }) {
 
       <div className="page pull">
         <div className="menu">
-          {menu.map(([i, l, fn]) => (
-            <button key={l} onClick={fn}><span className="mi"><Ic n={i} s={22} /></span>{l}</button>
+          {menu.map((m) => (
+            <button key={m.label} onClick={m.fn}>
+              <span className="mi">
+                <img src={m.img} alt={m.label} />
+              </span>
+              {m.label}
+            </button>
           ))}
         </div>
 
@@ -201,9 +206,9 @@ function Beranda({ txs, products, go, closeDay, logout }) {
 const getTxImg = (t) => {
   if (t.items?.length) {
     const isDrink = t.items.some((i) => i.category === "minuman");
-    return isDrink ? "/drink.png" : "/food.png";
+    return isDrink ? "/drink.png" : "/drink.png";
   }
-  return "/food.png"; // default untuk pengeluaran biasa
+  return "/drink.png"; // default untuk pengeluaran biasa
 };
 
 function TxRow({ t, children }) {
@@ -215,7 +220,7 @@ function TxRow({ t, children }) {
           <img
             src={getTxImg(t)}
             alt=""
-            style={{ width: 24, height: 24, objectFit: "contain" }}
+            style={{ width: 24, height: 24, objectFit: "contain", transform: 'rotate(20deg)' }}
           />
         </span>
         <div className="grow">
@@ -657,7 +662,13 @@ export default function App() {
   if (!authed) return <Login onOk={() => setAuthed(true)} />;
 
   const titles = { kasir: ["Kasir", "Pilih produk & terima pembayaran"], produk: ["Produk", "Kelola menu & stok"], keluar: ["Pengeluaran", "Catat biaya & belanja stok"], riwayat: ["Riwayat", "Semua transaksi tokomu"] };
-  const nav = [["home", "Beranda", "home"], ["produk", "Produk", "box"], ["kasir", "Kasir", "cart"], ["keluar", "Belanja", "down"], ["riwayat", "Riwayat", "list"]];
+const nav = [
+  { key: "home", label: "Beranda", img: "/beranda.png" },          // tetap SVG kalau belum ada gambar
+  { key: "produk", label: "Produk", img: "/produk.png" },
+  { key: "kasir", label: "Kasir", img: "/kasir2.png" },
+  { key: "keluar", label: "Belanja", img: "/keranjang.png" },
+  { key: "riwayat", label: "Riwayat", img: "/riwayat.png" },
+];
 
   return (
     <div className="app">
@@ -676,10 +687,20 @@ export default function App() {
       )}
 
       <nav className="nav">
-        {nav.map(([k, l, i]) => (
-          <button key={k} className={(tab === k ? "on " : "") + (k === "kasir" ? "mid" : "")} onClick={() => setTab(k)}>
-            <span className="ni"><Ic n={i} s={k === "kasir" ? 26 : 22} /></span>
-            <small>{l}</small>
+        {nav.map((n) => (
+          <button
+            key={n.key}
+            className={(tab === n.key ? "on " : "") + (n.key === "kasir" ? "mid" : "")}
+            onClick={() => setTab(n.key)}
+          >
+            <span className="ni">
+              {n.img ? (
+                <img src={n.img} alt={n.label} style={{ width: n.key === "kasir" ? 30 : 24, height: n.key === "kasir" ? 30 : 24, objectFit: "contain" }} />
+              ) : (
+                <Ic n="home" s={22} />
+              )}
+            </span>
+            <small>{n.label}</small>
           </button>
         ))}
       </nav>
