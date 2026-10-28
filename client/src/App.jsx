@@ -197,25 +197,65 @@ function Beranda({ txs, products, go, closeDay, logout }) {
   );
 }
 
+// Tentukan icon berdasarkan kategori transaksi
+const getTxImg = (t) => {
+  if (t.items?.length) {
+    const isDrink = t.items.some((i) => i.category === "minuman");
+    return isDrink ? "/drink.png" : "/food.png";
+  }
+  return "/food.png"; // default untuk pengeluaran biasa
+};
+
 function TxRow({ t, children }) {
   const inc = t.type === "income";
   return (
     <div className="card tx">
       <div className="tx-main">
-        <span className={`tx-ic ${inc ? "in" : "outc"}`}><Ic n={inc ? "up" : "down"} s={18} /></span>
+        <span className={`tx-ic ${inc ? "in" : "outc"}`}>
+          <img
+            src={getTxImg(t)}
+            alt=""
+            style={{ width: 24, height: 24, objectFit: "contain" }}
+          />
+        </span>
         <div className="grow">
-          <b className="tx-t">{inc ? t.items.map((i) => `${i.name} ×${i.qty}`).join(", ") : t.description}</b>
-          <small className="muted">
-            {new Date(t.createdAt).toLocaleString("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+          <b className="tx-t">
             {inc
-              ? ` · ${t.method === "qris" ? "QRIS" : t.method === "transfer" ? "Transfer" : t.method === "ewallet" ? "E-Wallet" : "Tunai"}`
+              ? t.items.map((i) => `${i.name} ×${i.qty}`).join(", ")
+              : t.description}
+          </b>
+          <small className="muted">
+            {new Date(t.createdAt).toLocaleString("id-ID", {
+              day: "numeric",
+              month: "short",
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+            {inc
+              ? ` · ${
+                  t.method === "qris"
+                    ? "QRIS"
+                    : t.method === "transfer"
+                    ? "Transfer"
+                    : t.method === "ewallet"
+                    ? "E-Wallet"
+                    : "Tunai"
+                }`
               : t.method
-                ? ` · ${t.method === "transfer" ? "Transfer" : t.method === "ewallet" ? "E-Wallet" : "Tunai"}`
-                : ""
-            }
+              ? ` · ${
+                  t.method === "transfer"
+                    ? "Transfer"
+                    : t.method === "ewallet"
+                    ? "E-Wallet"
+                    : "Tunai"
+                }`
+              : ""}
           </small>
         </div>
-        <b className={inc ? "ok" : "err"}>{inc ? "+" : "−"}{rp(t.total)}</b>
+        <b className={inc ? "ok" : "err"}>
+          {inc ? "+" : "−"}
+          {rp(t.total)}
+        </b>
       </div>
       {children}
     </div>

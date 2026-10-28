@@ -43,6 +43,14 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); backgro
   content: ""; position: absolute; width: 280px; height: 280px; border-radius: 50%;
   right: -90px; top: -110px; background: rgba(251, 176, 45, .2); filter: blur(8px);
 }
+
+.tx-ic img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  display: block;
+}
+
 .top > *, .hero > * { position: relative; }
 .top { padding: 24px var(--gx) 60px; border-radius: 0 0 30px 30px; display: flex; justify-content: space-between; align-items: center; }
 .top h1 { font-size: clamp(22px, 4vw, 28px); font-weight: 800; letter-spacing: -.02em; }
@@ -50,7 +58,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); backgro
 .hero { padding: 20px var(--gx) 70px; border-radius: 0 0 30px 30px; }
 .hero-row { display: flex; align-items: center; gap: 12px; }
 .hero-row small { display: block; opacity: .8; } .hero-row b { font-size: 16px; }
-.avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--blue2); color: white; display: grid; place-items: center; font-weight: 800; }
+.avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--blue2); color: white ; display: grid; place-items: center; font-weight: 800; }
 .icon-btn { width: 42px; height: 42px; border-radius: 13px; background: rgba(255, 255, 255, .16); display: grid; place-items: center; color: #fff; transition: background .15s; }
 .icon-btn:hover { background: rgba(255, 255, 255, .26); }
 .icon-btn.dark { background: var(--surface2); color: var(--text); }

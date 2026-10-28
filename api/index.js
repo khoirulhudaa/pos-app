@@ -25,7 +25,13 @@ const Product = mongoose.models.Product || mongoose.model("Product", new mongoos
 const Tx = mongoose.models.Tx || mongoose.model("Tx", new mongoose.Schema({
   type: { type: String, enum: ["income", "expense"], required: true },
   description: String,
-  items: [{ product: mongoose.Schema.Types.ObjectId, name: String, price: Number, qty: Number }],
+    items: [{
+    product: mongoose.Schema.Types.ObjectId,
+    name: String,
+    price: Number,
+    qty: Number,
+    category: { type: String, enum: ["makanan", "minuman"], default: "makanan" }  // ← tambahkan ini
+  }],
   total: Number,
   method: {
     type: String,
@@ -114,7 +120,13 @@ app.post("/api/transactions", async (req, res) => {
       const qty = Math.floor(Number(i.qty));
       if (!p || qty < 1) return bad(res, "Item tidak valid");
       if (p.stock < qty) return bad(res, `Stok ${p.name} tidak cukup (sisa ${p.stock})`);
-      lines.push({ product: p._id, name: p.name, price: p.price, qty });
+      lines.push({
+        product: p._id,
+        name: p.name,
+        price: p.price,
+        qty,
+        category: p.category || "makanan",   // ← simpan category
+      });
     }
     const total = lines.reduce((s, l) => s + l.price * l.qty, 0);
     const paid = method === "qris" ? total : Number(cashReceived);
@@ -149,7 +161,13 @@ app.post("/api/transactions", async (req, res) => {
       const p = await Product.findById(i.product);
       const qty = Math.floor(Number(i.qty));
       if (!p || qty < 1) return bad(res, "Item tidak valid");
-      lines.push({ product: p._id, name: p.name, price: 0, qty });
+      lines.push({
+        product: p._id,
+        name: p.name,
+        price: 0,
+        qty,
+        category: p.category || "makanan",   // ← simpan category
+      });
     }
     if (lines.length) {
       await Product.bulkWrite(
