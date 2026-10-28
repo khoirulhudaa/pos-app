@@ -229,13 +229,28 @@ app.post("/api/transactions", async (req, res) => {
 app.put("/api/transactions/:id", async (req, res) => {
   const t = await Tx.findById(req.params.id);
   if (!t) return res.status(404).json({ message: "Tidak ditemukan" });
-  const { note, description, amount, method } = req.body;
+
+  const { note, description, amount, method, items } = req.body;
+
   if (note != null) t.note = note;
   if (method) t.method = method;
+
   if (t.type === "expense") {
     if (description) t.description = description;
     if (Number(amount) > 0) t.total = Number(amount);
   }
+
+  // ===== untuk income =====
+  if (t.type === "income") {
+    if (Number(amount) > 0) t.total = Number(amount);
+
+    // Update item pertama (paling umum dipakai)
+    if (items && items[0] && t.items?.[0]) {
+      if (items[0].qty) t.items[0].qty = Number(items[0].qty);
+      if (items[0].category) t.items[0].category = items[0].category;
+    }
+  }
+
   res.json(await t.save());
 });
 

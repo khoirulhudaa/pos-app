@@ -715,6 +715,7 @@ function Pengeluaran({ products, reload }) {
 // ---------- Riwayat ----------
 function Riwayat({ txs, reload }) {
   const [range, setRange] = useState("today");
+  const [editTx, setEditTx] = useState(null); // ← transaksi yang sedang diedit
   const list = useMemo(() => {
     const today = new Date().toDateString();
     return range === "all" ? txs : txs.filter((t) => new Date(t.createdAt).toDateString() === today);
@@ -743,6 +744,51 @@ function Riwayat({ txs, reload }) {
     await req(`/transactions/${t._id}`, "PUT", body); reload();
   };
 
+  const openEdit = (t) => {
+    // Ambil data awal dari transaksi
+    const firstItem = t.items?.[0] || {};
+    setEditTx({
+      _id: t._id,
+      type: t.type,
+      category: firstItem.category || "makanan",
+      qty: firstItem.qty || 1,
+      nominal: t.total,
+      note: t.note || "",
+      description: t.description || "", // untuk expense
+    });
+  };
+
+  const submitEdit = async (e) => {
+    e.preventDefault();
+    if (!editTx) return;
+
+    try {
+      const body = {
+        note: editTx.note,
+      };
+
+      if (editTx.type === "expense") {
+        body.description = editTx.description;
+        body.amount = Number(editTx.nominal);
+      } else {
+        // income
+        body.amount = Number(editTx.nominal); // override total
+        // Kita juga kirim data item supaya backend bisa update
+        body.items = [{
+          category: editTx.category,
+          qty: Number(editTx.qty),
+        }];
+      }
+
+      await req(`/transactions/${editTx._id}`, "PUT", body);
+      setEditTx(null);
+      reload();
+      toast.success("Transaksi berhasil diubah");
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
   return (
     <>
       <div className="seg">
@@ -763,12 +809,77 @@ function Riwayat({ txs, reload }) {
             </small>
           )}
           <div className="pc-a">
-            <button onClick={() => edit(t)}><Ic n="edit" s={15} /> Edit</button>
+            <button onClick={() => openEdit(t)}>
+              <Ic n="edit" s={15} /> Edit
+            </button>
             <button className="d" onClick={() => del(t)}><Ic n="trash" s={15} /> Hapus</button>
           </div>
         </TxRow>
       ))}
       {!list.length && <p className="muted center">Belum ada transaksi.</p>}
+
+      {editTx && (
+        <Modal title="Edit Transaksi" onClose={() => setEditTx(null)}>
+          <form onSubmit={submitEdit}>
+            
+            {/* Hanya tampilkan Jenis & Jumlah kalau transaksi penjualan (income) */}
+            {editTx.type === "income" && (
+              <>
+                <label>Jenis Produk</label>
+                <select
+                  value={editTx.category}
+                  onChange={(e) => setEditTx({ ...editTx, category: e.target.value })}
+                >
+                  <option value="makanan">Makanan</option>
+                  <option value="minuman">Minuman</option>
+                </select>
+
+                <label>Jumlah dibeli</label>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min="1"
+                  value={editTx.qty}
+                  onChange={(e) => setEditTx({ ...editTx, qty: e.target.value })}
+                  required
+                />
+              </>
+            )}
+
+            {/* Keterangan hanya untuk pengeluaran */}
+            {editTx.type === "expense" && (
+              <>
+                <label>Keterangan</label>
+                <input
+                  value={editTx.description}
+                  onChange={(e) => setEditTx({ ...editTx, description: e.target.value })}
+                  required
+                />
+              </>
+            )}
+
+            <label>Nominal</label>
+            <input
+              type="number"
+              inputMode="numeric"
+              value={editTx.nominal}
+              onChange={(e) => setEditTx({ ...editTx, nominal: e.target.value })}
+              required
+            />
+
+            <label>Catatan</label>
+            <input
+              placeholder="Opsional"
+              value={editTx.note}
+              onChange={(e) => setEditTx({ ...editTx, note: e.target.value })}
+            />
+
+            <button className="btn gold" type="submit">
+              Simpan Perubahan
+            </button>
+          </form>
+        </Modal>
+      )}
     </>
   );
 }
