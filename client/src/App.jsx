@@ -13,6 +13,7 @@ const P = {
   list: "M8 6h13 M8 12h13 M8 18h13 M3 6h.01 M3 12h.01 M3 18h.01",
   down: "M23 18l-9.5-9.5-5 5L1 6 M17 18h6v-6",
   up: "M23 6l-9.5 9.5-5-5L1 18 M17 6h6v6",
+  logout: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9",
   plus: "M12 5v14 M5 12h14",
   out: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9",
   check: "M20 6L9 17l-5-5",
@@ -212,7 +213,7 @@ function Beranda({ txs, products, go, closeDay, logout, settings = {} }) {
             <button 
             style={{borderRadius: '9999px'}}
             className="icon-btn" onClick={logout} title="Keluar">
-              <Ic n="out" />
+              <Ic n="logout" />
             </button>
           </div>
         </div>
