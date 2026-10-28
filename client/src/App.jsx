@@ -520,11 +520,9 @@ export default function App() {
       setTxs(Array.isArray(t) ? t : []);
     } catch (e) { if (e.status === 401) logout(); else alert(e.message); }
   };
-  
-  useEffect(() => { if (authed) reload(); }, [authed]);
-
+    
   useEffect(() => {
-    const t = setTimeout(() => setBooting(false), 800);
+    const t = setTimeout(() => setBooting(false), 900);
     return () => clearTimeout(t);
   }, []);
 
@@ -535,13 +533,13 @@ export default function App() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "#fff"
+        background: "#ffffff"
       }}>
         <h1 style={{
-          fontSize: 28,
+          fontSize: "42px",
           fontWeight: 800,
           color: "#111",
-          letterSpacing: "-0.5px",
+          letterSpacing: "-1px",
           margin: 0
         }}>
           Kasir-ku
