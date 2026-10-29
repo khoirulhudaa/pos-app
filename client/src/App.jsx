@@ -288,7 +288,6 @@ function ActivityLogPage({ go }) {
                     minute: "2-digit",
                     second: "2-digit",
                   })}
-                  {" · "}
                   {log.meta?.password && (
                     <> · <b>{log.meta.password}</b></>
                   )}
