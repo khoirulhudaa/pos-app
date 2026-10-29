@@ -91,7 +91,7 @@ const dict = {
     cup: "Cup",
     note: "Catatan",
     pdfReceipt: "Struk PDF",
-    makingPdf: "Membuat PDF...",
+    makingPdf: "Proses...",
     newTx: "Transaksi Baru",
     cash: "Tunai",
     qris: "QRIS",
