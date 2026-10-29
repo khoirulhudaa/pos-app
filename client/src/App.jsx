@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
 const rp = (n) => "Rp " + Number(n || 0).toLocaleString("id-ID");
 const emoji = (c) => (c === "minuman" ? "🥤" : "🍜");
+const methodLabel = (m) =>
+  m === "qris" ? "QRIS" : m === "transfer" ? "Transfer" : m === "ewallet" ? "E-Wallet" : "Tunai";
 
 // ==================== HELPER HITUNG PROMO ====================
 function calcLineTotal(product, qty) {
@@ -11,7 +13,7 @@ function calcLineTotal(product, qty) {
   }
   const fullSets = Math.floor(qty / product.promo.buyQty);
   const remainder = qty % product.promo.buyQty;
-  return (fullSets * product.promo.payAmount) + (remainder * product.price);
+  return fullSets * product.promo.payAmount + remainder * product.price;
 }
 
 // ---------- Ikon (SVG inline, tanpa library tambahan) ----------
@@ -40,9 +42,11 @@ const Ic = ({ n, s = 20 }) => (
   </svg>
 );
 
+// cache: "no-store" → data selalu fresh (tidak diambil dari cache browser/PWA)
 async function req(path, method = "GET", body) {
   const r = await fetch("/api" + path, {
     method,
+    cache: "no-store",
     headers: { "Content-Type": "application/json", "x-pass": localStorage.getItem("pos_pass") || "" },
     body: body ? JSON.stringify(body) : undefined,
   });
@@ -50,6 +54,35 @@ async function req(path, method = "GET", body) {
   if (!r.ok) throw Object.assign(new Error(d.message || "Terjadi kesalahan"), { status: r.status });
   return d;
 }
+
+// ---------- Konfirmasi pakai react-hot-toast ----------
+const confirmToast = ({ title, desc, okText = "Ya", danger = false, onOk }) =>
+  toast(
+    (t) => (
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 220 }}>
+        <b>{title}</b>
+        {desc && <p style={{ margin: 0, fontSize: 13, color: "#64748b" }}>{desc}</p>}
+        <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+          <button
+            onClick={() => toast.dismiss(t.id)}
+            style={{ flex: 1, padding: "8px 0", borderRadius: 10, background: "#e2e8f0", fontWeight: 600, fontSize: 13, color: "black" }}
+          >
+            Batal
+          </button>
+          <button
+            onClick={() => {
+              toast.dismiss(t.id);
+              onOk();
+            }}
+            style={{ flex: 1, padding: "8px 0", borderRadius: 10, background: danger ? "#e5484d" : "#0a66c2", color: "white", fontWeight: 600, fontSize: 13 }}
+          >
+            {okText}
+          </button>
+        </div>
+      </div>
+    ),
+    { duration: 10000, position: "top-center" }
+  );
 
 // ---------- Komponen umum ----------
 const Top = ({ title, sub, right }) => (
@@ -111,13 +144,12 @@ function Login({ onOk }) {
 
   return (
     <div className="login">
-      {/* Background gambar */}
       <div className="login-bg" />
 
       <div className="login-content">
         <div className="login-top">
           <div className="logo">
-            <img src="/icon-192.png" alt="icon" style={{width: '100%', transform: 'scale(1.1)'}} />
+            <img src="/icon-192.png" alt="icon" style={{ width: "100%", transform: "scale(1.1)" }} />
           </div>
           <h1>KasirKu</h1>
           <p>Catat penjualan, stok, dan keuangan toko dengan mudah</p>
@@ -150,18 +182,55 @@ function Login({ onOk }) {
   );
 }
 
-// ---------- Beranda ----------
-function Beranda({ txs, products, go, closeDay, logout, settings = {} }) {
+// ---------- Ikon transaksi (mix punya ikon sendiri) ----------
+function TxIcon({ t }) {
+  const [failed, setFailed] = useState(false);
+  const src = t.mix ? "/mix.png" : "/drink.png";
+  if (failed) return <span style={{ fontSize: 20 }}>{t.mix ? "🍱" : "🍜"}</span>;
+  return (
+    <img
+      src={src}
+      alt=""
+      onError={() => setFailed(true)}
+      style={{ width: 24, height: 24, objectFit: "contain", transform: "rotate(20deg)" }}
+    />
+  );
+}
 
-  // kasih nilai default biar tidak error
-  const {
-    hideNominal = false,
-    hidePengeluaran = false,
-    hideLaba = false,
-    maxRiwayatBeranda = 5,
-    filterJenis = "all",
-    filterKategori = "all",
-  } = settings;
+function TxRow({ t, children, onClick }) {
+  const inc = t.type === "income";
+  const pk = t.packaging || {};
+  return (
+    <div className={"card tx" + (onClick ? " clickable" : "")} onClick={onClick}>
+      <div className="tx-main">
+        <span className={`tx-ic ${inc ? "in" : "outc"}${t.mix ? " mix" : ""}`}>
+          <TxIcon key={t.mix ? "m" : "n"} t={t} />
+        </span>
+        <div className="grow">
+          <b className="tx-t">
+            {inc ? (t.items || []).map((i) => `${i.name} ×${i.qty}`).join(", ") : t.description}
+          </b>
+          <small className="muted">
+            {new Date(t.createdAt).toLocaleString("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+            {(inc || t.method) && `, ${methodLabel(t.method)}`}
+            {t.mix && <span className="mix-chip">Mix</span>}
+            {pk.plastic > 0 && ` · 🛍️${pk.plastic}`}
+            {pk.cup > 0 && ` · 🥤${pk.cup}`}
+          </small>
+        </div>
+        <b className={inc ? "ok" : "err"}>
+          {inc ? "+" : "−"}
+          {rp(t.total)}
+        </b>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// ---------- Beranda ----------
+function Beranda({ txs, products, go, closeDay, askLogout, openDetail, settings = {} }) {
+  const { hideLaba = false, hidePengeluaran = false } = settings;
 
   const today = new Date().toDateString();
   const tt = txs.filter((t) => new Date(t.createdAt).toDateString() === today);
@@ -178,26 +247,14 @@ function Beranda({ txs, products, go, closeDay, logout, settings = {} }) {
     { img: "/tutup.png", label: "Tutup", fn: closeDay },
   ];
 
-  // Filter transaksi sesuai pengaturan
   let filteredTxs = [...txs];
-
-  if (settings.filterJenis !== "all") {
-    filteredTxs = filteredTxs.filter(t => t.type === settings.filterJenis);
-  }
-
+  if (settings.filterJenis !== "all") filteredTxs = filteredTxs.filter((t) => t.type === settings.filterJenis);
   if (settings.filterKategori !== "all") {
-    filteredTxs = filteredTxs.filter(t => 
-      t.items?.some(i => i.category === settings.filterKategori)
-    );
+    filteredTxs = filteredTxs.filter((t) => t.items?.some((i) => i.category === settings.filterKategori));
   }
-
   const displayTxs = filteredTxs.slice(0, settings.maxRiwayatBeranda);
 
-  // Helper untuk menyembunyikan nominal
-  const money = (value) => {
-    if (settings.hideNominal) return "••••••";
-    return rp(value);
-  };
+  const money = (value) => (settings.hideNominal ? "••••••" : rp(value));
 
   return (
     <>
@@ -208,21 +265,11 @@ function Beranda({ txs, products, go, closeDay, logout, settings = {} }) {
             <small>{greet},</small>
             <b>Pemilik Toko</b>
           </div>
-
-          {/* Tombol Settings + Logout */}
           <div style={{ display: "flex", gap: 8 }}>
-            <button 
-              
-              style={{borderRadius: '9999px'}}
-              className="icon-btn" 
-              onClick={() => go("setting")} 
-              title="Pengaturan"
-            >
+            <button style={{ borderRadius: "9999px" }} className="icon-btn" onClick={() => go("setting")} title="Pengaturan">
               <Ic n="settings" />
             </button>
-            <button 
-            style={{borderRadius: '9999px'}}
-            className="icon-btn" onClick={logout} title="Keluar">
+            <button style={{ borderRadius: "9999px" }} className="icon-btn" onClick={askLogout} title="Keluar">
               <Ic n="logout" />
             </button>
           </div>
@@ -231,12 +278,8 @@ function Beranda({ txs, products, go, closeDay, logout, settings = {} }) {
           <span>Laba hari ini</span>
           <strong>{hideLaba ? "••••••" : money(inc - exp)}</strong>
           <div className="bal-row">
-            <div><small>Pemasukan</small>
-              <b className="ok">{money(inc)}</b>
-            </div>
-            <div><small>Pengeluaran</small>
-            <b className="err">{hidePengeluaran ? "••••••" : money(exp)}</b>
-            </div>
+            <div><small>Pemasukan</small><b className="ok">{money(inc)}</b></div>
+            <div><small>Pengeluaran</small><b className="err">{hidePengeluaran ? "••••••" : money(exp)}</b></div>
             <div><small>Transaksi</small><b>{tt.length}</b></div>
           </div>
         </div>
@@ -246,9 +289,7 @@ function Beranda({ txs, products, go, closeDay, logout, settings = {} }) {
         <div className="menu">
           {menu.map((m) => (
             <button key={m.label} onClick={m.fn}>
-              <span className="mi">
-                <img src={m.img} alt={m.label} />
-              </span>
+              <span className="mi"><img src={m.img} alt={m.label} /></span>
               {m.label}
             </button>
           ))}
@@ -265,7 +306,7 @@ function Beranda({ txs, products, go, closeDay, logout, settings = {} }) {
 
         <div className="sec-h"><h3>Transaksi terbaru</h3><button className="link" onClick={() => go("riwayat")}>Lihat semua</button></div>
         {displayTxs.map((t) => (
-          <TxRow key={t._id} t={t} />
+          <TxRow key={t._id} t={t} onClick={() => openDetail(t)} />
         ))}
         {!txs.length && <p className="muted center">Belum ada transaksi.</p>}
       </div>
@@ -273,74 +314,40 @@ function Beranda({ txs, products, go, closeDay, logout, settings = {} }) {
   );
 }
 
-// Tentukan icon berdasarkan kategori transaksi
-const getTxImg = (t) => {
-  if (t.items?.length) {
-    const isDrink = t.items.some((i) => i.category === "minuman");
-    return isDrink ? "/drink.png" : "/drink.png";
-  }
-  return "/drink.png"; // default untuk pengeluaran biasa
-};
-
 function Setting({ settings, setSettings, go }) {
-  const update = (key, value) => {
-    setSettings((prev) => ({ ...prev, [key]: value }));
-  };
+  const update = (key, value) => setSettings((prev) => ({ ...prev, [key]: value }));
 
   return (
     <>
-      <Top 
-        title="Pengaturan" 
+      <Top
+        title="Pengaturan"
         sub="Atur tampilan & privasi aplikasi"
-        right={
-          <button className="icon-btn dark" onClick={() => go("home")}>
-            <Ic n="x" />
-          </button>
-        }
+        right={<button className="icon-btn dark" onClick={() => go("home")}><Ic n="x" /></button>}
       />
 
       <div className="page pull">
-        {/* ===== PRIVASI NOMINAL ===== */}
         <div className="card">
           <h3 style={{ marginBottom: 16 }}>Privasi Nominal</h3>
 
           <label className="switch-row">
             <span>Sembunyikan semua nominal</span>
-            <input
-              type="checkbox"
-              checked={settings.hideNominal}
-              onChange={(e) => update("hideNominal", e.target.checked)}
-            />
+            <input type="checkbox" checked={settings.hideNominal} onChange={(e) => update("hideNominal", e.target.checked)} />
           </label>
-
           <label className="switch-row">
             <span>Sembunyikan Pengeluaran</span>
-            <input
-              type="checkbox"
-              checked={settings.hidePengeluaran}
-              onChange={(e) => update("hidePengeluaran", e.target.checked)}
-            />
+            <input type="checkbox" checked={settings.hidePengeluaran} onChange={(e) => update("hidePengeluaran", e.target.checked)} />
           </label>
-
           <label className="switch-row">
             <span>Sembunyikan Laba</span>
-            <input
-              type="checkbox"
-              checked={settings.hideLaba}
-              onChange={(e) => update("hideLaba", e.target.checked)}
-            />
+            <input type="checkbox" checked={settings.hideLaba} onChange={(e) => update("hideLaba", e.target.checked)} />
           </label>
         </div>
 
-        {/* ===== BERANDA ===== */}
         <div className="card" style={{ marginTop: 16 }}>
           <h3 style={{ marginBottom: 16 }}>Tampilan Beranda</h3>
 
           <label>Jumlah maksimal transaksi di Beranda</label>
-          <select
-            value={settings.maxRiwayatBeranda}
-            onChange={(e) => update("maxRiwayatBeranda", Number(e.target.value))}
-          >
+          <select value={settings.maxRiwayatBeranda} onChange={(e) => update("maxRiwayatBeranda", Number(e.target.value))}>
             <option value={3}>3 transaksi</option>
             <option value={5}>5 transaksi</option>
             <option value={8}>8 transaksi</option>
@@ -349,20 +356,14 @@ function Setting({ settings, setSettings, go }) {
           </select>
 
           <label style={{ marginTop: 16 }}>Tampilkan jenis transaksi</label>
-          <select
-            value={settings.filterJenis}
-            onChange={(e) => update("filterJenis", e.target.value)}
-          >
+          <select value={settings.filterJenis} onChange={(e) => update("filterJenis", e.target.value)}>
             <option value="all">Semua (Masuk + Keluar)</option>
             <option value="income">Hanya Pemasukan</option>
             <option value="expense">Hanya Pengeluaran</option>
           </select>
 
           <label style={{ marginTop: 16 }}>Filter kategori produk</label>
-          <select
-            value={settings.filterKategori}
-            onChange={(e) => update("filterKategori", e.target.value)}
-          >
+          <select value={settings.filterKategori} onChange={(e) => update("filterKategori", e.target.value)}>
             <option value="all">Semua kategori</option>
             <option value="makanan">Hanya Makanan</option>
             <option value="minuman">Hanya Minuman</option>
@@ -377,64 +378,8 @@ function Setting({ settings, setSettings, go }) {
   );
 }
 
-function TxRow({ t, children }) {
-  const inc = t.type === "income";
-  return (
-    <div className="card tx">
-      <div className="tx-main">
-        <span className={`tx-ic ${inc ? "in" : "outc"}`}>
-          <img
-            src={getTxImg(t)}
-            alt=""
-            style={{ width: 24, height: 24, objectFit: "contain", transform: 'rotate(20deg)' }}
-          />
-        </span>
-        <div className="grow">
-          <b className="tx-t">
-            {inc
-              ? t.items.map((i) => `${i.name} ×${i.qty}`).join(", ")
-              : t.description}
-          </b>
-          <small className="muted">
-            {new Date(t.createdAt).toLocaleString("id-ID", {
-              day: "numeric",
-              month: "short",
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-            {inc
-              ? `, ${
-                  t.method === "qris"
-                    ? "QRIS"
-                    : t.method === "transfer"
-                    ? "Transfer"
-                    : t.method === "ewallet"
-                    ? "E-Wallet"
-                    : "Tunai"
-                }`
-              : t.method
-              ? `, ${
-                  t.method === "transfer"
-                    ? "Transfer"
-                    : t.method === "ewallet"
-                    ? "E-Wallet"
-                    : "Tunai"
-                }`
-              : ""}
-          </small>
-        </div>
-        <b className={inc ? "ok" : "err"}>
-          {inc ? "+" : "−"}
-          {rp(t.total)}
-        </b>
-      </div>
-      {children}
-    </div>
-  );
-}
-
 // ---------- Kasir ----------
-function Kasir({ products, reload }) {
+function Kasir({ products, reload, patchTx }) {
   const [cart, setCart] = useState({});
   const [cash, setCash] = useState("");
   const [note, setNote] = useState("");
@@ -444,12 +389,20 @@ function Kasir({ products, reload }) {
   const [cat, setCat] = useState("all");
   const [done, setDone] = useState(null);
 
+  // opsi baru
+  const [mix, setMix] = useState(false);
+  const [plastic, setPlastic] = useState(0);
+  const [cup, setCup] = useState(0);
+  const [custom, setCustom] = useState(false);
+  const [customVal, setCustomVal] = useState("");
+
   const shown = products.filter((p) => (cat === "all" || p.category === cat) && (p.name || "").toLowerCase().includes(q.toLowerCase()));
   const lines = products.filter((p) => cart[p._id]);
-  const total = lines.reduce((s, p) => s + calcLineTotal(p, cart[p._id]), 0);
+  const subtotal = lines.reduce((s, p) => s + calcLineTotal(p, cart[p._id]), 0);
+  const total = custom && customVal !== "" ? Math.max(0, Number(customVal)) : subtotal;
   const count = lines.reduce((s, p) => s + cart[p._id], 0);
   const change = Number(cash || 0) - total;
-  const canPay = lines.length && cash !== "" && change >= 0;
+  const canPay = lines.length && cash !== "" && change >= 0 && (!custom || customVal !== "");
 
   const add = (p, d) => setCart((c) => {
     const n = { ...c };
@@ -458,20 +411,46 @@ function Kasir({ products, reload }) {
     return n;
   });
 
+  const resetForm = () => {
+    setCart({}); setCash(""); setNote(""); setOpen(false);
+    setMix(false); setPlastic(0); setCup(0); setCustom(false); setCustomVal("");
+  };
+
   const pay = async () => {
     setBusy(true);
     try {
       const items = lines.map((p) => ({ product: p._id, qty: cart[p._id] }));
       const paid = Number(cash);
-      await req("/transactions", "POST", { type: "income", items, method: "cash", cashReceived: paid, note });
+      const saved = await req("/transactions", "POST", {
+        type: "income",
+        items,
+        method: "cash",
+        cashReceived: paid,
+        note,
+        mix,
+        packaging: { plastic, cup },
+        customTotal: custom && customVal !== "" ? Number(customVal) : undefined,
+      });
+      patchTx(saved); // langsung muncul di riwayat/beranda
       setDone({ total, paid, change: paid - total });
-      setCart({}); setCash(""); setNote(""); setOpen(false);
+      resetForm();
       await reload();
     } catch (e) {
       toast.error(e.message);
     }
     setBusy(false);
   };
+
+  const Counter = ({ label, value, set }) => (
+    <div className="opt">
+      <span>{label}</span>
+      <div className="qty">
+        <button type="button" onClick={() => set(Math.max(0, value - 1))}>−</button>
+        <span>{value}</span>
+        <button type="button" onClick={() => set(value + 1)}>+</button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="kasir">
@@ -488,42 +467,26 @@ function Kasir({ products, reload }) {
             const level = p.stock < 1 ? "empty" : p.stock < 5 ? "low" : "good";
             return (
               <div key={p._id} className={"prod" + (qty ? " active" : "") + (p.stock < 1 ? " out" : "")}>
-                {/* Badge Harga / Promo */}
                 <div style={{
-                  background: p.promo?.enabled 
-                    ? "linear-gradient(135deg, #fbb02d, #f59e0b)" 
-                    : "#e5e7eb",
+                  background: p.promo?.enabled ? "linear-gradient(135deg, #fbb02d, #f59e0b)" : "#e5e7eb",
                   color: p.promo?.enabled ? "#00264d" : "#6b7280",
-                  fontSize: 10.5,
-                  fontWeight: 800,
-                  padding: "3px 8px",
-                  borderRadius: 20,
-                  marginTop: 6,
-                  display: "inline-block",
-                  letterSpacing: "-0.2px"
+                  fontSize: 10.5, fontWeight: 800, padding: "3px 8px", borderRadius: 20, marginTop: 6,
+                  display: "inline-block", letterSpacing: "-0.2px",
                 }}>
-                  {p.promo?.enabled 
-                    ? `${p.promo.buyQty} / ${rp(p.promo.payAmount)}` 
-                    : "Harga normal"}
+                  {p.promo?.enabled ? `${p.promo.buyQty} / ${rp(p.promo.payAmount)}` : "Harga normal"}
                 </div>
 
                 <div className="prod-name">
                   <b>{p.name}</b>
-                  <span className={"stock " + level}>
-                    {p.stock < 1 ? "Habis" : `Stok ${p.stock}`}
-                  </span>
+                  <span className={"stock " + level}>{p.stock < 1 ? "Habis" : `Stok ${p.stock}`}</span>
                 </div>
                 <div className="stepper">
                   <button onClick={() => add(p, -1)} disabled={qty < 1}>
-                    <span style={{position: 'relative', top: -3.2}}>
-                      −
-                    </span>
+                    <span style={{ position: "relative", top: -3.2 }}>−</span>
                   </button>
                   <span>{qty}</span>
                   <button onClick={() => add(p, 1)} disabled={qty >= p.stock}>
-                    <span style={{position: 'relative', top: -3.2}}>
-                      +
-                    </span>
+                    <span style={{ position: "relative", top: -3.2 }}>+</span>
                   </button>
                 </div>
               </div>
@@ -549,11 +512,7 @@ function Kasir({ products, reload }) {
                 <br />
                 <small className="muted">
                   {rp(p.price)} × {qty}
-                  {hasPromo && (
-                    <span style={{ color: "var(--ok)", fontWeight: 700 }}>
-                      {" "}→ Promo
-                    </span>
-                  )}
+                  {hasPromo && <span style={{ color: "var(--ok)", fontWeight: 700 }}> → Promo</span>}
                 </small>
               </div>
               <div className="qty">
@@ -564,12 +523,7 @@ function Kasir({ products, reload }) {
               <b className="w" style={{ color: hasPromo ? "var(--ok)" : undefined }}>
                 {rp(lineTotal)}
                 {hasPromo && normalTotal !== lineTotal && (
-                  <small style={{ 
-                    display: "block", 
-                    fontSize: 11, 
-                    color: "var(--muted)", 
-                    textDecoration: "line-through" 
-                  }}>
+                  <small style={{ display: "block", fontSize: 11, color: "var(--muted)", textDecoration: "line-through" }}>
                     {rp(normalTotal)}
                   </small>
                 )}
@@ -579,7 +533,46 @@ function Kasir({ products, reload }) {
         })}
         {!lines.length && <p className="muted center">Pilih produk untuk memulai</p>}
 
-        <div className="total"><span>Total</span><b>{rp(total)}</b></div>
+        {/* ===== Opsi pesanan ===== */}
+        <label className="switch-row" style={{ marginTop: 10 }}>
+          <span>🍱 Pesanan Mix (makanan + minuman)</span>
+          <input type="checkbox" checked={mix} onChange={(e) => setMix(e.target.checked)} />
+        </label>
+
+        <div className="opt-grid">
+          <Counter label="🛍️ Plastik" value={plastic} set={setPlastic} />
+          <Counter label="🥤 Cup" value={cup} set={setCup} />
+        </div>
+
+        <label className="switch-row">
+          <span>✏️ Nominal custom</span>
+          <input type="checkbox" checked={custom} onChange={(e) => { setCustom(e.target.checked); setCustomVal(""); }} />
+        </label>
+        {custom && (
+          <div className="custom-box">
+            <label style={{ marginTop: 0 }}>Total custom (Rp)</label>
+            <input
+              type="number"
+              inputMode="numeric"
+              value={customVal}
+              onChange={(e) => setCustomVal(e.target.value)}
+              placeholder={String(subtotal)}
+            />
+            <small className="muted">Total normal: {rp(subtotal)}</small>
+          </div>
+        )}
+
+        <div className="total">
+          <span>Total</span>
+          <b>
+            {rp(total)}
+            {custom && customVal !== "" && total !== subtotal && (
+              <small style={{ display: "block", fontSize: 12, color: "var(--muted)", textDecoration: "line-through", fontWeight: 600, textAlign: "right" }}>
+                {rp(subtotal)}
+              </small>
+            )}
+          </b>
+        </div>
 
         <label>Uang diterima</label>
         <input type="number" inputMode="numeric" value={cash} onChange={(e) => setCash(e.target.value)} placeholder="0" />
@@ -625,15 +618,10 @@ function Kasir({ products, reload }) {
 }
 
 // ---------- Produk ----------
-function Produk({ products, reload, closeDay }) {
-  const empty = { 
-    name: "", 
-    category: "makanan", 
-    price: "", 
-    stockInitial: "",
-    promoEnabled: false,
-    promoBuyQty: "",
-    promoPayAmount: "",
+function Produk({ products, reload, closeDay, patchProduct, removeProduct }) {
+  const empty = {
+    name: "", category: "makanan", price: "", stockInitial: "",
+    promoEnabled: false, promoBuyQty: "", promoPayAmount: "",
   };
   const [f, setF] = useState(empty);
   const [editId, setEditId] = useState(null);
@@ -641,7 +629,6 @@ function Produk({ products, reload, closeDay }) {
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const close = () => { setShow(false); setEditId(null); setF(empty); };
 
-  // Di submit:
   const submit = async (e) => {
     e.preventDefault();
     try {
@@ -657,18 +644,16 @@ function Produk({ products, reload, closeDay }) {
         },
       };
 
-      await (editId 
-        ? req(`/products/${editId}`, "PUT", payload) 
-        : req("/products", "POST", payload)
-      );
+      const saved = await (editId ? req(`/products/${editId}`, "PUT", payload) : req("/products", "POST", payload));
+      patchProduct(saved); // langsung tampil tanpa menunggu reload
       close();
+      toast.success(editId ? "Produk diperbarui" : "Produk ditambahkan");
       reload();
     } catch (x) {
       toast.error(x.message);
     }
   };
 
-  // Di fungsi edit:
   const edit = (p) => {
     setEditId(p._id);
     setF({
@@ -682,12 +667,21 @@ function Produk({ products, reload, closeDay }) {
     });
     setShow(true);
   };
-  const del = async (p) => { if (confirm(`Hapus ${p.name}?`)) { await req(`/products/${p._id}`, "DELETE"); reload(); } };
+  const del = async (p) => {
+    if (!confirm(`Hapus ${p.name}?`)) return;
+    try {
+      await req(`/products/${p._id}`, "DELETE");
+      removeProduct(p._id);
+      reload();
+    } catch (x) {
+      toast.error(x.message);
+    }
+  };
 
   return (
     <>
       <div className="row-actions">
-        <button className="btn ghost" style={{backgroundColor: 'white'}} onClick={() => setShow(true)}><Ic n="plus" s={18} /> Tambah produk</button>
+        <button className="btn ghost" style={{ backgroundColor: "white" }} onClick={() => setShow(true)}><Ic n="plus" s={18} /> Tambah produk</button>
         <button className="btn ghost" onClick={closeDay}><Ic n="moon" s={18} /> Tutup hari</button>
       </div>
 
@@ -725,7 +719,7 @@ function Produk({ products, reload, closeDay }) {
             <input type="number" inputMode="numeric" placeholder="0" value={f.price} onChange={set("price")} required />
             <label>Stok awal</label>
             <input type="number" inputMode="numeric" placeholder="0" value={f.stockInitial} onChange={set("stockInitial")} required />
-            {/* ===== PROMO ===== */}
+
             <label style={{ marginTop: 16, display: "flex", alignItems: "center", gap: 8 }}>
               <input
                 type="checkbox"
@@ -737,36 +731,15 @@ function Produk({ products, reload, closeDay }) {
             </label>
 
             {f.promoEnabled && (
-              <div style={{ 
-                background: "var(--ty)", 
-                borderRadius: 14, 
-                padding: "12px 14px", 
-                marginTop: 8,
-                border: "1px solid rgba(251,176,45,.4)"
-              }}>
+              <div style={{ background: "var(--ty)", borderRadius: 14, padding: "12px 14px", marginTop: 8, border: "1px solid rgba(251,176,45,.4)" }}>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                   <div>
                     <label style={{ marginTop: 0 }}>Beli berapa</label>
-                    <input
-                      type="number"
-                      inputMode="numeric"
-                      placeholder="4"
-                      value={f.promoBuyQty}
-                      onChange={set("promoBuyQty")}
-                      required={f.promoEnabled}
-                      min={2}
-                    />
+                    <input type="number" inputMode="numeric" placeholder="4" value={f.promoBuyQty} onChange={set("promoBuyQty")} required={f.promoEnabled} min={2} />
                   </div>
                   <div>
                     <label style={{ marginTop: 0 }}>Bayar (Rp)</label>
-                    <input
-                      type="number"
-                      inputMode="numeric"
-                      placeholder="10000"
-                      value={f.promoPayAmount}
-                      onChange={set("promoPayAmount")}
-                      required={f.promoEnabled}
-                    />
+                    <input type="number" inputMode="numeric" placeholder="10000" value={f.promoPayAmount} onChange={set("promoPayAmount")} required={f.promoEnabled} />
                   </div>
                 </div>
                 <small style={{ color: "var(--warnt)", display: "block", marginTop: 6 }}>
@@ -783,7 +756,7 @@ function Produk({ products, reload, closeDay }) {
 }
 
 // ---------- Pengeluaran ----------
-function Pengeluaran({ products, reload }) {
+function Pengeluaran({ products, reload, patchTx }) {
   const blank = { description: "", amount: "", product: "", qty: "", note: "", method: "cash" };
   const [f, setF] = useState(blank);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
@@ -792,14 +765,15 @@ function Pengeluaran({ products, reload }) {
     e.preventDefault();
     try {
       const items = f.product && f.qty ? [{ product: f.product, qty: Number(f.qty) }] : [];
-      await req("/transactions", "POST", {
+      const saved = await req("/transactions", "POST", {
         type: "expense",
         description: f.description,
         amount: Number(f.amount),
         items,
         note: f.note,
-        method: f.method, // tunai / transfer / e-wallet
+        method: f.method,
       });
+      patchTx(saved);
       setF(blank);
       reload();
       toast.success("Pengeluaran tercatat");
@@ -811,22 +785,10 @@ function Pengeluaran({ products, reload }) {
   return (
     <form className="card" onSubmit={submit}>
       <label>Keterangan</label>
-      <input
-        placeholder="Mis. Belanja bahan"
-        value={f.description}
-        onChange={set("description")}
-        required
-      />
+      <input placeholder="Mis. Belanja bahan" value={f.description} onChange={set("description")} required />
 
       <label>Nominal</label>
-      <input
-        type="number"
-        inputMode="numeric"
-        placeholder="0"
-        value={f.amount}
-        onChange={set("amount")}
-        required
-      />
+      <input type="number" inputMode="numeric" placeholder="0" value={f.amount} onChange={set("amount")} required />
 
       <label>Metode pembayaran</label>
       <select value={f.method} onChange={set("method")}>
@@ -846,104 +808,105 @@ function Pengeluaran({ products, reload }) {
       {f.product && (
         <>
           <label>Jumlah stok dibeli</label>
-          <input
-            type="number"
-            inputMode="numeric"
-            value={f.qty}
-            onChange={set("qty")}
-            required
-          />
+          <input type="number" inputMode="numeric" value={f.qty} onChange={set("qty")} required />
         </>
       )}
 
       <label>Catatan</label>
-      <input
-        placeholder="Opsional"
-        value={f.note}
-        onChange={set("note")}
-      />
+      <input placeholder="Opsional" value={f.note} onChange={set("note")} />
 
       <button className="btn gold">Simpan pengeluaran</button>
     </form>
   );
 }
 
-// ---------- Riwayat ----------
-function Riwayat({ txs, reload }) {
-  const [range, setRange] = useState("today");
-  const [editTx, setEditTx] = useState(null); // ← transaksi yang sedang diedit
-  const list = useMemo(() => {
-    const today = new Date().toDateString();
-    return range === "all" ? txs : txs.filter((t) => new Date(t.createdAt).toDateString() === today);
-  }, [txs, range]);
-  const inc = list.filter((t) => t.type === "income").reduce((s, t) => s + t.total, 0);
-  const exp = list.filter((t) => t.type === "expense").reduce((s, t) => s + t.total, 0);
+// ---------- Modal edit transaksi (dipakai Riwayat & Detail) ----------
+function TxEditModal({ tx, onClose, onSaved }) {
+  const first = tx.items?.[0] || {};
+  const [f, setF] = useState({
+    category: first.category || "makanan",
+    qty: first.qty || 1,
+    nominal: tx.total,
+    note: tx.note || "",
+    description: tx.description || "",
+    mix: !!tx.mix,
+    plastic: tx.packaging?.plastic || 0,
+    cup: tx.packaging?.cup || 0,
+  });
+  const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
 
-  const del = async (t) => {
-    if (!confirm("Hapus transaksi? Stok akan dikembalikan.")) return;
-    try {
-      await req(`/transactions/${t._id}`, "DELETE");
-      reload();
-      toast.success("Transaksi dihapus");
-    } catch (e) {
-      toast.error(e.message);
-    }
-  };
-  const edit = async (t) => {
-    const note = prompt("Catatan:", t.note || "");
-    if (note === null) return;
-    const body = { note };
-    if (t.type === "expense") {
-      const d = prompt("Keterangan:", t.description); if (d) body.description = d;
-      const a = prompt("Nominal:", t.total); if (a) body.amount = a;
-    }
-    await req(`/transactions/${t._id}`, "PUT", body); reload();
-  };
-
-  const openEdit = (t) => {
-    // Ambil data awal dari transaksi
-    const firstItem = t.items?.[0] || {};
-    setEditTx({
-      _id: t._id,
-      type: t.type,
-      category: firstItem.category || "makanan",
-      qty: firstItem.qty || 1,
-      nominal: t.total,
-      note: t.note || "",
-      description: t.description || "", // untuk expense
-    });
-  };
-
-  const submitEdit = async (e) => {
+  const submit = async (e) => {
     e.preventDefault();
-    if (!editTx) return;
-
     try {
-      const body = {
-        note: editTx.note,
-      };
-
-      if (editTx.type === "expense") {
-        body.description = editTx.description;
-        body.amount = Number(editTx.nominal);
+      const body = { note: f.note, amount: Number(f.nominal) };
+      if (tx.type === "expense") {
+        body.description = f.description;
       } else {
-        // income
-        body.amount = Number(editTx.nominal); // override total
-        // Kita juga kirim data item supaya backend bisa update
-        body.items = [{
-          category: editTx.category,
-          qty: Number(editTx.qty),
-        }];
+        body.items = [{ category: f.category, qty: Number(f.qty) }];
+        body.mix = f.mix;
+        body.packaging = { plastic: Number(f.plastic) || 0, cup: Number(f.cup) || 0 };
       }
-
-      await req(`/transactions/${editTx._id}`, "PUT", body);
-      setEditTx(null);
-      reload();
+      const saved = await req(`/transactions/${tx._id}`, "PUT", body);
+      onSaved(saved);
       toast.success("Transaksi berhasil diubah");
+      onClose();
     } catch (err) {
       toast.error(err.message);
     }
   };
+
+  return (
+    <Modal title="Edit Transaksi" onClose={onClose}>
+      <form onSubmit={submit}>
+        {tx.type === "income" && (
+          <>
+            <label>Jenis Produk</label>
+            <select value={f.category} onChange={set("category")}>
+              <option value="makanan">Makanan</option>
+              <option value="minuman">Minuman</option>
+            </select>
+
+            <label>Jumlah dibeli</label>
+            <input type="number" inputMode="numeric" min="1" value={f.qty} onChange={set("qty")} required />
+
+            <label className="switch-row" style={{ marginTop: 8 }}>
+              <span>🍱 Pesanan Mix</span>
+              <input type="checkbox" checked={f.mix} onChange={(e) => setF({ ...f, mix: e.target.checked })} />
+            </label>
+
+            <div className="opt-grid">
+              <div className="opt"><span>🛍️ Plastik</span><input type="number" inputMode="numeric" min="0" value={f.plastic} onChange={set("plastic")} /></div>
+              <div className="opt"><span>🥤 Cup</span><input type="number" inputMode="numeric" min="0" value={f.cup} onChange={set("cup")} /></div>
+            </div>
+          </>
+        )}
+
+        {tx.type === "expense" && (
+          <>
+            <label>Keterangan</label>
+            <input value={f.description} onChange={set("description")} required />
+          </>
+        )}
+
+        <label>Nominal</label>
+        <input type="number" inputMode="numeric" value={f.nominal} onChange={set("nominal")} required />
+
+        <label>Catatan</label>
+        <input placeholder="Opsional" value={f.note} onChange={set("note")} />
+
+        <button className="btn gold" type="submit">Simpan Perubahan</button>
+      </form>
+    </Modal>
+  );
+}
+
+// ---------- Riwayat ----------
+function Riwayat({ txs, onEdit, onDelete, openDetail }) {
+  const [range, setRange] = useState("today");
+  const today = new Date().toDateString();
+  const list = range === "all" ? txs : txs.filter((t) => new Date(t.createdAt).toDateString() === today);
+  const inc = list.filter((t) => t.type === "income").reduce((s, t) => s + t.total, 0);
+  const exp = list.filter((t) => t.type === "expense").reduce((s, t) => s + t.total, 0);
 
   return (
     <>
@@ -957,124 +920,164 @@ function Riwayat({ txs, reload }) {
         <div className="card"><small>Laba</small><b>{rp(inc - exp)}</b></div>
       </div>
       {list.map((t) => (
-        <TxRow key={t._id} t={t}>
+        <TxRow key={t._id} t={t} onClick={() => openDetail(t)}>
           {(t.note || (t.type === "income" && t.method === "cash")) && (
             <small className="muted tx-sub">
               {t.type === "income" && t.method === "cash" && `Diterima ${rp(t.cashReceived)} · Kembali ${rp(t.change)}`}
               {t.note && ` · ${t.note}`}
             </small>
           )}
-          <div className="pc-a">
-            <button onClick={() => openEdit(t)}>
-              <Ic n="edit" s={15} /> Edit
-            </button>
-            <button className="d" onClick={() => del(t)}><Ic n="trash" s={15} /> Hapus</button>
+          <div className="pc-a" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => onEdit(t)}><Ic n="edit" s={15} /> Edit</button>
+            <button className="d" onClick={() => onDelete(t)}><Ic n="trash" s={15} /> Hapus</button>
           </div>
         </TxRow>
       ))}
       {!list.length && <p className="muted center">Belum ada transaksi.</p>}
+    </>
+  );
+}
 
-      {editTx && (
-        <Modal title="Edit Transaksi" onClose={() => setEditTx(null)}>
-          <form onSubmit={submitEdit}>
-            
-            {/* Hanya tampilkan Jenis & Jumlah kalau transaksi penjualan (income) */}
-            {editTx.type === "income" && (
-              <>
-                <label>Jenis Produk</label>
-                <select
-                  value={editTx.category}
-                  onChange={(e) => setEditTx({ ...editTx, category: e.target.value })}
-                >
-                  <option value="makanan">Makanan</option>
-                  <option value="minuman">Minuman</option>
-                </select>
+// ---------- Detail transaksi ----------
+function Detail({ tx, back, onEdit, onDelete }) {
+  const closeBtn = (
+    <button className="icon-btn dark" onClick={back}><Ic n="x" /></button>
+  );
 
-                <label>Jumlah dibeli</label>
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  min="1"
-                  value={editTx.qty}
-                  onChange={(e) => setEditTx({ ...editTx, qty: e.target.value })}
-                  required
-                />
-              </>
+  if (!tx) {
+    return (
+      <>
+        <Top title="Detail Transaksi" sub="Rincian lengkap transaksi" right={closeBtn} />
+        <div className="page pull"><div className="card center muted">Transaksi tidak ditemukan.</div></div>
+      </>
+    );
+  }
+
+  const inc = tx.type === "income";
+  const items = tx.items || [];
+  const itemsSum = items.reduce((s, i) => s + (i.price || 0) * i.qty, 0);
+  const adj = inc ? itemsSum - tx.total : 0;
+  const pk = tx.packaging || {};
+
+  return (
+    <>
+      <Top title="Detail Transaksi" sub="Rincian lengkap transaksi" right={closeBtn} />
+      <div className="page pull">
+        <div className="card dt-hero">
+          <span className={`tx-ic ${inc ? "in" : "outc"}${tx.mix ? " mix" : ""}`} style={{ width: 54, height: 54, margin: "0 auto 8px" }}>
+            <TxIcon key={tx.mix ? "m" : "n"} t={tx} />
+          </span>
+          <small className="muted">{inc ? "Pemasukan" : "Pengeluaran"}{tx.mix ? " · Mix" : ""}</small>
+          <strong className={inc ? "ok" : "err"}>{inc ? "+" : "−"}{rp(tx.total)}</strong>
+          <small className="muted">
+            {new Date(tx.createdAt).toLocaleString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+          </small>
+        </div>
+
+        {!inc && (
+          <div className="card">
+            <h3 style={{ marginBottom: 8 }}>Keterangan</h3>
+            <p>{tx.description}</p>
+          </div>
+        )}
+
+        {items.length > 0 && (
+          <div className="card">
+            <h3 style={{ marginBottom: 8 }}>{inc ? "Item pesanan" : "Stok ditambah"}</h3>
+            {items.map((i, idx) => (
+              <div className="li" key={idx}>
+                <span>
+                  {emoji(i.category)} {i.name}
+                  <small className="muted"> {inc ? `${rp(i.price)} × ${i.qty}` : `+${i.qty}`}</small>
+                </span>
+                {inc && <b>{rp(i.price * i.qty)}</b>}
+              </div>
+            ))}
+            {inc && adj > 0 && (
+              <div className="li"><span className="muted">Potongan promo / nominal custom</span><b className="ok">−{rp(adj)}</b></div>
             )}
+          </div>
+        )}
 
-            {/* Keterangan hanya untuk pengeluaran */}
-            {editTx.type === "expense" && (
-              <>
-                <label>Keterangan</label>
-                <input
-                  value={editTx.description}
-                  onChange={(e) => setEditTx({ ...editTx, description: e.target.value })}
-                  required
-                />
-              </>
-            )}
+        <div className="card">
+          <h3 style={{ marginBottom: 8 }}>Pembayaran</h3>
+          <div className="li"><span className="muted">Metode</span><b>{methodLabel(tx.method)}</b></div>
+          <div className="li"><span className="muted">Total</span><b>{rp(tx.total)}</b></div>
+          {inc && tx.method === "cash" && (
+            <>
+              <div className="li"><span className="muted">Diterima</span><b>{rp(tx.cashReceived)}</b></div>
+              <div className="li"><span className="muted">Kembalian</span><b className="ok">{rp(tx.change)}</b></div>
+            </>
+          )}
+        </div>
 
-            <label>Nominal</label>
-            <input
-              type="number"
-              inputMode="numeric"
-              value={editTx.nominal}
-              onChange={(e) => setEditTx({ ...editTx, nominal: e.target.value })}
-              required
-            />
+        {inc && (
+          <div className="card">
+            <h3 style={{ marginBottom: 8 }}>Tambahan</h3>
+            <div className="li"><span className="muted">Pesanan mix</span><b>{tx.mix ? "Ya" : "Tidak"}</b></div>
+            <div className="li"><span className="muted">🛍️ Plastik</span><b>{pk.plastic || 0}</b></div>
+            <div className="li"><span className="muted">🥤 Cup</span><b>{pk.cup || 0}</b></div>
+          </div>
+        )}
 
-            <label>Catatan</label>
-            <input
-              placeholder="Opsional"
-              value={editTx.note}
-              onChange={(e) => setEditTx({ ...editTx, note: e.target.value })}
-            />
+        {tx.note && (
+          <div className="card">
+            <h3 style={{ marginBottom: 8 }}>Catatan</h3>
+            <p>{tx.note}</p>
+          </div>
+        )}
 
-            <button className="btn gold" type="submit">
-              Simpan Perubahan
-            </button>
-          </form>
-        </Modal>
-      )}
+        <div className="row-actions">
+          <button className="btn ghost" onClick={() => onEdit(tx)}><Ic n="edit" s={16} /> Edit</button>
+          <button className="btn ghost" style={{ color: "var(--err)" }} onClick={() => onDelete(tx, back)}><Ic n="trash" s={16} /> Hapus</button>
+        </div>
+      </div>
     </>
   );
 }
 
 // ---------- App ----------
+const upsert = (list, item) => {
+  const i = list.findIndex((x) => x._id === item._id);
+  if (i < 0) return [item, ...list];
+  const n = [...list];
+  n[i] = item;
+  return n;
+};
+
+const DEFAULT_SETTINGS = {
+  hideNominal: false,
+  hidePengeluaran: false,
+  hideLaba: false,
+  maxRiwayatBeranda: 5,
+  filterJenis: "all",
+  filterKategori: "all",
+};
+
 export default function App() {
   const [authed, setAuthed] = useState(!!localStorage.getItem("pos_pass"));
   const [tab, setTab] = useState("home");
+  const [backTab, setBackTab] = useState("riwayat");
+  const [detailId, setDetailId] = useState(null);
   const [products, setProducts] = useState([]);
   const [txs, setTxs] = useState([]);
+  const [showLogout, setShowLogout] = useState(false);
+  const [editTx, setEditTx] = useState(null);
 
   const [settings, setSettings] = useState(() => {
     try {
-      return JSON.parse(localStorage.getItem("pos_settings")) || {
-        hideNominal: false,        // sembunyikan semua nominal uang
-        hidePengeluaran: false,    // sembunyikan pengeluaran
-        hideLaba: false,           // sembunyikan laba
-        maxRiwayatBeranda: 5,      // jumlah transaksi di beranda
-        filterJenis: "all",        // all | income | expense
-        filterKategori: "all",     // all | makanan | minuman
-      };
+      return { ...DEFAULT_SETTINGS, ...(JSON.parse(localStorage.getItem("pos_settings")) || {}) };
     } catch {
-      return {
-        hideNominal: false,
-        hidePengeluaran: false,
-        hideLaba: false,
-        maxRiwayatBeranda: 5,
-        filterJenis: "all",
-        filterKategori: "all",
-      };
+      return DEFAULT_SETTINGS;
     }
   });
 
-  // Simpan otomatis setiap settings berubah
   useEffect(() => {
     localStorage.setItem("pos_settings", JSON.stringify(settings));
   }, [settings]);
 
-  const logout = () => { localStorage.removeItem("pos_pass"); setAuthed(false); };
+  const logout = () => { localStorage.removeItem("pos_pass"); setShowLogout(false); setAuthed(false); setTab("home"); };
+
   const reload = async () => {
     try {
       const [p, t] = await Promise.all([req("/products"), req("/transactions")]);
@@ -1086,97 +1089,91 @@ export default function App() {
     }
   };
 
-  // WAJIB: load data setiap kali sudah login / setelah refresh
+  // Update lokal langsung (realtime) sebelum reload dari server selesai
+  const patchTx = (t) => setTxs((l) => upsert(l, t));
+  const patchProduct = (p) => setProducts((l) => upsert(l, p).sort((a, b) => a.name.localeCompare(b.name)));
+  const removeProduct = (id) => setProducts((l) => l.filter((x) => x._id !== id));
+
+  // Reload tiap kali pindah halaman / setelah login
   useEffect(() => {
     if (authed) reload();
-  }, [authed]);
+  }, [authed, tab]);
 
-  // Auto-reload setiap kali buka halaman Beranda
-  useEffect(() => {
-    if (authed && tab === "home") reload();
-  }, [tab, authed]);
-
-  const closeDay = () => {
-    toast((t) => (
-      <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 220 }}>
-        <b>Tutup hari sekarang?</b>
-        <p style={{ margin: 0, fontSize: 13, color: "#64748b" }}>
-          Stok sekarang akan disimpan sebagai Stok Akhir dan menjadi Stok Awal besok.
-        </p>
-        <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-          <button
-            onClick={() => toast.dismiss(t.id)}
-            style={{
-              flex: 1,
-              padding: "8px 0",
-              borderRadius: 10,
-              background: "#e2e8f0",
-              fontWeight: 600,
-              fontSize: 13,
-              color: 'black'
-            }}
-          >
-            Batal
-          </button>
-          <button
-            onClick={async () => {
-              toast.dismiss(t.id);
-              try {
-                await req("/close-day", "POST");
-                reload();
-                toast.success("Hari berhasil ditutup");
-              } catch (e) {
-                toast.error(e.message);
-              }
-            }}
-            style={{
-              flex: 1,
-              padding: "8px 0",
-              borderRadius: 10,
-              background: "#0a66c2",
-              color: "white",
-              fontWeight: 600,
-              fontSize: 13,
-            }}
-          >
-            Ya, Tutup
-          </button>
-        </div>
-      </div>
-    ), {
-      duration: 10000, // biar tidak cepat hilang
-      position: "top-center",
-    });
+  const openDetail = (t) => {
+    setBackTab(tab === "detail" ? backTab : tab);
+    setDetailId(t._id);
+    setTab("detail");
   };
+
+  const deleteTx = (t, after) =>
+    confirmToast({
+      title: "Hapus transaksi?",
+      desc: "Stok akan dikembalikan.",
+      okText: "Ya, Hapus",
+      danger: true,
+      onOk: async () => {
+        try {
+          await req(`/transactions/${t._id}`, "DELETE");
+          setTxs((l) => l.filter((x) => x._id !== t._id));
+          toast.success("Transaksi dihapus");
+          after?.();
+          await reload();
+        } catch (e) {
+          toast.error(e.message);
+        }
+      },
+    });
+
+  const closeDay = () =>
+    confirmToast({
+      title: "Tutup hari sekarang?",
+      desc: "Stok sekarang akan disimpan sebagai Stok Akhir dan menjadi Stok Awal besok.",
+      okText: "Ya, Tutup",
+      onOk: async () => {
+        try {
+          await req("/close-day", "POST");
+          await reload();
+          toast.success("Hari berhasil ditutup");
+        } catch (e) {
+          toast.error(e.message);
+        }
+      },
+    });
 
   if (!authed) return <Login onOk={() => setAuthed(true)} />;
 
-  const titles = { kasir: ["Kasir", "Pilih produk & terima pembayaran"], produk: ["Produk", "Kelola menu & stok"], keluar: ["Pengeluaran", "Catat biaya & belanja stok"], riwayat: ["Riwayat", "Semua transaksi tokomu"] };
-const nav = [
-  { key: "home", label: "Beranda", img: "/beranda.png" },          // tetap SVG kalau belum ada gambar
-  { key: "produk", label: "Produk", img: "/produk.png" },
-  { key: "kasir", label: "Kasir", img: "/kasir2.png" },
-  { key: "keluar", label: "Belanja", img: "/keranjang.png" },
-  { key: "riwayat", label: "Riwayat", img: "/riwayat.png" },
-];
+  const titles = {
+    kasir: ["Kasir", "Pilih produk & terima pembayaran"],
+    produk: ["Produk", "Kelola menu & stok"],
+    keluar: ["Pengeluaran", "Catat biaya & belanja stok"],
+    riwayat: ["Riwayat", "Semua transaksi tokomu"],
+  };
+  const nav = [
+    { key: "home", label: "Beranda", img: "/beranda.png" },
+    { key: "produk", label: "Produk", img: "/produk.png" },
+    { key: "kasir", label: "Kasir", img: "/kasir2.png" },
+    { key: "keluar", label: "Belanja", img: "/keranjang.png" },
+    { key: "riwayat", label: "Riwayat", img: "/riwayat.png" },
+  ];
+  const activeKey = tab === "detail" ? backTab : tab;
+  const detailTx = txs.find((t) => t._id === detailId);
 
   return (
     <div className="app">
       {tab === "home" ? (
-        <Beranda txs={txs} products={products} go={setTab} closeDay={closeDay} logout={logout} settings={settings} />
-      ): tab === "setting" ? (
-        <Setting 
-          settings={settings} 
-          setSettings={setSettings} 
-          go={setTab} 
-        />): (
+        <Beranda txs={txs} products={products} go={setTab} closeDay={closeDay} askLogout={() => setShowLogout(true)} openDetail={openDetail} settings={settings} />
+      ) : tab === "setting" ? (
+        <Setting settings={settings} setSettings={setSettings} go={setTab} />
+      ) : tab === "detail" ? (
+        <Detail tx={detailTx} back={() => setTab(backTab)} onEdit={setEditTx} onDelete={deleteTx} />
+      ) : (
         <>
           <Top title={titles[tab][0]} sub={titles[tab][1]} />
           <div className="page pull">
-            {tab === "kasir" && <Kasir products={products} reload={reload} />}
-            {tab === "produk" && <Produk products={products} reload={reload} closeDay={closeDay} />}
-            {tab === "keluar" && <Pengeluaran products={products} reload={reload} />}
-            {tab === "riwayat" && <Riwayat txs={txs} reload={reload} />}
+            {tab === "kasir" && <Kasir products={products} reload={reload} patchTx={patchTx} />}
+            {tab === "produk" && <Produk products={products} reload={reload} closeDay={closeDay} patchProduct={patchProduct} removeProduct={removeProduct} />}
+            {tab === "keluar" && <Pengeluaran products={products} reload={reload} patchTx={patchTx} />}
+            {tab === "riwayat" && <Riwayat txs={txs} onEdit={setEditTx} onDelete={deleteTx} openDetail={openDetail} />}
           </div>
         </>
       )}
@@ -1185,20 +1182,39 @@ const nav = [
         {nav.map((n) => (
           <button
             key={n.key}
-            className={(tab === n.key ? "on " : "") + (n.key === "kasir" ? "mid" : "")}
+            className={(activeKey === n.key ? "on " : "") + (n.key === "kasir" ? "mid" : "")}
             onClick={() => setTab(n.key)}
           >
             <span className="ni">
-              {n.img ? (
-                <img src={n.img} alt={n.label} style={{ width: n.key === "kasir" ? 30 : 24, height: n.key === "kasir" ? 30 : 24, objectFit: "contain" }} />
-              ) : (
-                <Ic n="home" s={22} />
-              )}
+              <img src={n.img} alt={n.label} style={{ width: n.key === "kasir" ? 30 : 24, height: n.key === "kasir" ? 30 : 24, objectFit: "contain" }} />
             </span>
             <small>{n.label}</small>
           </button>
         ))}
       </nav>
+
+      {editTx && (
+        <TxEditModal
+          key={editTx._id}
+          tx={editTx}
+          onClose={() => setEditTx(null)}
+          onSaved={(saved) => { patchTx(saved); reload(); }}
+        />
+      )}
+
+      {showLogout && (
+        <div className="modal-wrap center-m" onClick={() => setShowLogout(false)}>
+          <div className="modal success" onClick={(e) => e.stopPropagation()}>
+            <div className="logout-ic"><Ic n="logout" s={30} /></div>
+            <h3>Keluar dari aplikasi?</h3>
+            <p className="muted small">Kamu perlu memasukkan password lagi untuk masuk kembali.</p>
+            <div className="row-actions" style={{ marginTop: 18 }}>
+              <button className="btn ghost" onClick={() => setShowLogout(false)}>Batal</button>
+              <button className="btn gold" style={{ background: "var(--err)" }} onClick={logout}>Ya, Keluar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -24,22 +24,29 @@ const Product = mongoose.models.Product || mongoose.model("Product", new mongoos
   // ===== PROMO =====
   promo: {
     enabled: { type: Boolean, default: false },
-    buyQty: { type: Number, min: 2 },      // contoh: 4
-    payAmount: { type: Number, min: 0 },   // contoh: 10000
+    buyQty: { type: Number, min: 2 },
+    payAmount: { type: Number, min: 0 },
   },
 }, { timestamps: true }));
 
 const Tx = mongoose.models.Tx || mongoose.model("Tx", new mongoose.Schema({
   type: { type: String, enum: ["income", "expense"], required: true },
   description: String,
-    items: [{
+  items: [{
     product: mongoose.Schema.Types.ObjectId,
     name: String,
     price: Number,
     qty: Number,
-    category: { type: String, enum: ["makanan", "minuman"], default: "makanan" }  // ← tambahkan ini
+    category: { type: String, enum: ["makanan", "minuman"], default: "makanan" },
   }],
   total: Number,
+  subtotal: Number,                                  // total normal sebelum custom
+  isCustom: { type: Boolean, default: false },       // true kalau total diisi manual
+  mix: { type: Boolean, default: false },            // pesanan campur makanan + minuman
+  packaging: {                                       // plastik & cup
+    plastic: { type: Number, default: 0, min: 0 },
+    cup: { type: Number, default: 0, min: 0 },
+  },
   method: {
     type: String,
     enum: ["cash", "qris", "transfer", "ewallet"],
@@ -51,6 +58,7 @@ const Tx = mongoose.models.Tx || mongoose.model("Tx", new mongoose.Schema({
 }, { timestamps: true }));
 
 const bad = (res, m) => res.status(400).json({ message: m });
+const toCount = (v) => Math.max(0, Math.floor(Number(v) || 0));
 
 // ==================== HELPER HITUNG PROMO ====================
 function calcLineTotal(product, qty) {
@@ -63,6 +71,10 @@ function calcLineTotal(product, qty) {
 }
 
 app.use("/api", async (req, res, next) => {
+  // Cegah cache supaya data selalu realtime
+  res.set("Cache-Control", "no-store, no-cache, must-revalidate");
+  res.set("Pragma", "no-cache");
+
   if (req.headers["x-pass"] !== process.env.APP_PASSWORD) {
     return res.status(401).json({ message: "Password salah" });
   }
@@ -85,7 +97,6 @@ app.post("/api/products", async (req, res) => {
     stock: Number(stockInitial),
   };
 
-  // Terima promo saat create
   if (promo) {
     data.promo = {
       enabled: !!promo.enabled,
@@ -112,7 +123,6 @@ app.put("/api/products/:id", async (req, res) => {
     p.stockInitial = Number(stockInitial);
   }
 
-  // ===== PROMO =====
   if (promo) {
     p.promo = {
       enabled: !!promo.enabled,
@@ -142,7 +152,6 @@ app.get("/api/transactions", async (_, res) =>
   res.json(await Tx.find().sort({ createdAt: -1 }).limit(500))
 );
 
-// ==================== POST /api/transactions (bagian income) ====================
 app.post("/api/transactions", async (req, res) => {
   const {
     type,
@@ -152,6 +161,9 @@ app.post("/api/transactions", async (req, res) => {
     note = "",
     description = "",
     amount,
+    mix = false,
+    packaging = {},
+    customTotal,
   } = req.body;
 
   if (type === "income") {
@@ -167,19 +179,22 @@ app.post("/api/transactions", async (req, res) => {
       if (!p || qty < 1) return bad(res, "Item tidak valid");
       if (p.stock < qty) return bad(res, `Stok ${p.name} tidak cukup (sisa ${p.stock})`);
 
-      const lineTotal = calcLineTotal(p, qty);
-      total += lineTotal;
+      total += calcLineTotal(p, qty);
 
       lines.push({
         product: p._id,
         name: p.name,
-        price: p.price,               // tetap simpan harga normal
+        price: p.price,
         qty,
         category: p.category || "makanan",
-        // opsional: simpan juga lineTotal kalau mau
-        // lineTotal,
       });
     }
+
+    // ===== Nominal custom =====
+    const subtotal = total;
+    const hasCustom =
+      customTotal !== undefined && customTotal !== null && customTotal !== "" && Number(customTotal) >= 0;
+    if (hasCustom) total = Number(customTotal);
 
     const paid = method === "qris" ? total : Number(cashReceived);
     if (!(paid >= total)) return bad(res, "Uang diterima kurang dari total");
@@ -197,7 +212,11 @@ app.post("/api/transactions", async (req, res) => {
       await Tx.create({
         type,
         items: lines,
-        total,                    // ← total sudah pakai promo
+        total,
+        subtotal,
+        isCustom: hasCustom && total !== subtotal,
+        mix: !!mix,
+        packaging: { plastic: toCount(packaging.plastic), cup: toCount(packaging.cup) },
         method,
         cashReceived: paid,
         change: paid - total,
@@ -220,7 +239,7 @@ app.post("/api/transactions", async (req, res) => {
         name: p.name,
         price: 0,
         qty,
-        category: p.category || "makanan",   // ← simpan category
+        category: p.category || "makanan",
       });
     }
     if (lines.length) {
@@ -240,7 +259,7 @@ app.post("/api/transactions", async (req, res) => {
         items: lines,
         total: Number(amount),
         note,
-        method: method || "cash", // tunai / transfer / ewallet
+        method: method || "cash",
       })
     );
   }
@@ -252,7 +271,7 @@ app.put("/api/transactions/:id", async (req, res) => {
   const t = await Tx.findById(req.params.id);
   if (!t) return res.status(404).json({ message: "Tidak ditemukan" });
 
-  const { note, description, amount, method, items } = req.body;
+  const { note, description, amount, method, items, mix, packaging } = req.body;
 
   if (note != null) t.note = note;
   if (method) t.method = method;
@@ -262,14 +281,17 @@ app.put("/api/transactions/:id", async (req, res) => {
     if (Number(amount) > 0) t.total = Number(amount);
   }
 
-  // ===== untuk income =====
   if (t.type === "income") {
     if (Number(amount) > 0) t.total = Number(amount);
 
-    // Update item pertama (paling umum dipakai)
     if (items && items[0] && t.items?.[0]) {
       if (items[0].qty) t.items[0].qty = Number(items[0].qty);
       if (items[0].category) t.items[0].category = items[0].category;
+    }
+
+    if (mix != null) t.mix = !!mix;
+    if (packaging) {
+      t.packaging = { plastic: toCount(packaging.plastic), cup: toCount(packaging.cup) };
     }
   }
 
