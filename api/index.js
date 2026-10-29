@@ -138,9 +138,9 @@ const ALLOWED_PASSWORDS = ["123456", "123123", "121212"];
 
 // Label opsional biar log lebih enak dibaca
 const PASSWORD_LABEL = {
-  "123456": "Akun 1 (Huda)",
-  "123123": "Akun 2 (Sofyan)",
-  "121212": "Akun 3 (Fauzy)",
+  "123456": "Akun 1 - huda",
+  "123123": "Akun 2 - sofyan",
+  "121212": "Akun 3 - Fauzy",
 };
 
 app.use("/api", async (req, res, next) => {
