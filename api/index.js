@@ -260,7 +260,7 @@ app.put("/api/products/:id", async (req, res) => {
   await logActivity(req, "edit_product", `Edit produk: ${saved.name}`, {
     productId: saved._id,
     name: saved.name,
-    price: saved.price,
+    // price: saved.price,
   });
   res.json(saved);
 });
