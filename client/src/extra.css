@@ -6,8 +6,8 @@
 .low-ic { width: 24px; height: 24px; border-radius: 8px; background: #fde8e8; color: #e5484d; display: grid; place-items: center; flex-shrink: 0; }
 .low-badge { background: #e5484d; color: #fff; font-size: 11px; font-weight: 800; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 20px; display: grid; place-items: center; }
 .low-h .link { font-size: 12px; }
-.low-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-top: 1px dashed rgba(229, 72, 77, .2); font-size: 13px; }
-.low-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.low-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 13px; }
+.low-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; font-size: 14px; }
 .low-bar { width: 44px; height: 5px; border-radius: 5px; background: #fde8e8; overflow: hidden; flex-shrink: 0; }
 .low-bar i { display: block; height: 100%; border-radius: 5px; background: #f59e0b; }
 .low-chip { font-size: 11px; font-weight: 800; color: #b45309; background: #fef3c7; padding: 2px 8px; border-radius: 20px; white-space: nowrap; flex-shrink: 0; }

@@ -5,7 +5,7 @@ const BLUE = "#0a66c2";
 const GOLD = "#fbb02d";
 
 // Line chart jumlah penjualan per jam (SVG murni, tanpa library)
-export default function HourlyChart({ txs }) {
+export default function HourlyChart({ txs, hidden = false, onToggle }) {
   const { t } = useT();
   const [mode, setMode] = useState("tx"); // tx = jumlah transaksi, items = jumlah item terjual
   const [sel, setSel] = useState(null);
@@ -44,13 +44,23 @@ export default function HourlyChart({ txs }) {
   const unit = mode === "tx" ? t("chartUnitTx") : t("chartUnitItems");
   const ticks = [0, 1, 2, 3, 4].map((k) => (yMax / 4) * k);
 
+  // Disembunyikan: tinggal kartu tipis dengan tombol "Tampilkan"
+  if (hidden) {
+    return (
+      <></>
+    );
+  }
+
   return (
     <div className="card hc">
       <div className="hc-h">
         <h3>{t("chartTitle")}</h3>
-        <div className="hc-seg">
-          <button className={mode === "tx" ? "on" : ""} onClick={() => setMode("tx")}>{t("chartTx")}</button>
-          <button className={mode === "items" ? "on" : ""} onClick={() => setMode("items")}>{t("chartItems")}</button>
+        <div className="hc-actions">
+          <div className="hc-seg">
+            <button className={mode === "tx" ? "on" : ""} onClick={() => setMode("tx")}>{t("chartTx")}</button>
+            <button className={mode === "items" ? "on" : ""} onClick={() => setMode("items")}>{t("chartItems")}</button>
+          </div>
+          {onToggle && <button className="hc-toggle" onClick={onToggle}>{t("chartHide")}</button>}
         </div>
       </div>
 

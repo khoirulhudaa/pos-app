@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
-import HourlyChart from "./Hourlychart";
-import { LangCtx, makeT, useT } from "./I18n";
-import "./extra.css";
 import { downloadReceipt } from "./receipt";
+import { LangCtx, makeT, useT } from "./I18n";
+import HourlyChart from "./Hourlychart";
+import "./extra.css";
 
 // Tanggal lokal "YYYY-MM-DD" (dipakai filter kalender)
 const toKey = (d) => {
@@ -303,9 +303,9 @@ function LowStock({ low, go }) {
       </div>
       {shown.map((p) => (
         <div className="low-row" key={p._id}>
-          <CatIcon c={p.category} s={16} />
-          <span className="low-name">{p.name}</span>
-          <span className="low-bar"><i style={{ width: `${Math.min(100, (p.stock / LOW_LIMIT) * 100)}%` }} /></span>
+          {/* <CatIcon c={p.category} s={16} /> */}
+          <span className="low-name" style={{marginLeft: 0.5}}>{p.name}</span>
+          {/* <span className="low-bar"><i style={{ width: `${Math.min(100, (p.stock / LOW_LIMIT) * 100)}%` }} /></span> */}
           <span className={"low-chip" + (p.stock < 1 ? " zero" : "")}>
             {p.stock < 1 ? t("outOfStock") : t("left", { n: p.stock })}
           </span>
@@ -321,7 +321,7 @@ function LowStock({ low, go }) {
 }
 
 // ---------- Beranda ----------
-function Beranda({ txs, products, go, closeDay, openDay, closed, askLogout, openDetail, settings = {} }) {
+function Beranda({ txs, products, go, closeDay, openDay, closed, askLogout, openDetail, settings = {}, setSettings }) {
   const { t, locale } = useT();
   const { hideLaba = false, hidePengeluaran = false, hideTransaksi = false } = settings;
 
@@ -432,7 +432,11 @@ function Beranda({ txs, products, go, closeDay, openDay, closed, askLogout, open
 
         <LowStock low={low} go={go} />
 
-        <HourlyChart txs={tt} />
+        <HourlyChart
+          txs={tt}
+          hidden={!!settings.hideChart}
+          onToggle={() => setSettings((p) => ({ ...p, hideChart: !p.hideChart }))}
+        />
 
         <div className="sec-h"><h3>{t("latestTx")}</h3><button className="link" onClick={() => go("riwayat")}>{t("seeAll")}</button></div>
         {displayTxs.map((x) => (
@@ -496,6 +500,11 @@ function Setting({ settings, setSettings, go }) {
         <div className="card" style={{ marginTop: 16 }}>
           <h3 style={{ marginBottom: 16 }}>{t("homeDisplay")}</h3>
 
+          <label className="switch-row">
+            <span>{t("chartSetting")}</span>
+            <input type="checkbox" checked={!settings.hideChart} onChange={(e) => update("hideChart", !e.target.checked)} />
+          </label>
+
           <label>{t("maxTx")}</label>
           <select value={settings.maxRiwayatBeranda} onChange={(e) => update("maxRiwayatBeranda", Number(e.target.value))}>
             {[3, 5, 8, 10, 15].map((n) => <option key={n} value={n}>{t("nTx", { n })}</option>)}
@@ -520,6 +529,9 @@ function Setting({ settings, setSettings, go }) {
           {t("savedAuto")}
         </p>
 
+        <p className="center" style={{ fontSize: 13, marginTop: 8 }}>
+          {t("server")}: {srv === "ok" ? `✅ ${t("srvOk")}` : srv === "lama" ? `❌ ${t("srvOld")}` : srv === "gagal" ? `⚠️ ${t("srvFail")}` : t("srvCheck")}
+        </p>
       </div>
     </>
   );
@@ -1470,6 +1482,7 @@ const DEFAULT_SETTINGS = {
   hidePengeluaran: false,
   hideLaba: false,
   hideTransaksi: false,
+  hideChart: false,
   maxRiwayatBeranda: 5,
   filterJenis: "all",
   filterKategori: "all",
@@ -1621,7 +1634,7 @@ export default function App() {
     <LangCtx.Provider value={ctx}>
       <div className="app">
         {tab === "home" ? (
-          <Beranda txs={txs} products={products} go={setTab} closeDay={closeDay} openDay={openDay} closed={closed} askLogout={() => setShowLogout(true)} openDetail={openDetail} settings={settings} />
+          <Beranda txs={txs} products={products} go={setTab} closeDay={closeDay} openDay={openDay} closed={closed} askLogout={() => setShowLogout(true)} openDetail={openDetail} settings={settings} setSettings={setSettings} />
         ) : tab === "setting" ? (
           <Setting settings={settings} setSettings={setSettings} go={setTab} />
         ) : tab === "detail" ? (
