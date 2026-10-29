@@ -381,7 +381,7 @@ app.post("/api/transactions", async (req, res) => {
     await logActivity(
       req,
       "create_payment",
-      `Pembayaran · ID ${shortId} · Rp ${Number(tx.total).toLocaleString("id-ID")}`,
+      `Kasir · ID ${shortId} · Rp ${Number(tx.total).toLocaleString("id-ID")}`,
       {
         txId: tx._id,
         shortId,
