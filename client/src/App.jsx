@@ -362,7 +362,7 @@ function TxRow({ t, children, onClick }) {
             {(inc || t.method) && `, ${methodLabel(t.method, tr)}`}
             {t._id && (
               <span style={{ opacity: 0.75 }}>
-                {" · #"}
+                {", "}
                 {String(t._id).slice(-5).toUpperCase()}
               </span>
             )}
