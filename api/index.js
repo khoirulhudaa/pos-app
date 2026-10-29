@@ -12,7 +12,13 @@ const db = async () => {
   await conn;
 };
 
-const Product = mongoose.models.Product || mongoose.model("Product", new mongoose.Schema({
+// Selalu pakai schema TERBARU (hindari model lama yang ter-cache saat hot-reload / warm instance)
+const registerModel = (name, schema) => {
+  if (mongoose.models[name]) mongoose.deleteModel(name);
+  return mongoose.model(name, schema);
+};
+
+const Product = registerModel("Product", new mongoose.Schema({
   name: { type: String, required: true, trim: true },
   category: { type: String, enum: ["makanan", "minuman"], default: "makanan" },
   price: { type: Number, required: true, min: 0 },
@@ -29,7 +35,7 @@ const Product = mongoose.models.Product || mongoose.model("Product", new mongoos
   },
 }, { timestamps: true }));
 
-const Tx = mongoose.models.Tx || mongoose.model("Tx", new mongoose.Schema({
+const Tx = registerModel("Tx", new mongoose.Schema({
   type: { type: String, enum: ["income", "expense"], required: true },
   description: String,
   items: [{
@@ -74,6 +80,8 @@ app.use("/api", async (req, res, next) => {
   // Cegah cache supaya data selalu realtime
   res.set("Cache-Control", "no-store, no-cache, must-revalidate");
   res.set("Pragma", "no-cache");
+  // Diagnostik: cek di DevTools > Network > Response Headers
+  res.set("X-Packaging-Schema", String(!!Tx.schema.path("packaging.plastic")));
 
   if (req.headers["x-pass"] !== process.env.APP_PASSWORD) {
     return res.status(401).json({ message: "Password salah" });
@@ -272,27 +280,101 @@ app.put("/api/transactions/:id", async (req, res) => {
   if (!t) return res.status(404).json({ message: "Tidak ditemukan" });
 
   const { note, description, amount, method, items, mix, packaging } = req.body;
+  const income = t.type === "income";
+  const hasAmount = amount !== undefined && amount !== null && amount !== "" && Number(amount) >= 0;
 
   if (note != null) t.note = note;
   if (method) t.method = method;
+  if (!income && description) t.description = description;
 
-  if (t.type === "expense") {
-    if (description) t.description = description;
-    if (Number(amount) > 0) t.total = Number(amount);
+  if (Array.isArray(items)) {
+    // ===== Ubah item per produk + sesuaikan stok =====
+    const old = t.toObject().items || [];
+    const ids = [...new Set([...old, ...items].map((i) => String(i.product)).filter(Boolean))];
+    const prods = await Product.find({ _id: { $in: ids } });
+    const byId = new Map(prods.map((p) => [String(p._id), p]));
+    const oldBy = new Map(old.map((i) => [String(i.product), i]));
+
+    const delta = new Map(); // id -> { stock, sold }
+    const bump = (id, stock, sold) => {
+      const d = delta.get(id) || { stock: 0, sold: 0 };
+      d.stock += stock;
+      d.sold += sold;
+      delta.set(id, d);
+    };
+
+    // 1) batalkan efek item lama
+    for (const o of old) {
+      const id = String(o.product);
+      if (!byId.has(id)) continue; // produk sudah dihapus
+      if (income) bump(id, +o.qty, -o.qty);
+      else bump(id, -o.qty, 0);
+    }
+
+    // 2) terapkan item baru
+    const lines = [];
+    for (const i of items) {
+      const id = String(i.product);
+      const qty = Math.floor(Number(i.qty));
+      if (!(qty >= 1)) return bad(res, "Jumlah item tidak valid");
+      const p = byId.get(id);
+      const prev = oldBy.get(id);
+      if (!p && !prev) return bad(res, "Produk tidak ditemukan");
+
+      if (p) {
+        if (income) bump(id, -qty, +qty);
+        else bump(id, +qty, 0);
+      }
+      lines.push({
+        product: p ? p._id : prev.product,
+        name: p ? p.name : prev.name,
+        price: income ? (prev ? prev.price : p.price) : 0, // harga lama dipertahankan
+        qty,
+        category: p ? p.category : prev.category,
+      });
+    }
+
+    // 3) cek stok tidak boleh minus
+    for (const [id, d] of delta) {
+      const p = byId.get(id);
+      if (p.stock + d.stock < 0) {
+        return bad(res, `Stok ${p.name} tidak cukup untuk perubahan ini (sisa ${p.stock})`);
+      }
+    }
+
+    const ops = [...delta]
+      .filter(([, d]) => d.stock || d.sold)
+      .map(([id, d]) => ({
+        updateOne: { filter: { _id: id }, update: { $inc: { stock: d.stock, sold: d.sold } } },
+      }));
+    if (ops.length) await Product.bulkWrite(ops);
+
+    t.items = lines;
+
+    if (income) {
+      const subtotal = lines.reduce(
+        (s, l) => s + calcLineTotal({ price: l.price, promo: byId.get(String(l.product))?.promo }, l.qty),
+        0
+      );
+      t.subtotal = subtotal;
+      t.total = hasAmount ? Number(amount) : subtotal;
+      t.isCustom = t.total !== subtotal;
+    } else if (Number(amount) > 0) {
+      t.total = Number(amount);
+    }
+  } else if (hasAmount && (income || Number(amount) > 0)) {
+    t.total = Number(amount);
   }
 
-  if (t.type === "income") {
-    if (Number(amount) > 0) t.total = Number(amount);
-
-    if (items && items[0] && t.items?.[0]) {
-      if (items[0].qty) t.items[0].qty = Number(items[0].qty);
-      if (items[0].category) t.items[0].category = items[0].category;
-    }
-
+  if (income) {
     if (mix != null) t.mix = !!mix;
     if (packaging) {
-      t.packaging = { plastic: toCount(packaging.plastic), cup: toCount(packaging.cup) };
+      t.set("packaging.plastic", toCount(packaging.plastic));
+      t.set("packaging.cup", toCount(packaging.cup));
     }
+    // sesuaikan uang diterima & kembalian dengan total baru
+    if (!(t.cashReceived >= t.total)) t.cashReceived = t.total;
+    t.change = t.cashReceived - t.total;
   }
 
   res.json(await t.save());

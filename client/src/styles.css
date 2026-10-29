@@ -544,3 +544,113 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); backgro
 .dt-hero strong { display: block; font-size: 32px; letter-spacing: -.02em; margin: 4px 0 6px; }
 .dt-hero small { display: block; }
 .card .li + .li { border-top: 1px dashed var(--line); }
+
+/* ================= TAMBAHKAN DI PALING BAWAH FILE CSS ================= */
+
+/* Kartu transaksi bisa diklik → detail */
+.tx.clickable { cursor: pointer; transition: transform .12s, border-color .15s; }
+.tx.clickable:hover { border-color: var(--accent); }
+.tx.clickable:active { transform: scale(.99); }
+
+/* Ikon & label pesanan Mix */
+.tx-ic.mix { background: var(--ty); color: var(--warnt); }
+.mix-chip {
+  display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 20px;
+  background: var(--ty); color: var(--warnt); font-size: 10.5px; font-weight: 800;
+  border: 1px solid rgba(251, 176, 45, .45);
+}
+
+/* Plastik & Cup di kasir */
+.opt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0; }
+.opt {
+  background: var(--surface2); border-radius: 14px; padding: 10px 12px;
+  display: flex; flex-direction: column; gap: 8px; font-size: 13px; font-weight: 600;
+}
+.opt .qty { justify-content: space-between; background: var(--surface); }
+.opt input { margin: 0; padding: 8px 10px; }
+
+/* Nominal custom */
+.custom-box {
+  background: var(--ty); border: 1px solid rgba(251, 176, 45, .45);
+  border-radius: 14px; padding: 12px 14px; margin: 4px 0 8px;
+}
+.custom-box input { margin-bottom: 6px; }
+
+/* Modal logout */
+.logout-ic {
+  width: 68px; height: 68px; border-radius: 50%; background: var(--tr); color: var(--err);
+  display: grid; place-items: center; margin: 4px auto 0; box-shadow: 0 0 0 10px rgba(229, 72, 77, .1);
+}
+
+/* Halaman detail transaksi */
+.dt-hero { text-align: center; padding: 22px 16px; }
+.dt-hero strong { display: block; font-size: 32px; letter-spacing: -.02em; margin: 4px 0 6px; }
+.dt-hero small { display: block; }
+.card .li + .li { border-top: 1px dashed var(--line); }
+
+/* Tanda plastik & cup di daftar transaksi */
+.tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.tags .mix-chip { margin-left: 0; }
+.pk-chip {
+  display: inline-block; padding: 1px 8px; border-radius: 20px;
+  font-size: 10.5px; font-weight: 800; border: 1px solid transparent;
+}
+.pk-chip.plastic { background: var(--tb); color: var(--accent); border-color: rgba(10, 102, 194, .25); }
+.pk-chip.cup { background: var(--tg); color: var(--ok); border-color: rgba(18, 161, 80, .25); }
+
+/* ================= TAMBAHKAN DI PALING BAWAH FILE CSS ================= */
+
+/* Kartu transaksi bisa diklik → detail */
+.tx.clickable { cursor: pointer; transition: transform .12s, border-color .15s; }
+.tx.clickable:hover { border-color: var(--accent); }
+.tx.clickable:active { transform: scale(.99); }
+
+/* Ikon & label pesanan Mix */
+.tx-ic.mix { background: var(--ty); color: var(--warnt); }
+.mix-chip {
+  display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 20px;
+  background: var(--ty); color: var(--warnt); font-size: 10.5px; font-weight: 800;
+  border: 1px solid rgba(251, 176, 45, .45);
+}
+
+/* Plastik & Cup di kasir */
+.opt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0; }
+.opt {
+  background: var(--surface2); border-radius: 14px; padding: 10px 12px;
+  display: flex; flex-direction: column; gap: 8px; font-size: 13px; font-weight: 600;
+}
+.opt .qty { justify-content: space-between; background: var(--surface); }
+.opt input { margin: 0; padding: 8px 10px; }
+
+/* Nominal custom */
+.custom-box {
+  background: var(--ty); border: 1px solid rgba(251, 176, 45, .45);
+  border-radius: 14px; padding: 12px 14px; margin: 4px 0 8px;
+}
+.custom-box input { margin-bottom: 6px; }
+
+/* Modal logout */
+.logout-ic {
+  width: 68px; height: 68px; border-radius: 50%; background: var(--tr); color: var(--err);
+  display: grid; place-items: center; margin: 4px auto 0; box-shadow: 0 0 0 10px rgba(229, 72, 77, .1);
+}
+
+/* Halaman detail transaksi */
+.dt-hero { text-align: center; padding: 22px 16px; }
+.dt-hero strong { display: block; font-size: 32px; letter-spacing: -.02em; margin: 4px 0 6px; }
+.dt-hero small { display: block; }
+.card .li + .li { border-top: 1px dashed var(--line); }
+
+/* Tanda plastik & cup di daftar transaksi */
+.tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.tags .mix-chip { margin-left: 0; }
+.pk-chip {
+  display: inline-block; padding: 1px 8px; border-radius: 20px;
+  font-size: 10.5px; font-weight: 800; border: 1px solid transparent;
+}
+.pk-chip.plastic { background: var(--tb); color: var(--accent); border-color: rgba(10, 102, 194, .25); }
+.pk-chip.cup { background: var(--tg); color: var(--ok); border-color: rgba(18, 161, 80, .25); }
+
+/* Edit item per produk di modal edit transaksi */
+.edit-item { display: grid; grid-template-columns: 1fr 76px 44px; gap: 8px; align-items: center; margin-bottom: 8px; }
+.edit-item select, .edit-item input { margin: 0; padding: 11px 10px; }

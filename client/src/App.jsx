@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
 const rp = (n) => "Rp " + Number(n || 0).toLocaleString("id-ID");
-const emoji = (c) => (c === "minuman" ? "🥤" : "🍜");
 const methodLabel = (m) =>
   m === "qris" ? "QRIS" : m === "transfer" ? "Transfer" : m === "ewallet" ? "E-Wallet" : "Tunai";
 
@@ -182,11 +181,31 @@ function Login({ onOk }) {
   );
 }
 
-// ---------- Ikon transaksi (mix punya ikon sendiri) ----------
+// ---------- Ikon kategori produk (gambar di folder public) ----------
+function CatIcon({ c, s = 24 }) {
+  const [failed, setFailed] = useState(false);
+  const drink = c === "minuman";
+  if (failed) return <span style={{ fontSize: s * 0.85 }}>{drink ? "🥤" : "🍜"}</span>;
+  return (
+    <img
+      src={drink ? "/drink.png" : "/food.png"}
+      alt={drink ? "Minuman" : "Makanan"}
+      onError={() => setFailed(true)}
+      style={{ width: s, height: s, objectFit: "contain", verticalAlign: "middle", flexShrink: 0, transform: drink ? "rotate(20deg)" : undefined }}
+    />
+  );
+}
+
+// Mix = diceklis mix, ATAU isinya campur makanan + minuman
+const isMix = (t) =>
+  !!t.mix || new Set((t.items || []).map((i) => i.category)).size > 1;
+
+// ---------- Ikon transaksi (mix pakai /mix.png) ----------
 function TxIcon({ t }) {
   const [failed, setFailed] = useState(false);
-  const src = t.mix ? "/mix.png" : "/drink.png";
-  if (failed) return <span style={{ fontSize: 20 }}>{t.mix ? "🍱" : "🍜"}</span>;
+  const mixed = isMix(t);
+  const src = mixed ? "/mix.png" : "/drink.png";
+  if (failed) return <span style={{ fontSize: 20 }}>{mixed ? "" : "🍜"}</span>;
   return (
     <img
       src={src}
@@ -203,8 +222,8 @@ function TxRow({ t, children, onClick }) {
   return (
     <div className={"card tx" + (onClick ? " clickable" : "")} onClick={onClick}>
       <div className="tx-main">
-        <span className={`tx-ic ${inc ? "in" : "outc"}${t.mix ? " mix" : ""}`}>
-          <TxIcon key={t.mix ? "m" : "n"} t={t} />
+        <span className={`tx-ic ${inc ? "in" : "outc"}${isMix(t) ? " mix" : ""}`}>
+          <TxIcon key={isMix(t) ? "m" : "n"} t={t} />
         </span>
         <div className="grow">
           <b className="tx-t">
@@ -213,10 +232,14 @@ function TxRow({ t, children, onClick }) {
           <small className="muted">
             {new Date(t.createdAt).toLocaleString("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
             {(inc || t.method) && `, ${methodLabel(t.method)}`}
-            {t.mix && <span className="mix-chip">Mix</span>}
-            {pk.plastic > 0 && ` · 🛍️${pk.plastic}`}
-            {pk.cup > 0 && ` · 🥤${pk.cup}`}
           </small>
+          {inc && (isMix(t) || pk.plastic > 0 || pk.cup > 0) && (
+            <div className="tags">
+              {isMix(t) && <span className="mix-chip">Mix</span>}
+              {pk.plastic > 0 && <span className="pk-chip plastic">🛍️ Plastik ×{pk.plastic}</span>}
+              {pk.cup > 0 && <span className="pk-chip cup">🥤 Cup ×{pk.cup}</span>}
+            </div>
+          )}
         </div>
         <b className={inc ? "ok" : "err"}>
           {inc ? "+" : "−"}
@@ -299,7 +322,7 @@ function Beranda({ txs, products, go, closeDay, askLogout, openDetail, settings 
           <div className="card warn">
             <div className="warn-h"><Ic n="alert" s={18} /> Stok menipis</div>
             {low.slice(0, 5).map((p) => (
-              <div className="li" key={p._id}><span>{emoji(p.category)} {p.name}</span><b className="err">sisa {p.stock}</b></div>
+              <div className="li" key={p._id}><span><CatIcon c={p.category} s={18} /> {p.name}</span><b className="err">sisa {p.stock}</b></div>
             ))}
           </div>
         )}
@@ -316,6 +339,12 @@ function Beranda({ txs, products, go, closeDay, askLogout, openDetail, settings 
 
 function Setting({ settings, setSettings, go }) {
   const update = (key, value) => setSettings((prev) => ({ ...prev, [key]: value }));
+  const [srv, setSrv] = useState("cek");
+  useEffect(() => {
+    fetch("/api/products", { cache: "no-store", headers: { "x-pass": localStorage.getItem("pos_pass") || "" } })
+      .then((r) => setSrv(r.headers.get("x-packaging-schema") === "true" ? "ok" : "lama"))
+      .catch(() => setSrv("gagal"));
+  }, []);
 
   return (
     <>
@@ -372,6 +401,10 @@ function Setting({ settings, setSettings, go }) {
 
         <p className="muted center" style={{ marginTop: 24, fontSize: 13 }}>
           Pengaturan disimpan otomatis di perangkat ini
+        </p>
+
+        <p className="center" style={{ fontSize: 13, marginTop: 8 }}>
+          Server: {srv === "ok" ? "✅ versi terbaru" : srv === "lama" ? "❌ versi lama, deploy ulang server.js" : srv === "gagal" ? "⚠️ tidak terhubung" : "mengecek..."}
         </p>
       </div>
     </>
@@ -431,6 +464,9 @@ function Kasir({ products, reload, patchTx }) {
         packaging: { plastic, cup },
         customTotal: custom && customVal !== "" ? Number(customVal) : undefined,
       });
+      if ((saved.packaging?.plastic ?? 0) !== plastic || (saved.packaging?.cup ?? 0) !== cup) {
+        toast.error("Server belum menyimpan plastik/cup. Deploy ulang server.js terbaru.", { duration: 8000 });
+      }
       patchTx(saved); // langsung muncul di riwayat/beranda
       setDone({ total, paid, change: paid - total });
       resetForm();
@@ -535,7 +571,7 @@ function Kasir({ products, reload, patchTx }) {
 
         {/* ===== Opsi pesanan ===== */}
         <label className="switch-row" style={{ marginTop: 10 }}>
-          <span>🍱 Pesanan Mix (makanan + minuman)</span>
+          <span> Pesanan Mix (makanan + minuman)</span>
           <input type="checkbox" checked={mix} onChange={(e) => setMix(e.target.checked)} />
         </label>
 
@@ -689,7 +725,7 @@ function Produk({ products, reload, closeDay, patchProduct, removeProduct }) {
         {products.map((p) => (
           <div className="card pc" key={p._id}>
             <div className="pc-h">
-              <span className="pe">{emoji(p.category)}</span>
+              <span className="pe"><CatIcon c={p.category} s={28} /></span>
               <div className="grow"><b>{p.name}</b><br /><small className="chip">{p.category}</small></div>
               <b className="price">{rp(p.price)}</b>
             </div>
@@ -821,11 +857,20 @@ function Pengeluaran({ products, reload, patchTx }) {
 }
 
 // ---------- Modal edit transaksi (dipakai Riwayat & Detail) ----------
-function TxEditModal({ tx, onClose, onSaved }) {
-  const first = tx.items?.[0] || {};
+function TxEditModal({ tx, products, onClose, onSaved }) {
+  const inc = tx.type === "income";
+  const [items, setItems] = useState(() =>
+    (tx.items || []).map((i) => ({
+      product: String(i.product),
+      name: i.name,
+      price: i.price || 0,
+      category: i.category,
+      qty: i.qty,
+    }))
+  );
+  const [itemsChanged, setItemsChanged] = useState(false);
+  const [nominalTouched, setNominalTouched] = useState(false);
   const [f, setF] = useState({
-    category: first.category || "makanan",
-    qty: first.qty || 1,
     nominal: tx.total,
     note: tx.note || "",
     description: tx.description || "",
@@ -835,18 +880,56 @@ function TxEditModal({ tx, onClose, onSaved }) {
   });
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
 
+  const prodOf = (id) => products.find((p) => p._id === id);
+  const computed = items.reduce(
+    (sum, it) => sum + calcLineTotal({ price: it.price, promo: prodOf(it.product)?.promo }, Number(it.qty) || 0),
+    0
+  );
+  // Penjualan: total ikut dihitung ulang dari item, kecuali nominal diubah manual
+  const nominal = !inc || nominalTouched ? f.nominal : itemsChanged ? computed : tx.total;
+
+  const updateItem = (idx, patch) => {
+    setItems((l) => l.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
+    setItemsChanged(true);
+  };
+  const changeProduct = (idx, id) => {
+    const p = prodOf(id);
+    if (p) updateItem(idx, { product: p._id, name: p.name, price: p.price, category: p.category });
+  };
+  const removeItem = (idx) => {
+    setItems((l) => l.filter((_, i) => i !== idx));
+    setItemsChanged(true);
+  };
+  const addItem = () => {
+    const p = products[0];
+    if (!p) return toast.error("Belum ada produk");
+    setItems((l) => [...l, { product: p._id, name: p.name, price: p.price, category: p.category, qty: 1 }]);
+    setItemsChanged(true);
+  };
+
   const submit = async (e) => {
     e.preventDefault();
+    if (inc && !items.length) return toast.error("Minimal 1 item");
+    if (items.some((i) => !(Number(i.qty) >= 1))) return toast.error("Jumlah tiap item minimal 1");
     try {
-      const body = { note: f.note, amount: Number(f.nominal) };
-      if (tx.type === "expense") {
+      const body = {
+        note: f.note,
+        amount: Number(nominal),
+        items: items.map((i) => ({ product: i.product, qty: Number(i.qty) })),
+      };
+      if (!inc) {
         body.description = f.description;
       } else {
-        body.items = [{ category: f.category, qty: Number(f.qty) }];
         body.mix = f.mix;
         body.packaging = { plastic: Number(f.plastic) || 0, cup: Number(f.cup) || 0 };
       }
       const saved = await req(`/transactions/${tx._id}`, "PUT", body);
+      if (inc) {
+        const sp = saved.packaging?.plastic ?? 0, sc = saved.packaging?.cup ?? 0;
+        if (sp !== body.packaging.plastic || sc !== body.packaging.cup) {
+          toast.error("Server belum menyimpan plastik/cup. Deploy ulang server.js terbaru.", { duration: 8000 });
+        }
+      }
       onSaved(saved);
       toast.success("Transaksi berhasil diubah");
       onClose();
@@ -858,19 +941,45 @@ function TxEditModal({ tx, onClose, onSaved }) {
   return (
     <Modal title="Edit Transaksi" onClose={onClose}>
       <form onSubmit={submit}>
-        {tx.type === "income" && (
+        {!inc && (
           <>
-            <label>Jenis Produk</label>
-            <select value={f.category} onChange={set("category")}>
-              <option value="makanan">Makanan</option>
-              <option value="minuman">Minuman</option>
+            <label>Keterangan</label>
+            <input value={f.description} onChange={set("description")} required />
+          </>
+        )}
+
+        <label>{inc ? "Item / produk dibeli" : "Stok produk ditambah"}</label>
+        {items.map((it, idx) => (
+          <div className="edit-item" key={idx}>
+            <select value={it.product} onChange={(e) => changeProduct(idx, e.target.value)}>
+              {!prodOf(it.product) && <option value={it.product}>{it.name} (dihapus)</option>}
+              {products.map((p) => (
+                <option key={p._id} value={p._id}>{p.name}</option>
+              ))}
             </select>
+            <input
+              type="number"
+              inputMode="numeric"
+              min="1"
+              value={it.qty}
+              onChange={(e) => updateItem(idx, { qty: e.target.value })}
+              aria-label="Jumlah"
+            />
+            <button type="button" className="icon-btn dark" onClick={() => removeItem(idx)} title="Hapus item">
+              <Ic n="trash" s={16} />
+            </button>
+          </div>
+        ))}
+        {!items.length && <p className="muted small">Belum ada item.</p>}
+        <button type="button" className="btn ghost" style={{ marginTop: 6 }} onClick={addItem}>
+          <Ic n="plus" s={16} /> Tambah item
+        </button>
+        {inc && <small className="muted" style={{ display: "block", marginTop: 8 }}>Total dari item: {rp(computed)}</small>}
 
-            <label>Jumlah dibeli</label>
-            <input type="number" inputMode="numeric" min="1" value={f.qty} onChange={set("qty")} required />
-
+        {inc && (
+          <>
             <label className="switch-row" style={{ marginTop: 8 }}>
-              <span>🍱 Pesanan Mix</span>
+              <span> Pesanan Mix</span>
               <input type="checkbox" checked={f.mix} onChange={(e) => setF({ ...f, mix: e.target.checked })} />
             </label>
 
@@ -881,15 +990,14 @@ function TxEditModal({ tx, onClose, onSaved }) {
           </>
         )}
 
-        {tx.type === "expense" && (
-          <>
-            <label>Keterangan</label>
-            <input value={f.description} onChange={set("description")} required />
-          </>
-        )}
-
-        <label>Nominal</label>
-        <input type="number" inputMode="numeric" value={f.nominal} onChange={set("nominal")} required />
+        <label>Nominal total</label>
+        <input
+          type="number"
+          inputMode="numeric"
+          value={nominal}
+          onChange={(e) => { setNominalTouched(true); setF({ ...f, nominal: e.target.value }); }}
+          required
+        />
 
         <label>Catatan</label>
         <input placeholder="Opsional" value={f.note} onChange={set("note")} />
@@ -964,10 +1072,10 @@ function Detail({ tx, back, onEdit, onDelete }) {
       <Top title="Detail Transaksi" sub="Rincian lengkap transaksi" right={closeBtn} />
       <div className="page pull">
         <div className="card dt-hero">
-          <span className={`tx-ic ${inc ? "in" : "outc"}${tx.mix ? " mix" : ""}`} style={{ width: 54, height: 54, margin: "0 auto 8px" }}>
-            <TxIcon key={tx.mix ? "m" : "n"} t={tx} />
+          <span className={`tx-ic ${inc ? "in" : "outc"}${isMix(tx) ? " mix" : ""}`} style={{ width: 54, height: 54, margin: "0 auto 8px" }}>
+            <TxIcon key={isMix(tx) ? "m" : "n"} t={tx} />
           </span>
-          <small className="muted">{inc ? "Pemasukan" : "Pengeluaran"}{tx.mix ? " · Mix" : ""}</small>
+          <small className="muted">{inc ? "Pemasukan" : "Pengeluaran"}{isMix(tx) ? " · Mix" : ""}</small>
           <strong className={inc ? "ok" : "err"}>{inc ? "+" : "−"}{rp(tx.total)}</strong>
           <small className="muted">
             {new Date(tx.createdAt).toLocaleString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}
@@ -987,7 +1095,7 @@ function Detail({ tx, back, onEdit, onDelete }) {
             {items.map((i, idx) => (
               <div className="li" key={idx}>
                 <span>
-                  {emoji(i.category)} {i.name}
+                  <CatIcon c={i.category} s={18} /> {i.name}
                   <small className="muted"> {inc ? `${rp(i.price)} × ${i.qty}` : `+${i.qty}`}</small>
                 </span>
                 {inc && <b>{rp(i.price * i.qty)}</b>}
@@ -1014,7 +1122,7 @@ function Detail({ tx, back, onEdit, onDelete }) {
         {inc && (
           <div className="card">
             <h3 style={{ marginBottom: 8 }}>Tambahan</h3>
-            <div className="li"><span className="muted">Pesanan mix</span><b>{tx.mix ? "Ya" : "Tidak"}</b></div>
+            <div className="li"><span className="muted">Pesanan mix</span><b>{isMix(tx) ? "Ya" : "Tidak"}</b></div>
             <div className="li"><span className="muted">🛍️ Plastik</span><b>{pk.plastic || 0}</b></div>
             <div className="li"><span className="muted">🥤 Cup</span><b>{pk.cup || 0}</b></div>
           </div>
@@ -1197,6 +1305,7 @@ export default function App() {
         <TxEditModal
           key={editTx._id}
           tx={editTx}
+          products={products}
           onClose={() => setEditTx(null)}
           onSaved={(saved) => { patchTx(saved); reload(); }}
         />
