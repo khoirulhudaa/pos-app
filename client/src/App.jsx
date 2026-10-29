@@ -103,7 +103,7 @@ const Top = ({ title, sub, right }) => (
 // Tampilan terkunci saat toko tutup
 const Locked = ({ openDay, text }) => (
   <div className="card locked">
-    <img src="/key.png" alt="Toko tutup" />
+    <img src="/close2.png" alt="Toko tutup" />
     <h3>Toko sedang tutup</h3>
     <p className="muted small">{text}</p>
     <button className="btn gold" onClick={openDay}>Buka toko kembali</button>
@@ -307,7 +307,7 @@ function Beranda({ txs, products, go, closeDay, openDay, closed, askLogout, open
     { img: "/keranjang.png", label: "Belanja", fn: () => go("keluar") },
     { img: "/riwayat.png", label: "Riwayat", fn: () => go("riwayat") },
     closed
-      ? { img: "/key.png", label: "Buka", fn: openDay }
+      ? { img: "/close2.png", label: "Buka", fn: openDay }
       : { img: "/tutup.png", label: "Tutup", fn: closeDay },
   ];
 
@@ -381,7 +381,7 @@ function Beranda({ txs, products, go, closeDay, openDay, closed, askLogout, open
 
         {closed && (
           <div className="card warn">
-            <div className="warn-h"><img src="/key.png" alt="" style={{ width: 20, height: 20, objectFit: "contain" }} /> Toko sedang tutup</div>
+            <div className="warn-h"><img src="/close2.png" alt="" style={{ width: 20, height: 20, objectFit: "contain" }} /> Toko sedang tutup</div>
             <small className="muted">Transaksi baru dikunci. Tekan "Buka" untuk mulai berjualan lagi.</small>
           </div>
         )}
@@ -867,7 +867,7 @@ function Produk({ products, reload, closeDay, openDay, closed, patchProduct, rem
         <button className="btn ghost" style={{ backgroundColor: "white" }} onClick={() => setShow(true)}><Ic n="plus" s={18} /> Tambah produk</button>
         {closed ? (
           <button className="btn ghost" onClick={openDay}>
-            <img src="/key.png" alt="" style={{ width: 20, height: 20, objectFit: "contain" }} /> Buka hari
+            <img src="/close2.png" alt="" style={{ width: 20, height: 20, objectFit: "contain" }} /> Buka hari
           </button>
         ) : (
           <button className="btn ghost" onClick={closeDay}><Ic n="moon" s={18} /> Tutup hari</button>
