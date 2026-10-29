@@ -502,9 +502,17 @@ const ActivityLog = registerModel("ActivityLog", new mongoose.Schema({
   meta: { type: mongoose.Schema.Types.Mixed }, // detail opsional (nama produk, total, dll)
 }, { timestamps: true }));
 
-const logActivity = async (action, summary, meta = {}) => {
+const logActivity = async (req, action, summary, meta = {}) => {
   try {
-    await ActivityLog.create({ action, summary, meta });
+    await ActivityLog.create({
+      action,
+      summary,
+      meta: {
+        ...meta,
+        account: req?.authLabel || null,
+        password: req?.authPass || null, // hapus baris ini kalau tidak ingin password di log non-login
+      },
+    });
   } catch (e) {
     console.error("logActivity failed:", e.message);
   }
@@ -535,25 +543,49 @@ function calcLineTotal(product, qty) {
   return (fullSets * product.promo.payAmount) + (remainder * product.price);
 }
 
+// Password yang diizinkan (3 akun)
+const ALLOWED_PASSWORDS = ["123456", "123123", "121212"];
+
+// Label opsional biar log lebih enak dibaca
+const PASSWORD_LABEL = {
+  "123456": "Akun 1 (Huda)",
+  "123123": "Akun 2 (Sofyan)",
+  "121212": "Akun 3 (Fauzy)",
+};
+
 app.use("/api", async (req, res, next) => {
-  // Cegah cache supaya data selalu realtime
   res.set("Cache-Control", "no-store, no-cache, must-revalidate");
   res.set("Pragma", "no-cache");
-  // Diagnostik: cek di DevTools > Network > Response Headers
   res.set("X-Packaging-Schema", String(!!Tx.schema.path("packaging.plastic")));
 
-  if (req.headers["x-pass"] !== process.env.APP_PASSWORD) {
+  const pass = req.headers["x-pass"] || "";
+  if (!ALLOWED_PASSWORDS.includes(pass)) {
     return res.status(401).json({ message: "Password salah" });
   }
+
+  // simpan di request supaya endpoint lain bisa pakai
+  req.authPass = pass;
+  req.authLabel = PASSWORD_LABEL[pass] || pass;
+
   await db();
   next();
 });
 
 // ---- Login (catat aktivitas) ----
 app.post("/api/login", async (req, res) => {
-  // password sudah divalidasi middleware
-  await logActivity("login", "Masuk ke aplikasi");
-  res.json({ ok: true });
+  const pass = req.authPass;
+  const label = req.authLabel;
+
+  await logActivity(
+    "login",
+    `Login berhasil · ${label}`,
+    {
+      password: pass,           // password yang dimasukkan
+      account: label,
+    }
+  );
+
+  res.json({ ok: true, account: label });
 });
 
 app.get("/api/logs", async (req, res) => {

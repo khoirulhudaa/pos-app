@@ -159,9 +159,8 @@ function Login({ onOk }) {
     e.preventDefault();
     localStorage.setItem("pos_pass", pw);
     try {
-      await req("/products");
-      // catat login
-      req("/login", "POST").catch(() => {});
+      await req("/products");          // cek password valid
+      await req("/login", "POST");     // catat log login (password ikut ke header x-pass)
       onOk();
     } catch (x) {
       localStorage.removeItem("pos_pass");
@@ -256,7 +255,7 @@ function ActivityLogPage({ go }) {
       />
       <div className="page pull">
         {loading && <p className="muted center">...</p>}
-        {!loading && !logs.length && <p className="muted center">{t("noLogs")}</p>}
+        {!loading && !logs.length && <p className="muted center" style={{marginTop: 120}}>{t("noLogs")}</p>}
         {logs.map((log) => (
           <div className="card tx" key={log._id}>
             <div className="tx-main">
@@ -291,6 +290,12 @@ function ActivityLogPage({ go }) {
                   })}
                   {" · "}
                   {actionLabel(log.action)}
+                  {log.meta?.password && (
+                    <> · password: <b>{log.meta.password}</b></>
+                  )}
+                  {log.meta?.account && !log.meta?.password && (
+                    <> · {log.meta.account}</>
+                  )}
                 </small>
               </div>
             </div>
