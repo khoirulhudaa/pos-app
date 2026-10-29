@@ -330,7 +330,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); backgro
 .qty { display: flex; align-items: center; gap: 10px; background: var(--surface2); border-radius: 13px; padding: 4px; font-weight: 700; }
 .qty button { width: 30px; height: 30px; border-radius: 10px; background: var(--surface); font-weight: 800; color: var(--accent); box-shadow: 0 1px 3px rgba(0, 0, 0, .08); }
 .total { display: flex; justify-content: space-between; align-items: center; font-size: 17px; padding: 16px 0 6px; } .total b { font-size: 24px; color: var(--accent); letter-spacing: -.01em; }
-.seg { display: flex; background: var(--seg); border-radius: 15px; padding: 4px; margin: 12px 0; }
+.seg { display: flex; background: var(--seg); border-radius: 15px; padding: 4px; margin: 0px 0 12px 0; }
 .seg button { flex: 1; padding: 11px; border-radius: 12px; font-weight: 700; font-size: 14px; color: var(--muted); transition: background .15s; }
 .seg .on { background: var(--surface); color: var(--accent); box-shadow: 0 2px 8px rgba(0, 0, 0, .1); }
 .chips { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0 12px; }
