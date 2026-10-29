@@ -363,7 +363,7 @@ function TxRow({ t, children, onClick }) {
             {t._id && (
               <span style={{ opacity: 0.75 }}>
                 {" · #"}
-                {String(t._id).slice(-6).toUpperCase()}
+                {String(t._id).slice(-5).toUpperCase()}
               </span>
             )}
           </small>
