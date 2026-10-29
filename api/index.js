@@ -1,3 +1,413 @@
+// import express from "express";
+// import cors from "cors";
+// import mongoose from "mongoose";
+
+// const app = express();
+// app.set("etag", false);
+// app.use(cors());
+// app.use(express.json());
+
+// let conn;
+// const db = async () => {
+//   if (!conn) conn = mongoose.connect(process.env.MONGODB_URI);
+//   await conn;
+// };
+
+// // Selalu pakai schema TERBARU (hindari model lama yang ter-cache saat hot-reload / warm instance)
+// const registerModel = (name, schema) => {
+//   if (mongoose.models[name]) mongoose.deleteModel(name);
+//   return mongoose.model(name, schema);
+// };
+
+// const Product = registerModel("Product", new mongoose.Schema({
+//   name: { type: String, required: true, trim: true },
+//   category: { type: String, enum: ["makanan", "minuman"], default: "makanan" },
+//   price: { type: Number, required: true, min: 0 },
+//   stockInitial: { type: Number, default: 0 },
+//   stock: { type: Number, default: 0 },
+//   stockEnd: { type: Number, default: null },
+//   sold: { type: Number, default: 0 },
+
+//   // ===== PROMO =====
+//   promo: {
+//     enabled: { type: Boolean, default: false },
+//     buyQty: { type: Number, min: 2 },
+//     payAmount: { type: Number, min: 0 },
+//   },
+// }, { timestamps: true }));
+
+// const Tx = registerModel("Tx", new mongoose.Schema({
+//   type: { type: String, enum: ["income", "expense"], required: true },
+//   description: String,
+//   items: [{
+//     product: mongoose.Schema.Types.ObjectId,
+//     name: String,
+//     price: Number,
+//     qty: Number,
+//     category: { type: String, enum: ["makanan", "minuman"], default: "makanan" },
+//   }],
+//   total: Number,
+//   subtotal: Number,                                  // total normal sebelum custom
+//   isCustom: { type: Boolean, default: false },       // true kalau total diisi manual
+//   mix: { type: Boolean, default: false },            // pesanan campur makanan + minuman
+//   packaging: {                                       // plastik & cup
+//     plastic: { type: Number, default: 0, min: 0 },
+//     cup: { type: Number, default: 0, min: 0 },
+//   },
+//   method: {
+//     type: String,
+//     enum: ["cash", "qris", "transfer", "ewallet"],
+//     default: "cash",
+//   },
+//   cashReceived: Number,
+//   change: Number,
+//   note: { type: String, default: "" },
+// }, { timestamps: true }));
+
+// const bad = (res, m) => res.status(400).json({ message: m });
+// const toCount = (v) => Math.max(0, Math.floor(Number(v) || 0));
+
+// // ==================== HELPER HITUNG PROMO ====================
+// function calcLineTotal(product, qty) {
+//   if (!product?.promo?.enabled || !product.promo.buyQty || qty < product.promo.buyQty) {
+//     return product.price * qty;
+//   }
+//   const fullSets = Math.floor(qty / product.promo.buyQty);
+//   const remainder = qty % product.promo.buyQty;
+//   return (fullSets * product.promo.payAmount) + (remainder * product.price);
+// }
+
+// app.use("/api", async (req, res, next) => {
+//   // Cegah cache supaya data selalu realtime
+//   res.set("Cache-Control", "no-store, no-cache, must-revalidate");
+//   res.set("Pragma", "no-cache");
+//   // Diagnostik: cek di DevTools > Network > Response Headers
+//   res.set("X-Packaging-Schema", String(!!Tx.schema.path("packaging.plastic")));
+
+//   if (req.headers["x-pass"] !== process.env.APP_PASSWORD) {
+//     return res.status(401).json({ message: "Password salah" });
+//   }
+//   await db();
+//   next();
+// });
+
+// // ---- Produk ----
+// app.get("/api/products", async (_, res) => res.json(await Product.find().sort({ name: 1 })));
+
+// app.post("/api/products", async (req, res) => {
+//   const { name, category, price, stockInitial = 0, promo } = req.body;
+//   if (!name || !(Number(price) >= 0)) return bad(res, "Nama & harga wajib diisi");
+
+//   const data = {
+//     name,
+//     category,
+//     price: Number(price),
+//     stockInitial: Number(stockInitial),
+//     stock: Number(stockInitial),
+//   };
+
+//   if (promo) {
+//     data.promo = {
+//       enabled: !!promo.enabled,
+//       buyQty: promo.enabled ? Number(promo.buyQty) : undefined,
+//       payAmount: promo.enabled ? Number(promo.payAmount) : undefined,
+//     };
+//   }
+
+//   res.json(await Product.create(data));
+// });
+
+// app.put("/api/products/:id", async (req, res) => {
+//   const p = await Product.findById(req.params.id);
+//   if (!p) return res.status(404).json({ message: "Produk tidak ditemukan" });
+
+//   const { name, category, price, stockInitial, promo } = req.body;
+
+//   if (name) p.name = name;
+//   if (category) p.category = category;
+//   if (price != null) p.price = Number(price);
+
+//   if (stockInitial != null) {
+//     p.stock += Number(stockInitial) - p.stockInitial;
+//     p.stockInitial = Number(stockInitial);
+//   }
+
+//   if (promo) {
+//     p.promo = {
+//       enabled: !!promo.enabled,
+//       buyQty: promo.enabled ? Number(promo.buyQty) : undefined,
+//       payAmount: promo.enabled ? Number(promo.payAmount) : undefined,
+//     };
+//   }
+
+//   res.json(await p.save());
+// });
+
+// app.delete("/api/products/:id", async (req, res) => {
+//   await Product.findByIdAndDelete(req.params.id);
+//   res.json({ ok: true });
+// });
+
+// app.post("/api/close-day", async (_, res) => {
+//   await Product.updateMany({}, [
+//     { $set: { stockEnd: "$stock" } },
+//     { $set: { stockInitial: "$stock", sold: 0 } },
+//   ]);
+//   res.json({ ok: true });
+// });
+
+// // ---- Transaksi ----
+// app.get("/api/transactions", async (_, res) =>
+//   res.json(await Tx.find().sort({ createdAt: -1 }).limit(500))
+// );
+
+// app.post("/api/transactions", async (req, res) => {
+//   const {
+//     type,
+//     items = [],
+//     method = "cash",
+//     cashReceived,
+//     note = "",
+//     description = "",
+//     amount,
+//     mix = false,
+//     packaging = {},
+//     customTotal,
+//   } = req.body;
+
+//   if (type === "income") {
+//     if (!items.length) return bad(res, "Keranjang kosong");
+
+//     const prods = await Product.find({ _id: { $in: items.map((i) => i.product) } });
+//     const lines = [];
+//     let total = 0;
+
+//     for (const i of items) {
+//       const p = prods.find((x) => String(x._id) === String(i.product));
+//       const qty = Math.floor(Number(i.qty));
+//       if (!p || qty < 1) return bad(res, "Item tidak valid");
+//       if (p.stock < qty) return bad(res, `Stok ${p.name} tidak cukup (sisa ${p.stock})`);
+
+//       total += calcLineTotal(p, qty);
+
+//       lines.push({
+//         product: p._id,
+//         name: p.name,
+//         price: p.price,
+//         qty,
+//         category: p.category || "makanan",
+//       });
+//     }
+
+//     // ===== Nominal custom =====
+//     const subtotal = total;
+//     const hasCustom =
+//       customTotal !== undefined && customTotal !== null && customTotal !== "" && Number(customTotal) >= 0;
+//     if (hasCustom) total = Number(customTotal);
+
+//     const paid = method === "qris" ? total : Number(cashReceived);
+//     if (!(paid >= total)) return bad(res, "Uang diterima kurang dari total");
+
+//     await Product.bulkWrite(
+//       lines.map((l) => ({
+//         updateOne: {
+//           filter: { _id: l.product },
+//           update: { $inc: { stock: -l.qty, sold: l.qty } },
+//         },
+//       }))
+//     );
+
+//     return res.json(
+//       await Tx.create({
+//         type,
+//         items: lines,
+//         total,
+//         subtotal,
+//         isCustom: hasCustom && total !== subtotal,
+//         mix: !!mix,
+//         packaging: { plastic: toCount(packaging.plastic), cup: toCount(packaging.cup) },
+//         method,
+//         cashReceived: paid,
+//         change: paid - total,
+//         note,
+//       })
+//     );
+//   }
+
+//   if (type === "expense") {
+//     if (!description || !(Number(amount) > 0)) {
+//       return bad(res, "Keterangan & nominal wajib diisi");
+//     }
+//     const lines = [];
+//     for (const i of items) {
+//       const p = await Product.findById(i.product);
+//       const qty = Math.floor(Number(i.qty));
+//       if (!p || qty < 1) return bad(res, "Item tidak valid");
+//       lines.push({
+//         product: p._id,
+//         name: p.name,
+//         price: 0,
+//         qty,
+//         category: p.category || "makanan",
+//       });
+//     }
+//     if (lines.length) {
+//       await Product.bulkWrite(
+//         lines.map((l) => ({
+//           updateOne: {
+//             filter: { _id: l.product },
+//             update: { $inc: { stock: l.qty } },
+//           },
+//         }))
+//       );
+//     }
+//     return res.json(
+//       await Tx.create({
+//         type,
+//         description,
+//         items: lines,
+//         total: Number(amount),
+//         note,
+//         method: method || "cash",
+//       })
+//     );
+//   }
+
+//   bad(res, "Tipe transaksi tidak valid");
+// });
+
+// app.put("/api/transactions/:id", async (req, res) => {
+//   const t = await Tx.findById(req.params.id);
+//   if (!t) return res.status(404).json({ message: "Tidak ditemukan" });
+
+//   const { note, description, amount, method, items, mix, packaging } = req.body;
+//   const income = t.type === "income";
+//   const hasAmount = amount !== undefined && amount !== null && amount !== "" && Number(amount) >= 0;
+
+//   if (note != null) t.note = note;
+//   if (method) t.method = method;
+//   if (!income && description) t.description = description;
+
+//   if (Array.isArray(items)) {
+//     // ===== Ubah item per produk + sesuaikan stok =====
+//     const old = t.toObject().items || [];
+//     const ids = [...new Set([...old, ...items].map((i) => String(i.product)).filter(Boolean))];
+//     const prods = await Product.find({ _id: { $in: ids } });
+//     const byId = new Map(prods.map((p) => [String(p._id), p]));
+//     const oldBy = new Map(old.map((i) => [String(i.product), i]));
+
+//     const delta = new Map(); // id -> { stock, sold }
+//     const bump = (id, stock, sold) => {
+//       const d = delta.get(id) || { stock: 0, sold: 0 };
+//       d.stock += stock;
+//       d.sold += sold;
+//       delta.set(id, d);
+//     };
+
+//     // 1) batalkan efek item lama
+//     for (const o of old) {
+//       const id = String(o.product);
+//       if (!byId.has(id)) continue; // produk sudah dihapus
+//       if (income) bump(id, +o.qty, -o.qty);
+//       else bump(id, -o.qty, 0);
+//     }
+
+//     // 2) terapkan item baru
+//     const lines = [];
+//     for (const i of items) {
+//       const id = String(i.product);
+//       const qty = Math.floor(Number(i.qty));
+//       if (!(qty >= 1)) return bad(res, "Jumlah item tidak valid");
+//       const p = byId.get(id);
+//       const prev = oldBy.get(id);
+//       if (!p && !prev) return bad(res, "Produk tidak ditemukan");
+
+//       if (p) {
+//         if (income) bump(id, -qty, +qty);
+//         else bump(id, +qty, 0);
+//       }
+//       lines.push({
+//         product: p ? p._id : prev.product,
+//         name: p ? p.name : prev.name,
+//         price: income ? (prev ? prev.price : p.price) : 0, // harga lama dipertahankan
+//         qty,
+//         category: p ? p.category : prev.category,
+//       });
+//     }
+
+//     // 3) cek stok tidak boleh minus
+//     for (const [id, d] of delta) {
+//       const p = byId.get(id);
+//       if (p.stock + d.stock < 0) {
+//         return bad(res, `Stok ${p.name} tidak cukup untuk perubahan ini (sisa ${p.stock})`);
+//       }
+//     }
+
+//     const ops = [...delta]
+//       .filter(([, d]) => d.stock || d.sold)
+//       .map(([id, d]) => ({
+//         updateOne: { filter: { _id: id }, update: { $inc: { stock: d.stock, sold: d.sold } } },
+//       }));
+//     if (ops.length) await Product.bulkWrite(ops);
+
+//     t.items = lines;
+
+//     if (income) {
+//       const subtotal = lines.reduce(
+//         (s, l) => s + calcLineTotal({ price: l.price, promo: byId.get(String(l.product))?.promo }, l.qty),
+//         0
+//       );
+//       t.subtotal = subtotal;
+//       t.total = hasAmount ? Number(amount) : subtotal;
+//       t.isCustom = t.total !== subtotal;
+//     } else if (Number(amount) > 0) {
+//       t.total = Number(amount);
+//     }
+//   } else if (hasAmount && (income || Number(amount) > 0)) {
+//     t.total = Number(amount);
+//   }
+
+//   if (income) {
+//     if (mix != null) t.mix = !!mix;
+//     if (packaging) {
+//       t.set("packaging.plastic", toCount(packaging.plastic));
+//       t.set("packaging.cup", toCount(packaging.cup));
+//     }
+//     // sesuaikan uang diterima & kembalian dengan total baru
+//     if (!(t.cashReceived >= t.total)) t.cashReceived = t.total;
+//     t.change = t.cashReceived - t.total;
+//   }
+
+//   res.json(await t.save());
+// });
+
+// app.delete("/api/transactions/:id", async (req, res) => {
+//   const t = await Tx.findById(req.params.id);
+//   if (!t) return res.json({ ok: true });
+//   const sign = t.type === "income" ? 1 : -1;
+//   if (t.items.length) {
+//     await Product.bulkWrite(
+//       t.items.map((i) => ({
+//         updateOne: {
+//           filter: { _id: i.product },
+//           update: {
+//             $inc: {
+//               stock: sign * i.qty,
+//               sold: t.type === "income" ? -i.qty : 0,
+//             },
+//           },
+//         },
+//       }))
+//     );
+//   }
+//   await t.deleteOne();
+//   res.json({ ok: true });
+// });
+
+// app.use((err, _req, res, _next) => res.status(500).json({ message: err.message }));
+
+// export default app;
+
 import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
@@ -46,6 +456,13 @@ const Tx = registerModel("Tx", new mongoose.Schema({
     qty: Number,
     category: { type: String, enum: ["makanan", "minuman"], default: "makanan" },
   }],
+  // Item belanja custom (es batu, bahan lain, dll) - tidak terkait stok produk
+  expenseItems: [{
+    _id: false,
+    name: String,
+    qty: Number,
+    price: Number,
+  }],
   total: Number,
   subtotal: Number,                                  // total normal sebelum custom
   isCustom: { type: Boolean, default: false },       // true kalau total diisi manual
@@ -63,6 +480,21 @@ const Tx = registerModel("Tx", new mongoose.Schema({
   change: Number,
   note: { type: String, default: "" },
 }, { timestamps: true }));
+
+// Status toko (buka / tutup) - satu dokumen saja
+const Setting = registerModel("Setting", new mongoose.Schema({
+  key: { type: String, unique: true },
+  closed: { type: Boolean, default: false },
+  closedAt: Date,
+}, { timestamps: true }));
+
+const getClosed = async () => !!(await Setting.findOne({ key: "shop" }))?.closed;
+const setClosed = (closed) =>
+  Setting.findOneAndUpdate(
+    { key: "shop" },
+    { closed, closedAt: closed ? new Date() : null },
+    { upsert: true, new: true }
+  );
 
 const bad = (res, m) => res.status(400).json({ message: m });
 const toCount = (v) => Math.max(0, Math.floor(Number(v) || 0));
@@ -89,6 +521,14 @@ app.use("/api", async (req, res, next) => {
   }
   await db();
   next();
+});
+
+// ---- Status toko ----
+app.get("/api/status", async (_, res) => res.json({ closed: await getClosed() }));
+
+app.post("/api/open-day", async (_, res) => {
+  await setClosed(false);
+  res.json({ ok: true, closed: false });
 });
 
 // ---- Produk ----
@@ -149,11 +589,15 @@ app.delete("/api/products/:id", async (req, res) => {
 });
 
 app.post("/api/close-day", async (_, res) => {
-  await Product.updateMany({}, [
-    { $set: { stockEnd: "$stock" } },
-    { $set: { stockInitial: "$stock", sold: 0 } },
-  ]);
-  res.json({ ok: true });
+  // Kalau sudah tutup, jangan hitung ulang stok akhir
+  if (!(await getClosed())) {
+    await Product.updateMany({}, [
+      { $set: { stockEnd: "$stock" } },
+      { $set: { stockInitial: "$stock", sold: 0 } },
+    ]);
+  }
+  await setClosed(true);
+  res.json({ ok: true, closed: true });
 });
 
 // ---- Transaksi ----
@@ -162,6 +606,11 @@ app.get("/api/transactions", async (_, res) =>
 );
 
 app.post("/api/transactions", async (req, res) => {
+  // Toko tutup → tidak boleh ada transaksi baru sampai dibuka lagi
+  if (await getClosed()) {
+    return res.status(403).json({ message: "Toko sedang tutup. Buka kembali untuk membuat transaksi baru." });
+  }
+
   const {
     type,
     items = [],
@@ -173,6 +622,7 @@ app.post("/api/transactions", async (req, res) => {
     mix = false,
     packaging = {},
     customTotal,
+    customItems = [],
   } = req.body;
 
   if (type === "income") {
@@ -235,9 +685,24 @@ app.post("/api/transactions", async (req, res) => {
   }
 
   if (type === "expense") {
-    if (!description || !(Number(amount) > 0)) {
+    // ===== Item belanja custom (es batu, bahan lain, dll) =====
+    const exItems = (Array.isArray(customItems) ? customItems : [])
+      .map((c) => ({
+        name: String(c?.name || "").trim(),
+        qty: Math.floor(Number(c?.qty)),
+        price: Math.max(0, Number(c?.price) || 0),
+      }))
+      .filter((c) => c.name);
+    if (exItems.some((c) => !(c.qty >= 1))) return bad(res, "Jumlah item custom minimal 1");
+
+    const exSum = exItems.reduce((s, c) => s + c.qty * c.price, 0);
+    const finalAmount = Number(amount) > 0 ? Number(amount) : exSum;
+    const finalDesc = String(description || "").trim() || exItems.map((c) => c.name).join(", ");
+
+    if (!finalDesc || !(finalAmount > 0)) {
       return bad(res, "Keterangan & nominal wajib diisi");
     }
+
     const lines = [];
     for (const i of items) {
       const p = await Product.findById(i.product);
@@ -264,9 +729,10 @@ app.post("/api/transactions", async (req, res) => {
     return res.json(
       await Tx.create({
         type,
-        description,
+        description: finalDesc,
         items: lines,
-        total: Number(amount),
+        expenseItems: exItems,
+        total: finalAmount,
         note,
         method: method || "cash",
       })

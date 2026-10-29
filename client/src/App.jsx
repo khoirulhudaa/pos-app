@@ -1,5 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
+import { downloadReceipt } from "./receipt";
+
+// Tanggal lokal "YYYY-MM-DD" (dipakai filter kalender)
+const toKey = (d) => {
+  const x = new Date(d);
+  return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`;
+};
 
 const rp = (n) => "Rp " + Number(n || 0).toLocaleString("id-ID");
 const methodLabel = (m) =>
@@ -34,6 +41,8 @@ const P = {
   moon: "M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z",
   alert: "M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z M12 9v4 M12 17h.01",
   search: "M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16z M21 21l-4.35-4.35",
+  calendar: "M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z M16 2v4 M8 2v4 M3 10h18",
+  download: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M7 10l5 5 5-5 M12 15V3",
 };
 const Ic = ({ n, s = 20 }) => (
   <svg viewBox="0 0 24 24" width={s} height={s} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -88,6 +97,16 @@ const Top = ({ title, sub, right }) => (
   <div className="top">
     <div><h1>{title}</h1>{sub && <p>{sub}</p>}</div>
     {right}
+  </div>
+);
+
+// Tampilan terkunci saat toko tutup
+const Locked = ({ openDay, text }) => (
+  <div className="card locked">
+    <img src="/key.png" alt="Toko tutup" />
+    <h3>Toko sedang tutup</h3>
+    <p className="muted small">{text}</p>
+    <button className="btn gold" onClick={openDay}>Buka toko kembali</button>
   </div>
 );
 
@@ -204,14 +223,15 @@ const isMix = (t) =>
 function TxIcon({ t }) {
   const [failed, setFailed] = useState(false);
   const mixed = isMix(t);
-  const src = mixed ? "/mix.png" : "/drink.png";
+  const other = t.type === "expense" && (t.expenseItems || []).length > 0 && !mixed; // belanja custom
+  const src = mixed ? "/mix.png" : other ? "/other.png" : "/drink.png";
   if (failed) return <span style={{ fontSize: 20 }}>{mixed ? "" : "🍜"}</span>;
   return (
     <img
       src={src}
       alt=""
       onError={() => setFailed(true)}
-      style={{ width: 24, height: 24, objectFit: "contain", transform: "rotate(20deg)" }}
+      style={{ width: 24, height: 24, objectFit: "contain", transform: other ? undefined : "rotate(20deg)" }}
     />
   );
 }
@@ -252,11 +272,24 @@ function TxRow({ t, children, onClick }) {
 }
 
 // ---------- Beranda ----------
-function Beranda({ txs, products, go, closeDay, askLogout, openDetail, settings = {} }) {
-  const { hideLaba = false, hidePengeluaran = false } = settings;
+function Beranda({ txs, products, go, closeDay, openDay, closed, askLogout, openDetail, settings = {} }) {
+  const { hideLaba = false, hidePengeluaran = false, hideTransaksi = false } = settings;
 
-  const today = new Date().toDateString();
-  const tt = txs.filter((t) => new Date(t.createdAt).toDateString() === today);
+  // Filter tanggal untuk kartu laba / pemasukan / pengeluaran / transaksi (null = hari ini)
+  const [pick, setPick] = useState(null);
+  const dateRef = useRef(null);
+  const openPicker = () => {
+    const el = dateRef.current;
+    if (!el) return;
+    if (el.showPicker) el.showPicker();
+    else el.click();
+  };
+  const todayKey = toKey(new Date());
+  const date = pick || todayKey;
+  const isToday = date === todayKey;
+  const dateLabel = new Date(date + "T00:00:00").toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
+
+  const tt = txs.filter((t) => toKey(t.createdAt) === date);
   const inc = tt.filter((t) => t.type === "income").reduce((s, t) => s + t.total, 0);
   const exp = tt.filter((t) => t.type === "expense").reduce((s, t) => s + t.total, 0);
   const low = products.filter((p) => p.stock < 5);
@@ -267,7 +300,9 @@ function Beranda({ txs, products, go, closeDay, askLogout, openDetail, settings 
     { img: "/produk.png", label: "Produk", fn: () => go("produk") },
     { img: "/keranjang.png", label: "Belanja", fn: () => go("keluar") },
     { img: "/riwayat.png", label: "Riwayat", fn: () => go("riwayat") },
-    { img: "/tutup.png", label: "Tutup", fn: closeDay },
+    closed
+      ? { img: "/key.png", label: "Buka", fn: openDay }
+      : { img: "/tutup.png", label: "Tutup", fn: closeDay },
   ];
 
   let filteredTxs = [...txs];
@@ -289,6 +324,24 @@ function Beranda({ txs, products, go, closeDay, askLogout, openDetail, settings 
             <b>Pemilik Toko</b>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
+            <button
+              style={{ borderRadius: "9999px", position: "relative" }}
+              className={"icon-btn" + (!isToday ? " active" : "")}
+              onClick={openPicker}
+              title="Filter tanggal"
+            >
+              <Ic n="calendar" />
+              <input
+                ref={dateRef}
+                type="date"
+                className="date-hidden"
+                value={date}
+                max={todayKey}
+                tabIndex={-1}
+                aria-label="Pilih tanggal"
+                onChange={(e) => setPick(e.target.value && e.target.value !== todayKey ? e.target.value : null)}
+              />
+            </button>
             <button style={{ borderRadius: "9999px" }} className="icon-btn" onClick={() => go("setting")} title="Pengaturan">
               <Ic n="settings" />
             </button>
@@ -298,12 +351,14 @@ function Beranda({ txs, products, go, closeDay, askLogout, openDetail, settings 
           </div>
         </div>
         <div className="balance">
-          <span>Laba hari ini</span>
+          <div className="bal-head">
+            <span>{isToday ? "Laba hari ini" : `Laba ${dateLabel}`}</span>
+          </div>
           <strong>{hideLaba ? "••••••" : money(inc - exp)}</strong>
           <div className="bal-row">
             <div><small>Pemasukan</small><b className="ok">{money(inc)}</b></div>
             <div><small>Pengeluaran</small><b className="err">{hidePengeluaran ? "••••••" : money(exp)}</b></div>
-            <div><small>Transaksi</small><b>{tt.length}</b></div>
+            <div><small>Transaksi</small><b>{hideTransaksi ? "••••" : tt.length}</b></div>
           </div>
         </div>
       </div>
@@ -317,6 +372,13 @@ function Beranda({ txs, products, go, closeDay, askLogout, openDetail, settings 
             </button>
           ))}
         </div>
+
+        {closed && (
+          <div className="card warn">
+            <div className="warn-h"><img src="/key.png" alt="" style={{ width: 20, height: 20, objectFit: "contain" }} /> Toko sedang tutup</div>
+            <small className="muted">Transaksi baru dikunci. Tekan "Buka" untuk mulai berjualan lagi.</small>
+          </div>
+        )}
 
         {low.length > 0 && (
           <div className="card warn">
@@ -370,6 +432,10 @@ function Setting({ settings, setSettings, go }) {
             <span>Sembunyikan Laba</span>
             <input type="checkbox" checked={settings.hideLaba} onChange={(e) => update("hideLaba", e.target.checked)} />
           </label>
+          <label className="switch-row">
+            <span>Sembunyikan Jumlah Transaksi</span>
+            <input type="checkbox" checked={settings.hideTransaksi} onChange={(e) => update("hideTransaksi", e.target.checked)} />
+          </label>
         </div>
 
         <div className="card" style={{ marginTop: 16 }}>
@@ -412,7 +478,7 @@ function Setting({ settings, setSettings, go }) {
 }
 
 // ---------- Kasir ----------
-function Kasir({ products, reload, patchTx }) {
+function Kasir({ products, reload, patchTx, closed, openDay }) {
   const [cart, setCart] = useState({});
   const [cash, setCash] = useState("");
   const [note, setNote] = useState("");
@@ -487,6 +553,8 @@ function Kasir({ products, reload, patchTx }) {
       </div>
     </div>
   );
+
+  if (closed) return <Locked openDay={openDay} text="Kasir dikunci. Buka toko kembali untuk membuat transaksi baru." />;
 
   return (
     <div className="kasir">
@@ -654,7 +722,7 @@ function Kasir({ products, reload, patchTx }) {
 }
 
 // ---------- Produk ----------
-function Produk({ products, reload, closeDay, patchProduct, removeProduct }) {
+function Produk({ products, reload, closeDay, openDay, closed, patchProduct, removeProduct }) {
   const empty = {
     name: "", category: "makanan", price: "", stockInitial: "",
     promoEnabled: false, promoBuyQty: "", promoPayAmount: "",
@@ -718,7 +786,13 @@ function Produk({ products, reload, closeDay, patchProduct, removeProduct }) {
     <>
       <div className="row-actions">
         <button className="btn ghost" style={{ backgroundColor: "white" }} onClick={() => setShow(true)}><Ic n="plus" s={18} /> Tambah produk</button>
-        <button className="btn ghost" onClick={closeDay}><Ic n="moon" s={18} /> Tutup hari</button>
+        {closed ? (
+          <button className="btn ghost" onClick={openDay}>
+            <img src="/key.png" alt="" style={{ width: 20, height: 20, objectFit: "contain" }} /> Buka hari
+          </button>
+        ) : (
+          <button className="btn ghost" onClick={closeDay}><Ic n="moon" s={18} /> Tutup hari</button>
+        )}
       </div>
 
       <div className="plist">
@@ -792,25 +866,42 @@ function Produk({ products, reload, closeDay, patchProduct, removeProduct }) {
 }
 
 // ---------- Pengeluaran ----------
-function Pengeluaran({ products, reload, patchTx }) {
+function Pengeluaran({ products, reload, patchTx, closed, openDay }) {
   const blank = { description: "", amount: "", product: "", qty: "", note: "", method: "cash" };
   const [f, setF] = useState(blank);
+  const [custom, setCustom] = useState([]); // item belanja custom: { name, qty, price }
+  const [amountTouched, setAmountTouched] = useState(false);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+
+  const customSum = custom.reduce((s, c) => s + (Number(c.qty) || 0) * (Number(c.price) || 0), 0);
+  // Kalau ada item custom, nominal otomatis = jumlah semua item (masih bisa diubah manual)
+  const amount = custom.length && !amountTouched ? customSum : f.amount;
+
+  const addCustom = () => setCustom((l) => [...l, { name: "", qty: 1, price: "" }]);
+  const updateCustom = (idx, patch) => setCustom((l) => l.map((c, i) => (i === idx ? { ...c, ...patch } : c)));
+  const removeCustom = (idx) => setCustom((l) => l.filter((_, i) => i !== idx));
 
   const submit = async (e) => {
     e.preventDefault();
+    const customItems = custom
+      .map((c) => ({ name: c.name.trim(), qty: Number(c.qty), price: Number(c.price) || 0 }))
+      .filter((c) => c.name);
+    if (customItems.some((c) => !(c.qty >= 1))) return toast.error("Jumlah item custom minimal 1");
     try {
       const items = f.product && f.qty ? [{ product: f.product, qty: Number(f.qty) }] : [];
       const saved = await req("/transactions", "POST", {
         type: "expense",
-        description: f.description,
-        amount: Number(f.amount),
+        description: f.description.trim() || customItems.map((c) => c.name).join(", "),
+        amount: Number(amount),
         items,
+        customItems,
         note: f.note,
         method: f.method,
       });
       patchTx(saved);
       setF(blank);
+      setCustom([]);
+      setAmountTouched(false);
       reload();
       toast.success("Pengeluaran tercatat");
     } catch (x) {
@@ -818,13 +909,62 @@ function Pengeluaran({ products, reload, patchTx }) {
     }
   };
 
+  if (closed) return <Locked openDay={openDay} text="Pencatatan belanja dikunci. Buka toko kembali untuk menambah pengeluaran." />;
+
   return (
     <form className="card" onSubmit={submit}>
-      <label>Keterangan</label>
-      <input placeholder="Mis. Belanja bahan" value={f.description} onChange={set("description")} required />
+      <label>Keterangan {custom.length > 0 && "(opsional)"}</label>
+      <input placeholder="Mis. Belanja bahan" value={f.description} onChange={set("description")} required={!custom.length} />
 
-      <label>Nominal</label>
-      <input type="number" inputMode="numeric" placeholder="0" value={f.amount} onChange={set("amount")} required />
+      <label>Item belanja custom (es batu, bahan lain, dll)</label>
+      {custom.map((c, idx) => (
+        <div className="cx-item" key={idx}>
+          <input
+            className="cx-name"
+            placeholder="Nama item, mis. Es batu"
+            value={c.name}
+            onChange={(e) => updateCustom(idx, { name: e.target.value })}
+            required
+          />
+          <input
+            type="number"
+            inputMode="numeric"
+            min="1"
+            placeholder="Qty"
+            value={c.qty}
+            onChange={(e) => updateCustom(idx, { qty: e.target.value })}
+            aria-label="Jumlah"
+            required
+          />
+          <input
+            type="number"
+            inputMode="numeric"
+            min="0"
+            placeholder="Harga satuan"
+            value={c.price}
+            onChange={(e) => updateCustom(idx, { price: e.target.value })}
+            aria-label="Harga satuan"
+            required
+          />
+          <button type="button" className="icon-btn dark" onClick={() => removeCustom(idx)} title="Hapus item">
+            <Ic n="trash" s={16} />
+          </button>
+          <small className="muted cx-sub">Subtotal: {rp((Number(c.qty) || 0) * (Number(c.price) || 0))}</small>
+        </div>
+      ))}
+      <button type="button" className="btn ghost" style={{ marginTop: 6 }} onClick={addCustom}>
+        <img src="/other.png" alt="" style={{ width: 20, height: 20, objectFit: "contain" }} /> Tambah item custom
+      </button>
+
+      <label>Nominal{custom.length > 0 && !amountTouched ? " (otomatis dari item)" : ""}</label>
+      <input
+        type="number"
+        inputMode="numeric"
+        placeholder="0"
+        value={amount}
+        onChange={(e) => { setAmountTouched(true); setF({ ...f, amount: e.target.value }); }}
+        required
+      />
 
       <label>Metode pembayaran</label>
       <select value={f.method} onChange={set("method")}>
@@ -1010,9 +1150,13 @@ function TxEditModal({ tx, products, onClose, onSaved }) {
 
 // ---------- Riwayat ----------
 function Riwayat({ txs, onEdit, onDelete, openDetail }) {
-  const [range, setRange] = useState("today");
-  const today = new Date().toDateString();
-  const list = range === "all" ? txs : txs.filter((t) => new Date(t.createdAt).toDateString() === today);
+  const [range, setRange] = useState("today"); // today | all | date
+  const [date, setDate] = useState(toKey(new Date()));
+  const todayKey = toKey(new Date());
+  const list =
+    range === "all"
+      ? txs
+      : txs.filter((t) => toKey(t.createdAt) === (range === "date" ? date : todayKey));
   const inc = list.filter((t) => t.type === "income").reduce((s, t) => s + t.total, 0);
   const exp = list.filter((t) => t.type === "expense").reduce((s, t) => s + t.total, 0);
 
@@ -1021,7 +1165,20 @@ function Riwayat({ txs, onEdit, onDelete, openDetail }) {
       <div className="seg">
         <button className={range === "today" ? "on" : ""} onClick={() => setRange("today")}>Hari ini</button>
         <button className={range === "all" ? "on" : ""} onClick={() => setRange("all")}>Semua</button>
+        <button className={range === "date" ? "on" : ""} onClick={() => setRange("date")}>Tanggal</button>
       </div>
+      {range === "date" && (
+        <div className="card date-row">
+          <Ic n="calendar" s={18} />
+          <input
+            type="date"
+            value={date}
+            max={todayKey}
+            onChange={(e) => e.target.value && setDate(e.target.value)}
+            aria-label="Pilih tanggal"
+          />
+        </div>
+      )}
       <div className="sum3">
         <div className="card"><small>Pemasukan</small><b className="ok">{rp(inc)}</b></div>
         <div className="card"><small>Pengeluaran</small><b className="err">{rp(exp)}</b></div>
@@ -1041,13 +1198,24 @@ function Riwayat({ txs, onEdit, onDelete, openDetail }) {
           </div>
         </TxRow>
       ))}
-      {!list.length && <p className="muted center">Belum ada transaksi.</p>}
+      {!list.length && <p className="muted center">{range === "date" ? "Tidak ada transaksi pada tanggal ini." : "Belum ada transaksi."}</p>}
     </>
   );
 }
 
 // ---------- Detail transaksi ----------
 function Detail({ tx, back, onEdit, onDelete }) {
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const savePdf = async () => {
+    setPdfBusy(true);
+    try {
+      await downloadReceipt(tx);
+    } catch (e) {
+      toast.error("Gagal membuat PDF: " + (e.message || "coba lagi"));
+    }
+    setPdfBusy(false);
+  };
+
   const closeBtn = (
     <button className="icon-btn dark" onClick={back}><Ic n="x" /></button>
   );
@@ -1086,6 +1254,23 @@ function Detail({ tx, back, onEdit, onDelete }) {
           <div className="card">
             <h3 style={{ marginBottom: 8 }}>Keterangan</h3>
             <p>{tx.description}</p>
+          </div>
+        )}
+
+        {!inc && (tx.expenseItems || []).length > 0 && (
+          <div className="card">
+            <h3 style={{ marginBottom: 8, display: "flex", alignItems: "center", gap: 8 }}>
+              <img src="/other.png" alt="" style={{ width: 22, height: 22, objectFit: "contain" }} /> Item belanja
+            </h3>
+            {tx.expenseItems.map((c, idx) => (
+              <div className="li" key={idx}>
+                <span>
+                  {c.name}
+                  <small className="muted"> {rp(c.price)} × {c.qty}</small>
+                </span>
+                <b>{rp(c.price * c.qty)}</b>
+              </div>
+            ))}
           </div>
         )}
 
@@ -1135,6 +1320,10 @@ function Detail({ tx, back, onEdit, onDelete }) {
           </div>
         )}
 
+        <button className="btn gold" style={{ marginTop: 0, marginBottom: 10 }} disabled={pdfBusy} onClick={savePdf}>
+          <Ic n="download" s={18} /> {pdfBusy ? "Membuat PDF..." : "Download PDF (Struk)"}
+        </button>
+
         <div className="row-actions">
           <button className="btn ghost" onClick={() => onEdit(tx)}><Ic n="edit" s={16} /> Edit</button>
           <button className="btn ghost" style={{ color: "var(--err)" }} onClick={() => onDelete(tx, back)}><Ic n="trash" s={16} /> Hapus</button>
@@ -1157,6 +1346,7 @@ const DEFAULT_SETTINGS = {
   hideNominal: false,
   hidePengeluaran: false,
   hideLaba: false,
+  hideTransaksi: false,
   maxRiwayatBeranda: 5,
   filterJenis: "all",
   filterKategori: "all",
@@ -1171,6 +1361,7 @@ export default function App() {
   const [txs, setTxs] = useState([]);
   const [showLogout, setShowLogout] = useState(false);
   const [editTx, setEditTx] = useState(null);
+  const [closed, setClosed] = useState(false);
 
   const [settings, setSettings] = useState(() => {
     try {
@@ -1191,7 +1382,12 @@ export default function App() {
   const reload = async () => {
     const startedAt = Date.now();
     try {
-      const [p, t] = await Promise.all([req("/products"), req("/transactions")]);
+      const [p, t, s] = await Promise.all([
+        req("/products"),
+        req("/transactions"),
+        req("/status").catch((e) => { if (e.status === 401) throw e; return null; }),
+      ]);
+      if (s) setClosed(!!s.closed);
       if (startedAt < lastChange.current) return; // data lama, sudah ada perubahan yang lebih baru
       setProducts(Array.isArray(p) ? p.filter((x) => x && x.name) : []);
       setTxs(Array.isArray(t) ? t : []);
@@ -1243,8 +1439,26 @@ export default function App() {
       onOk: async () => {
         try {
           await req("/close-day", "POST");
+          setClosed(true);
           await reload();
           toast.success("Hari berhasil ditutup");
+        } catch (e) {
+          toast.error(e.message);
+        }
+      },
+    });
+
+  const openDay = () =>
+    confirmToast({
+      title: "Buka toko kembali?",
+      desc: "Kasir dan belanja bisa dipakai lagi untuk transaksi baru.",
+      okText: "Ya, Buka",
+      onOk: async () => {
+        try {
+          await req("/open-day", "POST");
+          setClosed(false);
+          await reload();
+          toast.success("Toko dibuka");
         } catch (e) {
           toast.error(e.message);
         }
@@ -1272,7 +1486,7 @@ export default function App() {
   return (
     <div className="app">
       {tab === "home" ? (
-        <Beranda txs={txs} products={products} go={setTab} closeDay={closeDay} askLogout={() => setShowLogout(true)} openDetail={openDetail} settings={settings} />
+        <Beranda txs={txs} products={products} go={setTab} closeDay={closeDay} openDay={openDay} closed={closed} askLogout={() => setShowLogout(true)} openDetail={openDetail} settings={settings} />
       ) : tab === "setting" ? (
         <Setting settings={settings} setSettings={setSettings} go={setTab} />
       ) : tab === "detail" ? (
@@ -1281,9 +1495,9 @@ export default function App() {
         <>
           <Top title={titles[tab][0]} sub={titles[tab][1]} />
           <div className="page pull">
-            {tab === "kasir" && <Kasir products={products} reload={reload} patchTx={patchTx} />}
-            {tab === "produk" && <Produk products={products} reload={reload} closeDay={closeDay} patchProduct={patchProduct} removeProduct={removeProduct} />}
-            {tab === "keluar" && <Pengeluaran products={products} reload={reload} patchTx={patchTx} />}
+            {tab === "kasir" && <Kasir products={products} reload={reload} patchTx={patchTx} closed={closed} openDay={openDay} />}
+            {tab === "produk" && <Produk products={products} reload={reload} closeDay={closeDay} openDay={openDay} closed={closed} patchProduct={patchProduct} removeProduct={removeProduct} />}
+            {tab === "keluar" && <Pengeluaran products={products} reload={reload} patchTx={patchTx} closed={closed} openDay={openDay} />}
             {tab === "riwayat" && <Riwayat txs={txs} onEdit={setEditTx} onDelete={deleteTx} openDetail={openDetail} />}
           </div>
         </>
