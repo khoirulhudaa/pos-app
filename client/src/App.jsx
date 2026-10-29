@@ -595,6 +595,7 @@ function Setting({ settings, setSettings, go }) {
               border: "1.5px solid var(--border, #cbd5e1)",
               color: "inherit",
               fontWeight: 600,
+              fontSize: 14
             }}
             onClick={() => go("logs")}
           >
