@@ -3,7 +3,7 @@ import toast from "react-hot-toast";
 import { downloadReceipt } from "./receipt";
 import { LangCtx, makeT, useT } from "./I18n";
 import "./extra.css";
-import HourlyChartNew from "./hourlyChart";
+import HourlyChartNew from "./Hourlychart";
 
 // Tanggal lokal "YYYY-MM-DD" (dipakai filter kalender)
 const toKey = (d) => {
