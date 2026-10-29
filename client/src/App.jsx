@@ -1138,14 +1138,14 @@ function Produk({ products, reload, closeDay, openDay, closed, patchProduct, rem
 // Satuan untuk pembelian stok (belanja)
 const UNITS = ["pcs", "bal", "pack", "unit", "kg", "gram", "renteng", "liter"];
 
-function Pengeluaran({ products, reload, patchTx, closed, openDay }) {
+function Pengeluaran({ products, reload, patchTx, closed, openDay, go }) {
   const { t, lang } = useT();
   const blank = { description: "", amount: "", product: "", qty: "", unit: "pcs", note: "", method: "cash" };
   const qtyLabel = (product) => (product ? t("stockBought") : lang === "en" ? "Quantity (optional)" : "Jumlah (opsional)");
   const [f, setF] = useState(blank);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
 
-  const submit = async (e) => {
+    const submit = async (e) => {
     e.preventDefault();
     try {
       const items = f.product && f.qty ? [{ product: f.product, qty: Number(f.qty), unit: f.unit }] : [];
@@ -1161,8 +1161,9 @@ function Pengeluaran({ products, reload, patchTx, closed, openDay }) {
       });
       patchTx(saved);
       setF(blank);
-      reload();
       toast.success(t("expenseSaved"));
+      go("home");   // ← redirect ke beranda
+      reload();
     } catch (x) {
       toast.error(x.message);
     }
@@ -1740,7 +1741,7 @@ export default function App() {
             <div className="page pull">
               {tab === "kasir" && <Kasir products={products} reload={reload} patchTx={patchTx} closed={closed} openDay={openDay} />}
               {tab === "produk" && <Produk products={products} reload={reload} closeDay={closeDay} openDay={openDay} closed={closed} patchProduct={patchProduct} removeProduct={removeProduct} />}
-              {tab === "keluar" && <Pengeluaran products={products} reload={reload} patchTx={patchTx} closed={closed} openDay={openDay} />}
+              {tab === "keluar" && <Pengeluaran products={products} reload={reload} patchTx={patchTx} closed={closed} openDay={openDay} go={setTab} />}
               {tab === "riwayat" && <Riwayat txs={txs} onEdit={setEditTx} onDelete={deleteTx} openDetail={openDetail} />}
             </div>
           </>
