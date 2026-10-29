@@ -41,9 +41,9 @@ const Ic = ({ n, s = 20 }) => (
   </svg>
 );
 
-// cache: "no-store" → data selalu fresh (tidak diambil dari cache browser/PWA)
 async function req(path, method = "GET", body) {
-  const r = await fetch("/api" + path, {
+  const url = "/api" + path + (method === "GET" ? (path.includes("?") ? "&" : "?") + "_=" + Date.now() : "");
+  const r = await fetch(url, {
     method,
     cache: "no-store",
     headers: { "Content-Type": "application/json", "x-pass": localStorage.getItem("pos_pass") || "" },
@@ -1185,10 +1185,14 @@ export default function App() {
   }, [settings]);
 
   const logout = () => { localStorage.removeItem("pos_pass"); setShowLogout(false); setAuthed(false); setTab("home"); };
+  const lastChange = useRef(0);
+  const touch = () => { lastChange.current = Date.now(); };
 
   const reload = async () => {
+    const startedAt = Date.now();
     try {
       const [p, t] = await Promise.all([req("/products"), req("/transactions")]);
+      if (startedAt < lastChange.current) return; // data lama, sudah ada perubahan yang lebih baru
       setProducts(Array.isArray(p) ? p.filter((x) => x && x.name) : []);
       setTxs(Array.isArray(t) ? t : []);
     } catch (e) {
@@ -1197,10 +1201,9 @@ export default function App() {
     }
   };
 
-  // Update lokal langsung (realtime) sebelum reload dari server selesai
-  const patchTx = (t) => setTxs((l) => upsert(l, t));
-  const patchProduct = (p) => setProducts((l) => upsert(l, p).sort((a, b) => a.name.localeCompare(b.name)));
-  const removeProduct = (id) => setProducts((l) => l.filter((x) => x._id !== id));
+  const patchTx = (t) => { touch(); setTxs((l) => upsert(l, t)); };
+  const patchProduct = (p) => { touch(); setProducts((l) => upsert(l, p).sort((a, b) => a.name.localeCompare(b.name))); };
+  const removeProduct = (id) => { touch(); setProducts((l) => l.filter((x) => x._id !== id)); };
 
   // Reload tiap kali pindah halaman / setelah login
   useEffect(() => {
@@ -1222,7 +1225,7 @@ export default function App() {
       onOk: async () => {
         try {
           await req(`/transactions/${t._id}`, "DELETE");
-          setTxs((l) => l.filter((x) => x._id !== t._id));
+          touch(); setTxs((l) => l.filter((x) => x._id !== t._id));
           toast.success("Transaksi dihapus");
           after?.();
           await reload();
