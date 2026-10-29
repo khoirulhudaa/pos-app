@@ -270,7 +270,7 @@ app.delete("/api/products/:id", async (req, res) => {
   if (!p) return res.json({ ok: true });
 
   const name = p.name;
-  const shortId = String(p._id).slice(-6).toUpperCase();
+  const shortId = String(p._id).slice(-5).toUpperCase();
   await Product.findByIdAndDelete(req.params.id);
 
   await logActivity(req, "delete_product", `Hapus produk: ${name} · ID ${shortId}`, {
@@ -377,7 +377,7 @@ app.post("/api/transactions", async (req, res) => {
     });
 
     // ===== LOG AKTIVITAS =====
-    const shortId = String(tx._id).slice(-6).toUpperCase();
+    const shortId = String(tx._id).slice(-5).toUpperCase();
     await logActivity(
       req,
       "create_payment",
@@ -546,7 +546,7 @@ app.put("/api/transactions/:id", async (req, res) => {
   }
 
   const saved = await t.save();
-  const shortId = String(saved._id).slice(-6).toUpperCase();
+  const shortId = String(saved._id).slice(-5).toUpperCase();
   const label = income
     ? `Edit transaksi · ID ${shortId}`
     : `Edit pengeluaran · Rp ${saved.total.toLocaleString("id-ID")}`;
@@ -563,7 +563,7 @@ app.delete("/api/transactions/:id", async (req, res) => {
   const t = await Tx.findById(req.params.id);
   if (!t) return res.json({ ok: true });
 
-  const shortId = String(t._id).slice(-6).toUpperCase();
+  const shortId = String(t._id).slice(-5).toUpperCase();
   const sign = t.type === "income" ? 1 : -1;
 
   if (t.items.length) {
