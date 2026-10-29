@@ -5,7 +5,7 @@ const BLUE = "#0a66c2";
 const GOLD = "#fbb02d";
 
 // Line chart jumlah penjualan per jam (SVG murni, tanpa library)
-export default function HourlyChartNew({ txs, hidden = false, onToggle }) {
+export default function HourlyChartNew({ txs, hidden = false }) {
   const { t } = useT();
   const [mode, setMode] = useState("tx"); // tx = jumlah transaksi, items = jumlah item terjual
   const [sel, setSel] = useState(null);
