@@ -582,7 +582,17 @@ function Setting({ settings, setSettings, go }) {
           <small className="muted" style={{ display: "block", marginBottom: 12 }}>
             {t("activityLogSub")}
           </small>
-          <button className="btn gold" style={{ width: "100%" }} onClick={() => go("logs")}>
+          <button
+            className="btn ghost"
+            style={{
+              width: "100%",
+              background: "transparent",
+              border: "1.5px solid var(--border, #cbd5e1)",
+              color: "inherit",
+              fontWeight: 600,
+            }}
+            onClick={() => go("logs")}
+          >
             {t("goToLogs")}
           </button>
         </div>
