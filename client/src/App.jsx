@@ -483,6 +483,92 @@ function Setting({ settings, setSettings, go }) {
   );
 }
 
+// ---------- Halaman Pembayaran Berhasil (layar penuh, rincian seperti detail transaksi) ----------
+function PaymentSuccess({ done, onClose }) {
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const tx = done.tx || {};
+  const items = tx.items || [];
+  const total = tx.total ?? done.total;
+  const paid = tx.cashReceived ?? done.paid;
+  const change = tx.change ?? done.change;
+  const itemsSum = items.reduce((s, i) => s + (i.price || 0) * i.qty, 0);
+  const adj = itemsSum - total;
+  const pk = tx.packaging || {};
+  const mixed = isMix(tx);
+
+  const savePdf = async () => {
+    setPdfBusy(true);
+    try {
+      await downloadReceipt(tx);
+    } catch (e) {
+      toast.error("Gagal membuat PDF: " + (e.message || "coba lagi"));
+    }
+    setPdfBusy(false);
+  };
+
+  return (
+    <div className="pay-done">
+      <div className="pay-hero">
+        <div className="ok-ic"><Ic n="check" s={34} /></div>
+        <h1>Pembayaran Berhasil</h1>
+        <strong>{rp(total)}</strong>
+        <small>
+          {new Date(tx.createdAt || Date.now()).toLocaleString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+        </small>
+      </div>
+
+      <div className="pay-body">
+        {items.length > 0 && (
+          <div className="card">
+            <h3 style={{ marginBottom: 8 }}>Item pesanan</h3>
+            {items.map((i, idx) => (
+              <div className="li" key={idx}>
+                <span>
+                  <CatIcon c={i.category} s={18} /> {i.name}
+                  <small className="muted"> {rp(i.price)} × {i.qty}</small>
+                </span>
+                <b>{rp(i.price * i.qty)}</b>
+              </div>
+            ))}
+            {adj > 0 && (
+              <div className="li"><span className="muted">Potongan promo / nominal custom</span><b className="ok">−{rp(adj)}</b></div>
+            )}
+          </div>
+        )}
+
+        <div className="card">
+          <h3 style={{ marginBottom: 8 }}>Pembayaran</h3>
+          <div className="li"><span className="muted">Metode</span><b>{methodLabel(tx.method || "cash")}</b></div>
+          <div className="li"><span className="muted">Total</span><b>{rp(total)}</b></div>
+          <div className="li"><span className="muted">Diterima</span><b>{rp(paid)}</b></div>
+          <div className="li"><span className="muted">Kembalian</span><b className="ok">{rp(change)}</b></div>
+        </div>
+
+        <div className="card">
+          <h3 style={{ marginBottom: 8 }}>Tambahan</h3>
+          <div className="li"><span className="muted">Pesanan mix</span><b>{mixed ? "Ya" : "Tidak"}</b></div>
+          <div className="li"><span className="muted">🛍️ Plastik</span><b>{pk.plastic || 0}</b></div>
+          <div className="li"><span className="muted">🥤 Cup</span><b>{pk.cup || 0}</b></div>
+        </div>
+
+        {tx.note && (
+          <div className="card">
+            <h3 style={{ marginBottom: 8 }}>Catatan</h3>
+            <p>{tx.note}</p>
+          </div>
+        )}
+      </div>
+
+      <div className="pay-actions">
+        <button className="btn ghost" disabled={pdfBusy} onClick={savePdf}>
+          <Ic n="download" s={18} /> {pdfBusy ? "Membuat PDF..." : "Struk PDF"}
+        </button>
+        <button className="btn gold" onClick={onClose}>Transaksi Baru</button>
+      </div>
+    </div>
+  );
+}
+
 // ---------- Kasir ----------
 function Kasir({ products, reload, patchTx, closed, openDay }) {
   const [cart, setCart] = useState({});
@@ -540,7 +626,7 @@ function Kasir({ products, reload, patchTx, closed, openDay }) {
         toast.error("Server belum menyimpan plastik/cup. Deploy ulang server.js terbaru.", { duration: 8000 });
       }
       patchTx(saved); // langsung muncul di riwayat/beranda
-      setDone({ total, paid, change: paid - total });
+      setDone({ tx: saved, total, paid, change: paid - total });
       resetForm();
       await reload();
     } catch (e) {
@@ -709,20 +795,7 @@ function Kasir({ products, reload, patchTx, closed, openDay }) {
         </button>
       )}
 
-      {done && (
-        <div className="modal-wrap center-m">
-          <div className="modal success">
-            <div className="ok-ic"><Ic n="check" s={34} /></div>
-            <h3>Pembayaran Berhasil</h3>
-            <strong>{rp(done.total)}</strong>
-            <div className="rcp">
-              <div><span>Diterima</span><b>{rp(done.paid)}</b></div>
-              <div><span>Kembalian</span><b className="ok">{rp(done.change)}</b></div>
-            </div>
-            <button className="btn gold" onClick={() => setDone(null)}>Selesai</button>
-          </div>
-        </div>
-      )}
+      {done && <PaymentSuccess done={done} onClose={() => setDone(null)} />}
     </div>
   );
 }
