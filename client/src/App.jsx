@@ -231,10 +231,13 @@ function ActivityLogPage({ go }) {
   const actionLabel = (a) => {
     const map = {
       login: t("logLogin"),
+      logout: t("logLogout") || "Logout",
       create_product: t("logCreateProduct"),
       edit_product: t("logEditProduct"),
+      delete_product: t("logDeleteProduct") || "Hapus produk",
       create_payment: t("logCreatePayment"),
       edit_transaction: t("logEditTx"),
+      delete_transaction: t("logDeleteTx") || "Hapus transaksi",
     };
     return map[a] || a;
   };
@@ -357,6 +360,12 @@ function TxRow({ t, children, onClick }) {
           <small className="muted">
             {new Date(t.createdAt).toLocaleString(locale, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
             {(inc || t.method) && `, ${methodLabel(t.method, tr)}`}
+            {t._id && (
+              <span style={{ opacity: 0.75 }}>
+                {" · #"}
+                {String(t._id).slice(-6).toUpperCase()}
+              </span>
+            )}
           </small>
           {inc && (isMix(t) || pk.plastic > 0 || pk.cup > 0) ? (
             <div className="tags">
@@ -1591,7 +1600,17 @@ export default function App() {
     document.documentElement.lang = lang;
   }, [lang]);
 
-  const logout = () => { localStorage.removeItem("pos_pass"); setShowLogout(false); setAuthed(false); setTab("home"); };
+  const logout = async () => {
+    try {
+      await req("/logout", "POST");
+    } catch (_) {
+      // ignore error saat logout
+    }
+    localStorage.removeItem("pos_pass");
+    setShowLogout(false);
+    setAuthed(false);
+    setTab("home");
+  };
   const lastChange = useRef(0);
   const touch = () => { lastChange.current = Date.now(); };
 

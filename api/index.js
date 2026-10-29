@@ -85,11 +85,20 @@ const Setting = registerModel("Setting", new mongoose.Schema({
 const ActivityLog = registerModel("ActivityLog", new mongoose.Schema({
   action: {
     type: String,
-    enum: ["login", "create_product", "edit_product", "create_payment", "edit_transaction"],
+    enum: [
+      "login",
+      "logout",
+      "create_product",
+      "edit_product",
+      "delete_product",
+      "create_payment",
+      "edit_transaction",
+      "delete_transaction",
+    ],
     required: true,
   },
-  summary: { type: String, required: true },   // teks singkat untuk ditampilkan
-  meta: { type: mongoose.Schema.Types.Mixed }, // detail opsional (nama produk, total, dll)
+  summary: { type: String, required: true },
+  meta: { type: mongoose.Schema.Types.Mixed },
 }, { timestamps: true }));
 
 const logActivity = async (req, action, summary, meta = {}) => {
@@ -257,7 +266,19 @@ app.put("/api/products/:id", async (req, res) => {
 });
 
 app.delete("/api/products/:id", async (req, res) => {
+  const p = await Product.findById(req.params.id);
+  if (!p) return res.json({ ok: true });
+
+  const name = p.name;
+  const shortId = String(p._id).slice(-6).toUpperCase();
   await Product.findByIdAndDelete(req.params.id);
+
+  await logActivity(req, "delete_product", `Hapus produk: ${name} · ID ${shortId}`, {
+    productId: p._id,
+    shortId,
+    name,
+  });
+
   res.json({ ok: true });
 });
 
@@ -356,16 +377,16 @@ app.post("/api/transactions", async (req, res) => {
     });
 
     // ===== LOG AKTIVITAS =====
-    const itemNames = lines.map((l) => `${l.name}×${l.qty}`).join(", ");
+    const shortId = String(tx._id).slice(-6).toUpperCase();
     await logActivity(
       req,
       "create_payment",
-      `Pembayaran: ${itemNames} · Rp ${Number(tx.total).toLocaleString("id-ID")}`,
+      `Pembayaran · ID ${shortId} · Rp ${Number(tx.total).toLocaleString("id-ID")}`,
       {
         txId: tx._id,
+        shortId,
         total: tx.total,
         method: tx.method,
-        items: itemNames,
       }
     );
 
@@ -525,11 +546,13 @@ app.put("/api/transactions/:id", async (req, res) => {
   }
 
   const saved = await t.save();
+  const shortId = String(saved._id).slice(-6).toUpperCase();
   const label = income
-    ? `Edit transaksi penjualan · Rp ${saved.total.toLocaleString("id-ID")}`
-    : `Edit pengeluaran: ${saved.description || "-"} · Rp ${saved.total.toLocaleString("id-ID")}`;
+    ? `Edit transaksi · ID ${shortId} · Rp ${saved.total.toLocaleString("id-ID")}`
+    : `Edit pengeluaran · ID ${shortId} · Rp ${saved.total.toLocaleString("id-ID")}`;
   await logActivity(req, "edit_transaction", label, {
     txId: saved._id,
+    shortId,
     type: saved.type,
     total: saved.total,
   });
@@ -539,7 +562,10 @@ app.put("/api/transactions/:id", async (req, res) => {
 app.delete("/api/transactions/:id", async (req, res) => {
   const t = await Tx.findById(req.params.id);
   if (!t) return res.json({ ok: true });
+
+  const shortId = String(t._id).slice(-6).toUpperCase();
   const sign = t.type === "income" ? 1 : -1;
+
   if (t.items.length) {
     await Product.bulkWrite(
       t.items.map((i) => ({
@@ -555,7 +581,31 @@ app.delete("/api/transactions/:id", async (req, res) => {
       }))
     );
   }
+
   await t.deleteOne();
+
+  const label =
+    t.type === "income"
+      ? `Hapus transaksi · ID ${shortId} · Rp ${Number(t.total).toLocaleString("id-ID")}`
+      : `Hapus pengeluaran · ID ${shortId} · Rp ${Number(t.total).toLocaleString("id-ID")}`;
+
+  await logActivity(req, "delete_transaction", label, {
+    txId: t._id,
+    shortId,
+    type: t.type,
+    total: t.total,
+  });
+
+  res.json({ ok: true });
+});
+
+// ---- Logout (catat aktivitas) ----
+app.post("/api/logout", async (req, res) => {
+  const label = req.authLabel;
+  await logActivity(req, "logout", `Logout · ${label}`, {
+    account: label,
+    password: req.authPass,
+  });
   res.json({ ok: true });
 });
 
