@@ -236,8 +236,8 @@ function TxRow({ t, children, onClick }) {
           {inc && (isMix(t) || pk.plastic > 0 || pk.cup > 0) && (
             <div className="tags">
               {isMix(t) && <span className="mix-chip">Mix</span>}
-              {pk.plastic > 0 && <span className="pk-chip plastic">🛍️ P ×{pk.plastic}</span>}
-              {pk.cup > 0 && <span className="pk-chip cup">🥤 C ×{pk.cup}</span>}
+              {pk.plastic > 0 && <span className="pk-chip plastic">🛍️ P×{pk.plastic}</span>}
+              {pk.cup > 0 && <span className="pk-chip cup">🥤 C×{pk.cup}</span>}
             </div>
           )}
         </div>
