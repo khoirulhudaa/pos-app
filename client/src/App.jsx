@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { downloadReceipt } from "./receipt";
 import { LangCtx, makeT, useT } from "./I18n";
-import HourlyChart from "./Hourlychart";
 import "./extra.css";
+import HourlyChartNew from "./hourlyChart";
 
 // Tanggal lokal "YYYY-MM-DD" (dipakai filter kalender)
 const toKey = (d) => {
@@ -432,7 +432,7 @@ function Beranda({ txs, products, go, closeDay, openDay, closed, askLogout, open
 
         <LowStock low={low} go={go} />
 
-        <HourlyChart
+        <HourlyChartNew
           txs={tt}
           hidden={!!settings.hideChart}
           onToggle={() => setSettings((p) => ({ ...p, hideChart: !p.hideChart }))}
