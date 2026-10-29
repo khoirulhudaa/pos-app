@@ -361,9 +361,9 @@ function TxRow({ t, children, onClick }) {
             {new Date(t.createdAt).toLocaleString(locale, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
             {(inc || t.method) && `, ${methodLabel(t.method, tr)}`}
             {t._id && (
-              <span style={{ opacity: 0.75 }}>
+              <span>
                 {", "}
-                {String(t._id).slice(-5).toUpperCase()}
+                {String(t._id).slice(-5)}
               </span>
             )}
           </small>
