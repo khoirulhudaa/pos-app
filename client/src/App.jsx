@@ -529,9 +529,6 @@ function Setting({ settings, setSettings, go }) {
           {t("savedAuto")}
         </p>
 
-        <p className="center" style={{ fontSize: 13, marginTop: 8 }}>
-          {t("server")}: {srv === "ok" ? `✅ ${t("srvOk")}` : srv === "lama" ? `❌ ${t("srvOld")}` : srv === "gagal" ? `⚠️ ${t("srvFail")}` : t("srvCheck")}
-        </p>
       </div>
     </>
   );
