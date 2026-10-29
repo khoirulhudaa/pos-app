@@ -253,12 +253,18 @@ function TxRow({ t, children, onClick }) {
             {new Date(t.createdAt).toLocaleString("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
             {(inc || t.method) && `, ${methodLabel(t.method)}`}
           </small>
-          {inc && (isMix(t) || pk.plastic > 0 || pk.cup > 0) && (
+          {inc && (isMix(t) || pk.plastic > 0 || pk.cup > 0) ? (
             <div className="tags">
               {isMix(t) && <span className="mix-chip">Mix</span>}
               {pk.plastic > 0 && <span className="pk-chip plastic">🛍️ P×{pk.plastic}</span>}
               {pk.cup > 0 && <span className="pk-chip cup">🥤 C×{pk.cup}</span>}
             </div>
+          ): (
+            <div className="tags">
+              <span className="mix-chip">Normal</span>
+              <span className="pk-chip plastic">🛍️ {0}</span>
+              <span className="pk-chip cup">🥤 {0}</span>
+             </div>
           )}
         </div>
         <b className={inc ? "ok" : "err"}>
@@ -1186,12 +1192,12 @@ function Riwayat({ txs, onEdit, onDelete, openDetail }) {
       </div>
       {list.map((t) => (
         <TxRow key={t._id} t={t} onClick={() => openDetail(t)}>
-          {(t.note || (t.type === "income" && t.method === "cash")) && (
+          {/* {(t.note || (t.type === "income" && t.method === "cash")) && (
             <small className="muted tx-sub">
               {t.type === "income" && t.method === "cash" && `Diterima ${rp(t.cashReceived)} · Kembali ${rp(t.change)}`}
               {t.note && ` · ${t.note}`}
             </small>
-          )}
+          )} */}
           <div className="pc-a" onClick={(e) => e.stopPropagation()}>
             <button onClick={() => onEdit(t)}><Ic n="edit" s={15} /> Edit</button>
             <button className="d" onClick={() => onDelete(t)}><Ic n="trash" s={15} /> Hapus</button>
