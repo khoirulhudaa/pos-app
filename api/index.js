@@ -548,8 +548,8 @@ app.put("/api/transactions/:id", async (req, res) => {
   const saved = await t.save();
   const shortId = String(saved._id).slice(-6).toUpperCase();
   const label = income
-    ? `Edit transaksi · ID ${shortId} · Rp ${saved.total.toLocaleString("id-ID")}`
-    : `Edit pengeluaran · ID ${shortId} · Rp ${saved.total.toLocaleString("id-ID")}`;
+    ? `Edit transaksi · ID ${shortId}`
+    : `Edit pengeluaran · Rp ${saved.total.toLocaleString("id-ID")}`;
   await logActivity(req, "edit_transaction", label, {
     txId: saved._id,
     shortId,
