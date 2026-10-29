@@ -455,14 +455,17 @@ const Tx = registerModel("Tx", new mongoose.Schema({
     price: Number,
     qty: Number,
     category: { type: String, enum: ["makanan", "minuman"], default: "makanan" },
+    unit: { type: String, default: "" },               // satuan pembelian stok (pcs, bal, kg, ...)
   }],
-  // Item belanja custom (es batu, bahan lain, dll) - tidak terkait stok produk
+  // (Lama) item belanja custom - tidak dibuat lagi, dipertahankan agar riwayat lama tetap tampil
   expenseItems: [{
     _id: false,
     name: String,
     qty: Number,
     price: Number,
   }],
+  buyQty: Number,                                    // jumlah belanja (opsional, tanpa harus pilih produk)
+  buyUnit: { type: String, default: "" },            // satuan belanja (pcs, bal, kg, ...)
   total: Number,
   subtotal: Number,                                  // total normal sebelum custom
   isCustom: { type: Boolean, default: false },       // true kalau total diisi manual
@@ -488,6 +491,25 @@ const Setting = registerModel("Setting", new mongoose.Schema({
   closedAt: Date,
 }, { timestamps: true }));
 
+// ===== LOG AKTIVITAS =====
+const ActivityLog = registerModel("ActivityLog", new mongoose.Schema({
+  action: {
+    type: String,
+    enum: ["login", "create_product", "edit_product", "create_payment", "edit_transaction"],
+    required: true,
+  },
+  summary: { type: String, required: true },   // teks singkat untuk ditampilkan
+  meta: { type: mongoose.Schema.Types.Mixed }, // detail opsional (nama produk, total, dll)
+}, { timestamps: true }));
+
+const logActivity = async (action, summary, meta = {}) => {
+  try {
+    await ActivityLog.create({ action, summary, meta });
+  } catch (e) {
+    console.error("logActivity failed:", e.message);
+  }
+};
+
 const getClosed = async () => !!(await Setting.findOne({ key: "shop" }))?.closed;
 const setClosed = (closed) =>
   Setting.findOneAndUpdate(
@@ -498,6 +520,10 @@ const setClosed = (closed) =>
 
 const bad = (res, m) => res.status(400).json({ message: m });
 const toCount = (v) => Math.max(0, Math.floor(Number(v) || 0));
+
+// Satuan yang diizinkan untuk pembelian stok
+const UNITS = ["pcs", "bal", "pack", "unit", "kg", "gram", "renteng", "liter"];
+const toUnit = (u, fallback = "pcs") => (UNITS.includes(u) ? u : fallback);
 
 // ==================== HELPER HITUNG PROMO ====================
 function calcLineTotal(product, qty) {
@@ -521,6 +547,22 @@ app.use("/api", async (req, res, next) => {
   }
   await db();
   next();
+});
+
+// ---- Login (catat aktivitas) ----
+app.post("/api/login", async (req, res) => {
+  // password sudah divalidasi middleware
+  await logActivity("login", "Masuk ke aplikasi");
+  res.json({ ok: true });
+});
+
+app.get("/api/logs", async (req, res) => {
+  const limit = Math.min(200, Math.max(1, Number(req.query.limit) || 100));
+  const logs = await ActivityLog.find()
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .lean();
+  res.json(logs);
 });
 
 // ---- Status toko ----
@@ -554,7 +596,14 @@ app.post("/api/products", async (req, res) => {
     };
   }
 
-  res.json(await Product.create(data));
+  const created = await Product.create(data);
+  await logActivity("create_product", `Tambah produk: ${created.name}`, {
+    productId: created._id,
+    name: created.name,
+    price: created.price,
+    category: created.category,
+  });
+  res.json(created);
 });
 
 app.put("/api/products/:id", async (req, res) => {
@@ -580,7 +629,13 @@ app.put("/api/products/:id", async (req, res) => {
     };
   }
 
-  res.json(await p.save());
+  const saved = await p.save();
+  await logActivity("edit_product", `Edit produk: ${saved.name}`, {
+    productId: saved._id,
+    name: saved.name,
+    price: saved.price,
+  });
+  res.json(saved);
 });
 
 app.delete("/api/products/:id", async (req, res) => {
@@ -622,7 +677,8 @@ app.post("/api/transactions", async (req, res) => {
     mix = false,
     packaging = {},
     customTotal,
-    customItems = [],
+    buyQty,
+    buyUnit,
   } = req.body;
 
   if (type === "income") {
@@ -667,37 +723,39 @@ app.post("/api/transactions", async (req, res) => {
       }))
     );
 
-    return res.json(
-      await Tx.create({
-        type,
-        items: lines,
-        total,
-        subtotal,
-        isCustom: hasCustom && total !== subtotal,
-        mix: !!mix,
-        packaging: { plastic: toCount(packaging.plastic), cup: toCount(packaging.cup) },
-        method,
-        cashReceived: paid,
-        change: paid - total,
-        note,
-      })
+    const tx = await Tx.create({
+      type,
+      items: lines,
+      total,
+      subtotal,
+      isCustom: hasCustom && total !== subtotal,
+      mix: !!mix,
+      packaging: { plastic: toCount(packaging.plastic), cup: toCount(packaging.cup) },
+      method,
+      cashReceived: paid,
+      change: paid - total,
+      note,
+    });
+
+    // ===== LOG AKTIVITAS =====
+    const itemNames = lines.map((l) => `${l.name}×${l.qty}`).join(", ");
+    await logActivity(
+      "create_payment",
+      `Pembayaran: ${itemNames} · Rp ${Number(tx.total).toLocaleString("id-ID")}`,
+      {
+        txId: tx._id,
+        total: tx.total,
+        method: tx.method,
+        items: itemNames,
+      }
     );
+
+    return res.json(tx);
   }
 
   if (type === "expense") {
-    // ===== Item belanja custom (es batu, bahan lain, dll) =====
-    const exItems = (Array.isArray(customItems) ? customItems : [])
-      .map((c) => ({
-        name: String(c?.name || "").trim(),
-        qty: Math.floor(Number(c?.qty)),
-        price: Math.max(0, Number(c?.price) || 0),
-      }))
-      .filter((c) => c.name);
-    if (exItems.some((c) => !(c.qty >= 1))) return bad(res, "Jumlah item custom minimal 1");
-
-    const exSum = exItems.reduce((s, c) => s + c.qty * c.price, 0);
-    const finalAmount = Number(amount) > 0 ? Number(amount) : exSum;
-    const finalDesc = String(description || "").trim() || exItems.map((c) => c.name).join(", ");
+    const finalDesc = String(description || "").trim();
+    const finalAmount = Number(amount);
 
     if (!finalDesc || !(finalAmount > 0)) {
       return bad(res, "Keterangan & nominal wajib diisi");
@@ -714,6 +772,7 @@ app.post("/api/transactions", async (req, res) => {
         price: 0,
         qty,
         category: p.category || "makanan",
+        unit: toUnit(i.unit),
       });
     }
     if (lines.length) {
@@ -731,7 +790,8 @@ app.post("/api/transactions", async (req, res) => {
         type,
         description: finalDesc,
         items: lines,
-        expenseItems: exItems,
+        buyQty: Number(buyQty) > 0 ? Number(buyQty) : undefined,
+        buyUnit: toUnit(buyUnit),
         total: finalAmount,
         note,
         method: method || "cash",
@@ -798,6 +858,7 @@ app.put("/api/transactions/:id", async (req, res) => {
         price: income ? (prev ? prev.price : p.price) : 0, // harga lama dipertahankan
         qty,
         category: p ? p.category : prev.category,
+        unit: income ? "" : toUnit(i.unit, prev?.unit || "pcs"), // satuan belanja dipertahankan
       });
     }
 
@@ -844,7 +905,16 @@ app.put("/api/transactions/:id", async (req, res) => {
     t.change = t.cashReceived - t.total;
   }
 
-  res.json(await t.save());
+  const saved = await t.save();
+  const label = income
+    ? `Edit transaksi penjualan · Rp ${saved.total.toLocaleString("id-ID")}`
+    : `Edit pengeluaran: ${saved.description || "-"} · Rp ${saved.total.toLocaleString("id-ID")}`;
+  await logActivity("edit_transaction", label, {
+    txId: saved._id,
+    type: saved.type,
+    total: saved.total,
+  });
+  res.json(saved);
 });
 
 app.delete("/api/transactions/:id", async (req, res) => {

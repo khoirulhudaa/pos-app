@@ -160,6 +160,8 @@ function Login({ onOk }) {
     localStorage.setItem("pos_pass", pw);
     try {
       await req("/products");
+      // catat login
+      req("/login", "POST").catch(() => {});
       onOk();
     } catch (x) {
       localStorage.removeItem("pos_pass");
@@ -204,6 +206,98 @@ function Login({ onOk }) {
         )}
       </div>
     </div>
+  );
+}
+
+function ActivityLogPage({ go }) {
+  const { t, locale } = useT();
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const data = await req("/logs?limit=150");
+        if (alive) setLogs(Array.isArray(data) ? data : []);
+      } catch (e) {
+        toast.error(e.message);
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  const actionLabel = (a) => {
+    const map = {
+      login: t("logLogin"),
+      create_product: t("logCreateProduct"),
+      edit_product: t("logEditProduct"),
+      create_payment: t("logCreatePayment"),
+      edit_transaction: t("logEditTx"),
+    };
+    return map[a] || a;
+  };
+
+  const actionColor = (a) => {
+    if (a === "login") return "var(--muted)";
+    if (a === "create_product" || a === "create_payment") return "var(--ok)";
+    if (a === "edit_product" || a === "edit_transaction") return "#0a66c2";
+    return "var(--muted)";
+  };
+
+  return (
+    <>
+      <Top
+        title={t("activityLog")}
+        sub={t("activityLogSub")}
+        right={<button className="icon-btn dark" onClick={() => go("setting")}><Ic n="x" /></button>}
+      />
+      <div className="page pull">
+        {loading && <p className="muted center">...</p>}
+        {!loading && !logs.length && <p className="muted center">{t("noLogs")}</p>}
+        {logs.map((log) => (
+          <div className="card tx" key={log._id}>
+            <div className="tx-main">
+              <span
+                className="tx-ic"
+                style={{
+                  background: actionColor(log.action) + "22",
+                  color: actionColor(log.action),
+                  fontSize: 11,
+                  fontWeight: 700,
+                  width: 44,
+                  height: 44,
+                  borderRadius: 12,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
+                {actionLabel(log.action).slice(0, 3).toUpperCase()}
+              </span>
+              <div className="grow">
+                <b className="tx-t">{log.summary}</b>
+                <small className="muted">
+                  {new Date(log.createdAt).toLocaleString(locale, {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit",
+                  })}
+                  {" · "}
+                  {actionLabel(log.action)}
+                </small>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </>
   );
 }
 
@@ -481,6 +575,16 @@ function Setting({ settings, setSettings, go }) {
             <button className={lang === "id" ? "on" : ""} onClick={() => update("lang", "id")}>Indonesia</button>
             <button className={lang === "en" ? "on" : ""} onClick={() => update("lang", "en")}>English</button>
           </div>
+        </div>
+
+        <div className="card" style={{ marginTop: 16 }}>
+          <h3 style={{ marginBottom: 8 }}>{t("activityLog")}</h3>
+          <small className="muted" style={{ display: "block", marginBottom: 12 }}>
+            {t("activityLogSub")}
+          </small>
+          <button className="btn gold" style={{ width: "100%" }} onClick={() => go("logs")}>
+            {t("goToLogs")}
+          </button>
         </div>
 
         <div className="card" style={{ marginTop: 16 }}>
@@ -1006,43 +1110,32 @@ function Produk({ products, reload, closeDay, openDay, closed, patchProduct, rem
 }
 
 // ---------- Pengeluaran ----------
+// Satuan untuk pembelian stok (belanja)
+const UNITS = ["pcs", "bal", "pack", "unit", "kg", "gram", "renteng", "liter"];
+
 function Pengeluaran({ products, reload, patchTx, closed, openDay }) {
-  const { t } = useT();
-  const blank = { description: "", amount: "", product: "", qty: "", note: "", method: "cash" };
+  const { t, lang } = useT();
+  const blank = { description: "", amount: "", product: "", qty: "", unit: "pcs", note: "", method: "cash" };
+  const qtyLabel = (product) => (product ? t("stockBought") : lang === "en" ? "Quantity (optional)" : "Jumlah (opsional)");
   const [f, setF] = useState(blank);
-  const [custom, setCustom] = useState([]); // item belanja custom: { name, qty, price }
-  const [amountTouched, setAmountTouched] = useState(false);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
-
-  const customSum = custom.reduce((s, c) => s + (Number(c.qty) || 0) * (Number(c.price) || 0), 0);
-  // Kalau ada item custom, nominal otomatis = jumlah semua item (masih bisa diubah manual)
-  const amount = custom.length && !amountTouched ? customSum : f.amount;
-
-  const addCustom = () => setCustom((l) => [...l, { name: "", qty: 1, price: "" }]);
-  const updateCustom = (idx, patch) => setCustom((l) => l.map((c, i) => (i === idx ? { ...c, ...patch } : c)));
-  const removeCustom = (idx) => setCustom((l) => l.filter((_, i) => i !== idx));
 
   const submit = async (e) => {
     e.preventDefault();
-    const customItems = custom
-      .map((c) => ({ name: c.name.trim(), qty: Number(c.qty), price: Number(c.price) || 0 }))
-      .filter((c) => c.name);
-    if (customItems.some((c) => !(c.qty >= 1))) return toast.error(t("customQtyMin"));
     try {
-      const items = f.product && f.qty ? [{ product: f.product, qty: Number(f.qty) }] : [];
+      const items = f.product && f.qty ? [{ product: f.product, qty: Number(f.qty), unit: f.unit }] : [];
       const saved = await req("/transactions", "POST", {
         type: "expense",
-        description: f.description.trim() || customItems.map((c) => c.name).join(", "),
-        amount: Number(amount),
+        description: f.description.trim(),
+        amount: Number(f.amount),
         items,
-        customItems,
+        buyQty: Number(f.qty) > 0 ? Number(f.qty) : undefined,
+        buyUnit: f.unit,
         note: f.note,
         method: f.method,
       });
       patchTx(saved);
       setF(blank);
-      setCustom([]);
-      setAmountTouched(false);
       reload();
       toast.success(t("expenseSaved"));
     } catch (x) {
@@ -1054,58 +1147,11 @@ function Pengeluaran({ products, reload, patchTx, closed, openDay }) {
 
   return (
     <form className="card" onSubmit={submit}>
-      <label>{t("description")} {custom.length > 0 && t("optional")}</label>
-      <input placeholder={t("descPh")} value={f.description} onChange={set("description")} required={!custom.length} />
+      <label>{t("description")}</label>
+      <input placeholder={t("descPh")} value={f.description} onChange={set("description")} required />
 
-      <label>{t("customItemsLabel")}</label>
-      {custom.map((c, idx) => (
-        <div className="cx-item" key={idx}>
-          <input
-            className="cx-name"
-            placeholder={t("itemNamePh")}
-            value={c.name}
-            onChange={(e) => updateCustom(idx, { name: e.target.value })}
-            required
-          />
-          <input
-            type="number"
-            inputMode="numeric"
-            min="1"
-            placeholder={t("qtyPh")}
-            value={c.qty}
-            onChange={(e) => updateCustom(idx, { qty: e.target.value })}
-            aria-label={t("qtyAria")}
-            required
-          />
-          <input
-            type="number"
-            inputMode="numeric"
-            min="0"
-            placeholder={t("unitPricePh")}
-            value={c.price}
-            onChange={(e) => updateCustom(idx, { price: e.target.value })}
-            aria-label={t("unitPricePh")}
-            required
-          />
-          <button type="button" className="icon-btn dark" onClick={() => removeCustom(idx)} title={t("removeItem")}>
-            <Ic n="trash" s={16} />
-          </button>
-          <small className="muted cx-sub">{t("subtotal")}: {rp((Number(c.qty) || 0) * (Number(c.price) || 0))}</small>
-        </div>
-      ))}
-      <button type="button" className="btn ghost" style={{ marginTop: 6 }} onClick={addCustom}>
-        <img src="/other.png" alt="" style={{ width: 20, height: 20, objectFit: "contain" }} /> {t("addCustomItem")}
-      </button>
-
-      <label>{t("amount")}{custom.length > 0 && !amountTouched ? t("autoFromItems") : ""}</label>
-      <input
-        type="number"
-        inputMode="numeric"
-        placeholder="0"
-        value={amount}
-        onChange={(e) => { setAmountTouched(true); setF({ ...f, amount: e.target.value }); }}
-        required
-      />
+      <label>{t("amount")}</label>
+      <input type="number" inputMode="numeric" placeholder="0" value={f.amount} onChange={set("amount")} required />
 
       <label>{t("payMethod")}</label>
       <select value={f.method} onChange={set("method")}>
@@ -1122,12 +1168,19 @@ function Pengeluaran({ products, reload, patchTx, closed, openDay }) {
         ))}
       </select>
 
-      {f.product && (
-        <>
-          <label>{t("stockBought")}</label>
-          <input type="number" inputMode="numeric" value={f.qty} onChange={set("qty")} required />
-        </>
-      )}
+      {/* Jumlah & satuan selalu tampil; jumlah hanya wajib kalau produk dipilih (menambah stok) */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <div>
+          <label>{qtyLabel(f.product)}</label>
+          <input type="number" inputMode="numeric" min="1" value={f.qty} onChange={set("qty")} required={!!f.product} />
+        </div>
+        <div>
+          <label>{lang === "en" ? "Unit" : "Satuan"}</label>
+          <select value={f.unit} onChange={set("unit")}>
+            {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+          </select>
+        </div>
+      </div>
 
       <label>{t("note")}</label>
       <input placeholder={t("optionalPh")} value={f.note} onChange={set("note")} />
@@ -1392,6 +1445,7 @@ function Detail({ tx, back, onEdit, onDelete }) {
           <div className="card">
             <h3 style={{ marginBottom: 8 }}>{t("description")}</h3>
             <p>{tx.description}</p>
+            {tx.buyQty > 0 && <small className="muted">{tx.buyQty} {tx.buyUnit || "pcs"}</small>}
           </div>
         )}
 
@@ -1419,7 +1473,7 @@ function Detail({ tx, back, onEdit, onDelete }) {
               <div className="li" key={idx}>
                 <span>
                   <CatIcon c={i.category} s={18} /> {i.name}
-                  <small className="muted"> {inc ? `${rp(i.price)} × ${i.qty}` : `+${i.qty}`}</small>
+                  <small className="muted"> {inc ? `${rp(i.price)} × ${i.qty}` : `+${i.qty}${i.unit ? " " + i.unit : ""}`}</small>
                 </span>
                 {inc && <b>{rp(i.price * i.qty)}</b>}
               </div>
@@ -1641,6 +1695,8 @@ export default function App() {
           <Beranda txs={txs} products={products} go={setTab} closeDay={closeDay} openDay={openDay} closed={closed} askLogout={() => setShowLogout(true)} openDetail={openDetail} settings={settings} setSettings={setSettings} />
         ) : tab === "setting" ? (
           <Setting settings={settings} setSettings={setSettings} go={setTab} />
+        ) : tab === "logs" ? (
+          <ActivityLogPage go={setTab} />
         ) : tab === "detail" ? (
           <Detail tx={detailTx} back={() => setTab(backTab)} onEdit={setEditTx} onDelete={deleteTx} />
         ) : (
