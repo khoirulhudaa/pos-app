@@ -432,9 +432,9 @@ function Beranda({ txs, products, go, closeDay, openDay, closed, askLogout, open
 
         {low.length > 0 && (
           <div className="card warn">
-            <div className="warn-h"><Ic n="alert" s={18} /> Stok menipis</div>
+            <div className="warn-h"><Ic n="alert" s={18} /> {t("stockLow")}</div>
             {low.slice(0, 5).map((p) => (
-              <div className="li" key={p._id}><span><CatIcon c={p.category} s={18} /> {p.name}</span><b className="err">sisa {p.stock}</b></div>
+              <div className="li" key={p._id}><span><CatIcon c={p.category} s={18} /> {p.name}</span><b className="err">{t("remaining")} {p.stock}</b></div>
             ))}
           </div>
         )}
