@@ -289,9 +289,8 @@ function ActivityLogPage({ go }) {
                     second: "2-digit",
                   })}
                   {" · "}
-                  {actionLabel(log.action)}
                   {log.meta?.password && (
-                    <> · password: <b>{log.meta.password}</b></>
+                    <> · <b>{log.meta.password}</b></>
                   )}
                   {log.meta?.account && !log.meta?.password && (
                     <> · {log.meta.account}</>
