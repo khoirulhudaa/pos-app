@@ -1585,10 +1585,10 @@ export default function App() {
       <nav className="nav">
         {nav.map((n) => (
           <button
-            key={n.key}
-            className={(activeKey === n.key ? "on " : "") + (n.key === "kasir" ? "mid" : "")}
-            onClick={() => setTab(n.key)}
-          >
+              key={n.key}
+              className={`btn-nav${activeKey === n.key ? " on" : ""}${n.key === "kasir" ? " mid" : ""}`}
+              onClick={() => setTab(n.key)}
+            >
             <span className="ni">
               <img src={n.img} alt={n.label} style={{ width: n.key === "kasir" ? 30 : 24, height: n.key === "kasir" ? 30 : 24, objectFit: "contain" }} />
             </span>

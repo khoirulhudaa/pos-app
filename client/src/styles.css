@@ -66,6 +66,9 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); backgro
   margin-top: 20px; padding: 18px 18px 18px 22px; border-radius: 22px; overflow: hidden; position: relative;
   background: rgba(255, 255, 255, .12); border: 1px solid rgba(255, 255, 255, .22); backdrop-filter: blur(10px);
 }
+.icon-btn:active, .btn-nav:active {
+  transform: scale(0.98);
+}
 .balance::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; background: var(--gold); }
 .balance > span { font-size: 13px; opacity: .85; }
 .balance strong { display: block; font-size: clamp(30px, 6vw, 40px); font-weight: 800; letter-spacing: -.02em; margin: 2px 0 14px; }
