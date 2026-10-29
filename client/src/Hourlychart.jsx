@@ -60,7 +60,6 @@ export default function HourlyChartNew({ txs, hidden = false, onToggle }) {
             <button className={mode === "tx" ? "on" : ""} onClick={() => setMode("tx")}>{t("chartTx")}</button>
             <button className={mode === "items" ? "on" : ""} onClick={() => setMode("items")}>{t("chartItems")}</button>
           </div>
-          {onToggle && <button className="hc-toggle" onClick={onToggle}>{t("chartHide")}</button>}
         </div>
       </div>
 
