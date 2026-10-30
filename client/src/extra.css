@@ -67,16 +67,13 @@
 /* ===== Pilihan kolom menu kasir ===== */
 .kasir > div:first-child { min-width: 0; max-width: 100%; }
 
-.pills-row { display: flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; margin-bottom: 8; }
-.pills-row .pills { flex: 1 1 0; min-width: 0; overflow-x: auto; scrollbar-width: none; margin-bottom: 0; }
+/* ===== Baris kategori + pilihan kolom ===== */
+.pills-row { display: flex; align-items: stretch; gap: 8px; min-width: 0; max-width: 100%; margin: 10px 0 12px; }
+.pills-row .pills { flex: 1 1 0; min-width: 0; margin: 0 !important; padding: 0 !important; overflow-x: auto; scrollbar-width: none; align-items: stretch; }
 .pills-row .pills::-webkit-scrollbar { display: none; }
-.pills-row .pills button { flex-shrink: 0; }
+.pills-row .pills button { flex-shrink: 0; margin: 0 !important; }
 
-.view-seg { display: flex; background: #eef2f7; border-radius: 10px; padding: 2px; flex-shrink: 0; }
-.view-seg button { width: 32px; height: 28px; display: grid; place-items: center; border-radius: 8px; color: #64748b; background: transparent; }
-.view-seg button.on { background: #fff; color: #0a66c2; box-shadow: 0 1px 3px rgba(0, 0, 0, .1); }
-
-.products.cols-1 { display: grid; grid-template-columns: minmax(0, 1fr) !important; }
-.products.cols-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
-.products .prod { min-width: 0; max-width: 100%; box-sizing: border-box; }
-.products .prod-name b { overflow-wrap: anywhere; }
+/* tinggi ikut tombol Makanan/Minuman */
+.view-seg { display: flex; align-items: stretch; align-self: stretch; flex-shrink: 0; gap: 2px; padding: 3px; background: #fff; border-radius: 999px; box-shadow: 0 1px 3px rgba(0, 0, 0, .08); }
+.view-seg button { width: 36px; height: auto; display: grid; place-items: center; border-radius: 999px; color: #64748b; background: transparent; }
+.view-seg button.on { background: #0a66c2; color: #fff; }

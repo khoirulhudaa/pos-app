@@ -1084,7 +1084,7 @@ function Kasir({ products, reload, patchTx, closed, openDay, fund, hideFund, col
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
-  const [cat, setCat] = useState("all");
+  const [cat, setCat] = useState("minuman");
   const [done, setDone] = useState(null);
 
   // opsi baru
@@ -1166,7 +1166,7 @@ function Kasir({ products, reload, patchTx, closed, openDay, fund, hideFund, col
         <div className="search"><Ic n="search" s={18} /><input placeholder={t("searchProd")} value={q} onChange={(e) => setQ(e.target.value)} /></div>
         <div className="pills-row">
           <div className="pills">
-            {[["all", t("all")], ["makanan", t("food")], ["minuman", t("drink")]].map(([k, l]) => (
+            {[["minuman", t("drink"), ["makanan", t("food")]]].map(([k, l]) => (
               <button key={k} className={cat === k ? "on" : ""} onClick={() => setCat(k)}>{l}</button>
             ))}
           </div>
