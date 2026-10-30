@@ -1823,7 +1823,7 @@ function Riwayat({ txs, onEdit, onDelete, openDetail }) {
 
 // ---------- Detail transaksi ----------
 function Detail({ tx, back, onEdit, onDelete }) {
-  const { t, locale } = useT();
+  const { t, locale, lang } = useT();
   const [pdfBusy, setPdfBusy] = useState(false);
   const savePdf = async () => {
     setPdfBusy(true);
