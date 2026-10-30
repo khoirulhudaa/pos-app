@@ -46,5 +46,5 @@
 .cf-mini { display: block; margin: 8px 2px 0; font-size: 12px; }
 
 /* Modal konfirmasi di tengah layar */
-.modal.success { padding-top: 28px; }
+.modal.success { padding-top: 26px; }
 .modal.success .logout-ic { margin-top: 4px; }
