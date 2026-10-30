@@ -1524,9 +1524,25 @@ function Pengeluaran({ products, reload, patchTx, closed, openDay, go }) {
   const blank = { description: "", amount: "", product: "", qty: "", unit: "pcs", note: "", method: "cash", permanent: false };
   const qtyLabel = (product) => (product ? t("stockBought") : lang === "en" ? "Quantity (optional)" : "Jumlah (opsional)");
   const [f, setF] = useState(blank);
+  const [unitCost, setUnitCost] = useState(0); // harga per satuan, jadi patokan nominal
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
 
-    const submit = async (e) => {
+    const onAmount = (e) => {
+    const v = e.target.value;
+    const q = Number(f.qty) > 0 ? Number(f.qty) : 1;
+    setF({ ...f, amount: v });
+    setUnitCost(v === "" ? 0 : Number(v) / q);
+  };
+
+  const onQty = (e) => {
+    const v = e.target.value;
+    const q = Number(v);
+    const next = { ...f, qty: v };
+    if (unitCost > 0) next.amount = String(Math.round(unitCost * (q > 0 ? q : 1)));
+    setF(next);
+  };
+
+  const submit = async (e) => {
     e.preventDefault();
     try {
       const items = f.product && f.qty ? [{ product: f.product, qty: Number(f.qty), unit: f.unit }] : [];
@@ -1543,6 +1559,7 @@ function Pengeluaran({ products, reload, patchTx, closed, openDay, go }) {
       });
       patchTx(saved);
       setF(blank);
+      setUnitCost(0);
       toast.success(t("expenseSaved"));
       go("home");   // ← redirect ke beranda
       reload();
@@ -1559,7 +1576,14 @@ function Pengeluaran({ products, reload, patchTx, closed, openDay, go }) {
       <input placeholder={t("descPh")} value={f.description} onChange={set("description")} required />
 
       <label>{t("amount")}</label>
-      <input type="number" inputMode="numeric" placeholder="0" value={f.amount} onChange={set("amount")} required />
+      <input type="number" inputMode="numeric" placeholder="0" value={f.amount} onChange={onAmount} required />
+      {unitCost > 0 && Number(f.qty) > 0 && (
+        <small className="muted" style={{ display: "block", marginTop: 4 }}>
+          {lang === "en"
+            ? `Follows quantity (${rp(Math.round(unitCost))} / unit)`
+            : `Mengikuti jumlah (${rp(Math.round(unitCost))} / satuan)`}
+        </small>
+      )}
 
       <label>{t("payMethod")}</label>
       <select value={f.method} onChange={set("method")}>
@@ -1580,7 +1604,7 @@ function Pengeluaran({ products, reload, patchTx, closed, openDay, go }) {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <div>
           <label>{qtyLabel(f.product)}</label>
-          <input type="number" inputMode="numeric" min="1" value={f.qty} onChange={set("qty")} required={!!f.product} />
+          <input type="number" inputMode="numeric" min="1" value={f.qty} onChange={onQty} required={!!f.product} />
         </div>
         <div>
           <label>{lang === "en" ? "Unit" : "Satuan"}</label>
