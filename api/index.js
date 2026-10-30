@@ -71,14 +71,25 @@ const Tx = registerModel("Tx", new mongoose.Schema({
   },
   cashReceived: Number,
   change: Number,
+  changeSource: {                                    // asal uang kembalian
+    stock: { type: Number, default: 0 },             // dari stok kembalian
+    other: { type: Number, default: 0 },             // dari sumber lain (stok kurang)
+  },
   note: { type: String, default: "" },
 }, { timestamps: true }));
 
-// Status toko (buka / tutup) - satu dokumen saja
 const Setting = registerModel("Setting", new mongoose.Schema({
   key: { type: String, unique: true },
   closed: { type: Boolean, default: false },
   closedAt: Date,
+  // ===== MANAJEMEN KEMBALIAN =====
+  change: {
+    initial: { type: Number, default: 0 },    // modal kembalian awal hari
+    balance: { type: Number, default: 0 },    // sisa stok kembalian
+    added: { type: Number, default: 0 },      // total tambahan hari ini
+    otherUsed: { type: Number, default: 0 },  // total kembalian yang diambil dari sumber lain
+    since: Date,                              // kapan modal terakhir diatur
+  },
 }, { timestamps: true }));
 
 // ===== LOG AKTIVITAS =====
@@ -94,6 +105,7 @@ const ActivityLog = registerModel("ActivityLog", new mongoose.Schema({
       "create_payment",
       "edit_transaction",
       "delete_transaction",
+      "change_fund"
     ],
     required: true,
   },
@@ -124,6 +136,49 @@ const setClosed = (closed) =>
     { closed, closedAt: closed ? new Date() : null },
     { upsert: true, new: true }
   );
+
+  // ==================== MANAJEMEN KEMBALIAN ====================
+const getFund = async () => {
+  const c = (await Setting.findOne({ key: "shop" }).lean())?.change || {};
+  return {
+    initial: c.initial || 0,
+    balance: c.balance || 0,
+    added: c.added || 0,
+    otherUsed: c.otherUsed || 0,
+    since: c.since || null,
+  };
+};
+const upsertSetting = (update) =>
+  Setting.findOneAndUpdate({ key: "shop" }, update, { upsert: true, new: true });
+
+// Atur ulang (awal hari)
+const resetFund = (amount) =>
+  upsertSetting({
+    $set: {
+      "change.initial": amount,
+      "change.balance": amount,
+      "change.added": 0,
+      "change.otherUsed": 0,
+      "change.since": new Date(),
+    },
+  });
+  
+  // Tambah stok kembalian
+  const addFund = (amount) =>
+    upsertSetting({ $inc: { "change.balance": amount, "change.added": amount } });
+  // Pergerakan karena transaksi
+  const moveFund = ({ balance = 0, other = 0 }) =>
+    upsertSetting({ $inc: { "change.balance": balance, "change.otherUsed": other } });
+
+  // Bagi kembalian: stok dulu, kekurangan dari sumber lain
+  const splitChange = (change, available) => {
+    const need = Math.max(0, Number(change) || 0);
+    const stock = Math.min(Math.max(0, available), need);
+    return { stock, other: need - stock };
+  };
+  // Transaksi hanya memengaruhi stok kalau dibuat setelah modal terakhir diatur
+  const fundApplies = (tx, fund) =>
+    !fund.since || new Date(tx.createdAt) >= new Date(fund.since);
 
 const bad = (res, m) => res.status(400).json({ message: m });
 const toCount = (v) => Math.max(0, Math.floor(Number(v) || 0));
@@ -195,9 +250,38 @@ app.get("/api/logs", async (req, res) => {
 // ---- Status toko ----
 app.get("/api/status", async (_, res) => res.json({ closed: await getClosed() }));
 
-app.post("/api/open-day", async (_, res) => {
+app.post("/api/open-day", async (req, res) => {
   await setClosed(false);
-  res.json({ ok: true, closed: false });
+  const v = req.body?.changeFund;
+  if (v !== undefined && v !== null && v !== "" && Number(v) >= 0) {
+    const amount = Math.floor(Number(v));
+    await resetFund(amount);
+    await logActivity(req, "change_fund", `Modal kembalian buka toko · Rp ${amount.toLocaleString("id-ID")}`, {
+      mode: "set",
+      amount,
+    });
+  }
+  res.json({ ok: true, closed: false, fund: await getFund() });
+});
+
+// ---- Manajemen kembalian ----
+app.get("/api/change-fund", async (_, res) => res.json(await getFund()));
+
+app.post("/api/change-fund", async (req, res) => {
+  const mode = req.body?.mode === "set" ? "set" : "add";
+  const amount = Math.floor(Number(req.body?.amount));
+  if (!Number.isFinite(amount)) return bad(res, "Nominal tidak valid");
+
+  if (mode === "set") {
+    if (amount < 0) return bad(res, "Nominal tidak boleh minus");
+    await resetFund(amount);
+    await logActivity(req, "change_fund", `Atur modal kembalian · Rp ${amount.toLocaleString("id-ID")}`, { mode, amount });
+  } else {
+    if (amount <= 0) return bad(res, "Nominal tambahan harus lebih dari 0");
+    await addFund(amount);
+    await logActivity(req, "change_fund", `Tambah uang kembalian · Rp ${amount.toLocaleString("id-ID")}`, { mode, amount });
+  }
+  res.json(await getFund());
 });
 
 // ---- Produk ----
@@ -352,6 +436,8 @@ app.post("/api/transactions", async (req, res) => {
 
     const paid = method === "qris" ? total : Number(cashReceived);
     if (!(paid >= total)) return bad(res, "Uang diterima kurang dari total");
+    // ===== Sumber kembalian: stok dulu, kekurangan dari sumber lain =====
+    const src = splitChange(paid - total, (await getFund()).balance);
 
     await Product.bulkWrite(
       lines.map((l) => ({
@@ -373,20 +459,26 @@ app.post("/api/transactions", async (req, res) => {
       method,
       cashReceived: paid,
       change: paid - total,
+      changeSource: src,
       note,
     });
 
+    if (src.stock || src.other) await moveFund({ balance: -src.stock, other: src.other });
+
     // ===== LOG AKTIVITAS =====
     const shortId = String(tx._id).slice(-5).toUpperCase();
+    const rpId = (n) => `Rp ${Number(n).toLocaleString("id-ID")}`;
     await logActivity(
       req,
       "create_payment",
-      `Kasir · ID ${shortId} · Rp ${Number(tx.total).toLocaleString("id-ID")}`,
+      `Kasir · ${shortId} · ${rpId(tx.total)}` + (src.other > 0 ? ` · +${rpId(src.other)} lain` : ""),
       {
         txId: tx._id,
         shortId,
         total: tx.total,
         method: tx.method,
+        changeStock: src.stock,
+        changeOther: src.other,
       }
     );
 
@@ -445,6 +537,8 @@ app.post("/api/transactions", async (req, res) => {
 app.put("/api/transactions/:id", async (req, res) => {
   const t = await Tx.findById(req.params.id);
   if (!t) return res.status(404).json({ message: "Tidak ditemukan" });
+  const oldChange = t.change || 0;
+  let fundDelta = null;
 
   const { note, description, amount, method, items, mix, packaging } = req.body;
   const income = t.type === "income";
@@ -543,9 +637,23 @@ app.put("/api/transactions/:id", async (req, res) => {
     // sesuaikan uang diterima & kembalian dengan total baru
     if (!(t.cashReceived >= t.total)) t.cashReceived = t.total;
     t.change = t.cashReceived - t.total;
+    // ===== sesuaikan stok kembalian =====
+    const fund = await getFund();
+    const oldSrc = { stock: t.changeSource?.stock || 0, other: t.changeSource?.other || 0 };
+    const legacy = oldSrc.stock + oldSrc.other !== Math.max(0, oldChange); // transaksi sebelum fitur ini
+    if (fundApplies(t, fund) && !legacy) {
+      const newSrc = splitChange(t.method === "cash" ? t.change : 0, fund.balance + oldSrc.stock);
+      t.set("changeSource.stock", newSrc.stock);
+      t.set("changeSource.other", newSrc.other);
+      fundDelta = {
+        balance: oldSrc.stock - newSrc.stock,
+        other: newSrc.other - oldSrc.other,
+      };
+    }
   }
 
   const saved = await t.save();
+  if (fundDelta && (fundDelta.balance || fundDelta.other)) await moveFund(fundDelta);
   const shortId = String(saved._id).slice(-5).toUpperCase();
   const label = income
     ? `Edit transaksi · ID ${shortId}`
@@ -583,6 +691,14 @@ app.delete("/api/transactions/:id", async (req, res) => {
   }
 
   await t.deleteOne();
+
+  // kembalikan stok kembalian yang terpakai transaksi ini
+  if (t.type === "income" && (t.changeSource?.stock || t.changeSource?.other)) {
+    const fund = await getFund();
+    if (fundApplies(t, fund)) {
+      await moveFund({ balance: t.changeSource.stock || 0, other: -(t.changeSource.other || 0) });
+    }
+  }
 
   const label =
     t.type === "income"

@@ -26,3 +26,21 @@
 
 /* ===== Pilih bahasa ===== */
 .lang-seg { margin-top: 10px; }
+
+/* ===== Manajemen kembalian ===== */
+.cf-card { padding: 12px 14px; margin-top: 12px; border: 1px solid rgba(10, 102, 194, .15); background: #f5f9ff; }
+.cf-card.empty { border-color: rgba(229, 72, 77, .25); background: #fff7f7; }
+.cf-h { display: flex; align-items: center; gap: 8px; }
+.cf-h b { flex: 1; font-size: 13.5px; }
+.cf-h .link { font-size: 12px; }
+.cf-ic { width: 26px; height: 26px; border-radius: 8px; background: #e0eeff; color: #0a66c2; display: grid; place-items: center; flex-shrink: 0; }
+.cf-card.empty .cf-ic { background: #fde8e8; color: #e5484d; }
+.cf-bal { display: block; font-size: 22px; font-weight: 800; margin: 6px 0 8px; }
+.cf-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.cf-stats > div { background: #fff; border-radius: 10px; padding: 6px 8px; min-width: 0; }
+.cf-stats small { display: block; font-size: 10.5px; color: #64748b; }
+.cf-stats b { font-size: 12.5px; }
+.cf-split { margin-top: 8px; padding: 8px 10px; border-radius: 12px; background: #f1f5f9; font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
+.cf-split > div { display: flex; justify-content: space-between; gap: 8px; }
+.cf-split.warn { background: #fff4e0; border: 1px solid rgba(245, 158, 11, .4); }
+.cf-mini { display: block; margin: 8px 2px 0; font-size: 12px; }

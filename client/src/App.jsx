@@ -33,6 +33,7 @@ const P = {
   cart: "M9 22a1 1 0 1 0 0-2 1 1 0 0 0 0 2z M20 22a1 1 0 1 0 0-2 1 1 0 0 0 0 2z M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6",
   list: "M8 6h13 M8 12h13 M8 18h13 M3 6h.01 M3 12h.01 M3 18h.01",
   down: "M23 18l-9.5-9.5-5 5L1 6 M17 18h6v-6",
+  wallet: "M21 12V7H5a2 2 0 0 1 0-4h14v4 M3 5v14a2 2 0 0 0 2 2h16v-5 M18 12a2 2 0 0 0 0 4h4v-4z", 
   up: "M23 6l-9.5 9.5-5-5L1 18 M17 6h6v6",
   logout: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9",
   plus: "M12 5v14 M5 12h14",
@@ -209,7 +210,7 @@ function Login({ onOk }) {
 }
 
 function ActivityLogPage({ go }) {
-  const { t, locale } = useT();
+  const { t, locale, lang } = useT();
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -234,6 +235,7 @@ function ActivityLogPage({ go }) {
       logout: t("logLogout") || "Logout",
       create_product: t("logCreateProduct"),
       edit_product: t("logEditProduct"),
+      change_fund: lang === "en" ? "Change" : "Kembalian",
       delete_product: t("logDeleteProduct") || "Hapus produk",
       create_payment: t("logCreatePayment"),
       edit_transaction: t("logEditTx"),
@@ -246,6 +248,7 @@ function ActivityLogPage({ go }) {
     if (a === "login") return "var(--muted)";
     if (a === "create_product" || a === "create_payment") return "var(--ok)";
     if (a === "edit_product" || a === "edit_transaction") return "#0a66c2";
+    if (a === "change_fund") return "#f59e0b";
     return "var(--muted)";
   };
 
@@ -427,7 +430,7 @@ function LowStock({ low, go }) {
 }
 
 // ---------- Beranda ----------
-function Beranda({ txs, products, go, closeDay, openDay, closed, askLogout, openDetail, settings = {}, setSettings }) {
+function Beranda({ txs, products, go, closeDay, openDay, closed, askLogout, openDetail, settings = {}, setSettings, fund, openFund }) {
   const { t, locale } = useT();
   const { hideLaba = false, hidePengeluaran = false, hideTransaksi = false } = settings;
 
@@ -531,6 +534,8 @@ function Beranda({ txs, products, go, closeDay, openDay, closed, askLogout, open
           ))}
         </div>
 
+        <ChangeFundCard fund={fund} money={money} onManage={openFund} />
+
         {closed && (
           <div className="card warn">
             <div className="warn-h"><img src="/close2.png" alt="" style={{ width: 20, height: 20, objectFit: "contain" }} /> {t("closedTitle")}</div>
@@ -559,6 +564,149 @@ function Beranda({ txs, products, go, closeDay, openDay, closed, askLogout, open
         ))}
         {!txs.length && <p className="muted center">{t("noTx")}</p>}
       </div>
+    </>
+  );
+}
+
+// ---------- Manajemen kembalian ----------
+function ChangeFundCard({ fund, money, onManage }) {
+  const { lang } = useT();
+  const tl = (id, en) => (lang === "en" ? en : id);
+  if (!fund) return null;
+  const empty = fund.balance <= 0;
+  return (
+    <div className={"card cf-card" + (empty ? " empty" : "")}>
+      <div className="cf-h">
+        <span className="cf-ic"><Ic n="wallet" s={16} /></span>
+        <b>{tl("Uang Kembalian", "Change Float")}</b>
+        <button className="link" onClick={onManage}>{tl("Atur", "Manage")}</button>
+      </div>
+      <strong className="cf-bal">{money(fund.balance)}</strong>
+      <div className="cf-stats">
+        <div><small>{tl("Modal awal", "Opening")}</small><b>{money(fund.initial)}</b></div>
+        <div><small>{tl("Tambahan", "Added")}</small><b>{money(fund.added)}</b></div>
+        <div><small>{tl("Sumber lain", "Other source")}</small><b className={fund.otherUsed > 0 ? "err" : ""}>{money(fund.otherUsed)}</b></div>
+      </div>
+    </div>
+  );
+}
+
+function ChangeFundModal({ fund, onClose, onSaved }) {
+  const { lang } = useT();
+  const tl = (id, en) => (lang === "en" ? en : id);
+  const [mode, setMode] = useState("add");
+  const [amount, setAmount] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const saved = await req("/change-fund", "POST", { mode, amount: Number(amount) });
+      onSaved(saved);
+      toast.success(tl("Uang kembalian diperbarui", "Change float updated"));
+      onClose();
+    } catch (x) {
+      toast.error(x.message);
+    }
+    setBusy(false);
+  };
+
+  return (
+    <Modal title={tl("Manajemen Kembalian", "Change Management")} onClose={onClose}>
+      <form onSubmit={submit}>
+        <div className="cf-split" style={{ marginTop: 0 }}>
+          <div><span>{tl("Sisa stok kembalian", "Current float")}</span><b>{rp(fund?.balance)}</b></div>
+          {fund?.otherUsed > 0 && (
+            <div><span>{tl("Sudah diambil dari sumber lain", "Taken from other source")}</span><b className="err">{rp(fund.otherUsed)}</b></div>
+          )}
+        </div>
+
+        <div className="seg" style={{ marginTop: 12 }}>
+          <button type="button" className={mode === "add" ? "on" : ""} onClick={() => setMode("add")}>{tl("Tambah", "Top up")}</button>
+          <button type="button" className={mode === "set" ? "on" : ""} onClick={() => setMode("set")}>{tl("Atur ulang", "Reset")}</button>
+        </div>
+
+        <label>{mode === "add" ? tl("Tambah uang kembalian (Rp)", "Add change (Rp)") : tl("Modal kembalian baru (Rp)", "New float (Rp)")}</label>
+        <input
+          type="number"
+          inputMode="numeric"
+          min={mode === "add" ? 1 : 0}
+          placeholder="0"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          required
+          autoFocus
+        />
+        <div className="chips">
+          {[20000, 50000, 100000, 200000].map((n) => (
+            <button type="button" key={n} onClick={() => setAmount(String(n))}>{rp(n)}</button>
+          ))}
+        </div>
+        <small className="muted" style={{ display: "block", marginTop: 8 }}>
+          {mode === "add"
+            ? tl("Menambah ke sisa stok kembalian yang sekarang.", "Adds to the current float.")
+            : tl("Mengganti sisa stok dengan nominal ini & mengosongkan hitungan 'sumber lain'.", "Replaces the current float and clears the 'other source' counter.")}
+        </small>
+
+        <button className="btn gold" disabled={busy}>{tl("Simpan", "Save")}</button>
+      </form>
+    </Modal>
+  );
+}
+
+// Dialog buka toko + modal kembalian
+function OpenDayModal({ fund, onClose, onConfirm }) {
+  const { t, lang } = useT();
+  const tl = (id, en) => (lang === "en" ? en : id);
+  const [amount, setAmount] = useState(fund ? String(fund.balance) : "");
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    await onConfirm(amount === "" ? undefined : Number(amount));
+    setBusy(false);
+  };
+
+  return (
+    <Modal title={t("reopenTitle")} onClose={onClose}>
+      <form onSubmit={submit}>
+        <p className="muted small" style={{ marginTop: 0 }}>{t("reopenDesc")}</p>
+        <label>{tl("Modal uang kembalian hari ini (Rp)", "Today's change float (Rp)")}</label>
+        <input
+          type="number"
+          inputMode="numeric"
+          min="0"
+          placeholder="0"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          autoFocus
+        />
+        <small className="muted" style={{ display: "block", marginTop: 6 }}>
+          {tl("Terisi otomatis dengan sisa kemarin. Kosongkan untuk tidak mengubah.", "Prefilled with yesterday's remaining. Leave empty to keep it unchanged.")}
+        </small>
+        <div className="row-actions" style={{ marginTop: 16 }}>
+          <button type="button" className="btn ghost" onClick={onClose}>{t("cancel")}</button>
+          <button className="btn gold" disabled={busy}>{t("yesOpen")}</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+// Rincian asal kembalian (dipakai di PaymentSuccess & Detail)
+function ChangeSourceRows({ tx }) {
+  const { lang } = useT();
+  const tl = (id, en) => (lang === "en" ? en : id);
+  const s = tx?.changeSource;
+  if (!s || !(s.stock > 0 || s.other > 0)) return null;
+  return (
+    <>
+      <div className="li"><span className="muted">{tl("Kembalian dari stok", "Change from float")}</span><b>{rp(s.stock)}</b></div>
+      {s.other > 0 && (
+        <div className="li"><span className="muted">{tl("Kembalian dari sumber lain", "Change from other source")}</span><b className="err">{rp(s.other)}</b></div>
+      )}
     </>
   );
 }
@@ -730,6 +878,8 @@ function PaymentSuccess({ done, onClose }) {
           <div className="li"><span className="muted">{t("total")}</span><b>{rp(total)}</b></div>
           <div className="li"><span className="muted">{t("received")}</span><b>{rp(paid)}</b></div>
           <div className="li"><span className="muted">{t("change")}</span><b className="ok">{rp(change)}</b></div>
+          <div className="li"><span className="muted">{t("change")}</span><b className="ok">{rp(change)}</b></div>
+          <ChangeSourceRows tx={tx} />
         </div>
 
         <div className="card">
@@ -759,7 +909,8 @@ function PaymentSuccess({ done, onClose }) {
 
 // ---------- Kasir ----------
 function Kasir({ products, reload, patchTx, closed, openDay }) {
-  const { t } = useT();
+  const { t, lang } = useT();
+  const tl = (id, en) => (lang === "en" ? en : id);
   const [cart, setCart] = useState({});
   const [cash, setCash] = useState("");
   const [note, setNote] = useState("");
@@ -782,6 +933,11 @@ function Kasir({ products, reload, patchTx, closed, openDay }) {
   const total = custom && customVal !== "" ? Math.max(0, Number(customVal)) : subtotal;
   const count = lines.reduce((s, p) => s + cart[p._id], 0);
   const change = Number(cash || 0) - total;
+  // pratinjau asal kembalian
+  const fundBal = fund?.balance ?? 0;
+  const needChange = Math.max(0, change);
+  const fromStock = Math.min(fundBal, needChange);
+  const fromOther = needChange - fromStock;
   const canPay = lines.length && cash !== "" && change >= 0 && (!custom || customVal !== "");
 
   const add = (p, d) => setCart((c) => {
@@ -846,6 +1002,11 @@ function Kasir({ products, reload, patchTx, closed, openDay }) {
             <button key={k} className={cat === k ? "on" : ""} onClick={() => setCat(k)}>{l}</button>
           ))}
         </div>
+        {fund && (
+          <small className="muted cf-mini">
+            💵 {tl("Sisa kembalian", "Change float")}: <b>{rp(fund.balance)}</b>
+          </small>
+        )}
         <div className="products">
           {shown.map((p) => {
             const qty = cart[p._id] || 0;
@@ -969,6 +1130,16 @@ function Kasir({ products, reload, patchTx, closed, openDay }) {
           <span>{cash !== "" && change < 0 ? t("short") : t("change")}</span>
           <b>{cash === "" ? "-" : rp(Math.abs(change))}</b>
         </div>
+
+        {cash !== "" && needChange > 0 && (
+          <div className={"cf-split" + (fromOther > 0 ? " warn" : "")}>
+            <div><span>{tl("Dari stok kembalian", "From change float")}</span><b>{rp(fromStock)}</b></div>
+            {fromOther > 0 && (
+              <div><span>{tl("Kurang → ambil dari sumber lain", "Short → take from other source")}</span><b className="err">{rp(fromOther)}</b></div>
+            )}
+            <small className="muted">{tl("Sisa stok setelah ini", "Float after this")}: {rp(fundBal - fromStock)}</small>
+          </div>
+        )}
 
         <input placeholder={t("noteOpt")} value={note} onChange={(e) => setNote(e.target.value)} />
         <button className="btn gold" disabled={!canPay || busy} onClick={pay}>
@@ -1520,6 +1691,8 @@ function Detail({ tx, back, onEdit, onDelete }) {
               <div className="li"><span className="muted">{t("change")}</span><b className="ok">{rp(tx.change)}</b></div>
             </>
           )}
+          <div className="li"><span className="muted">{t("change")}</span><b className="ok">{rp(tx.change)}</b></div>
+          <ChangeSourceRows tx={tx} />
         </div>
 
         {inc && (
@@ -1582,6 +1755,9 @@ export default function App() {
   const [showLogout, setShowLogout] = useState(false);
   const [editTx, setEditTx] = useState(null);
   const [closed, setClosed] = useState(false);
+  const [fund, setFund] = useState(null);
+  const [showFund, setShowFund] = useState(false);
+  const [showOpen, setShowOpen] = useState(false);
 
   const [settings, setSettings] = useState(() => {
     try {
@@ -1620,13 +1796,15 @@ export default function App() {
   const reload = async () => {
     const startedAt = Date.now();
     try {
-      const [p, tr, s] = await Promise.all([
+      const [p, tr, s, fd] = await Promise.all([
         req("/products"),
         req("/transactions"),
         req("/status").catch((e) => { if (e.status === 401) throw e; return null; }),
+        req("/change-fund").catch((e) => { if (e.status === 401) throw e; return null; }),
       ]);
       if (s) setClosed(!!s.closed);
       if (startedAt < lastChange.current) return; // data lama, sudah ada perubahan yang lebih baru
+      if (fd) setFund(fd);
       setProducts(Array.isArray(p) ? p.filter((x) => x && x.name) : []);
       setTxs(Array.isArray(tr) ? tr : []);
     } catch (e) {
@@ -1688,23 +1866,19 @@ export default function App() {
       },
     });
 
-  const openDay = () =>
-    confirmToast({
-      title: t("reopenTitle"),
-      desc: t("reopenDesc"),
-      okText: t("yesOpen"),
-      cancelText: t("cancel"),
-      onOk: async () => {
-        try {
-          await req("/open-day", "POST");
-          setClosed(false);
-          await reload();
-          toast.success(t("shopOpened"));
-        } catch (e) {
-          toast.error(e.message);
-        }
-      },
-    });
+    const openDay = () => setShowOpen(true);
+
+  const confirmOpenDay = async (changeFund) => {
+    try {
+      await req("/open-day", "POST", changeFund === undefined ? undefined : { changeFund });
+      setClosed(false);
+      setShowOpen(false);
+      await reload();
+      toast.success(t("shopOpened"));
+    } catch (e) {
+      toast.error(e.message);
+    }
+  };
 
   if (!authed) return <LangCtx.Provider value={ctx}><Login onOk={() => setAuthed(true)} /></LangCtx.Provider>;
 
@@ -1714,6 +1888,7 @@ export default function App() {
     keluar: [t("expense"), t("expenseSub")],
     riwayat: [t("menuHistory"), t("historySub")],
   };
+
   const nav = [
     { key: "home", label: t("navHome"), img: "/beranda.png" },
     { key: "produk", label: t("menuProducts"), img: "/produk.png" },
@@ -1728,7 +1903,7 @@ export default function App() {
     <LangCtx.Provider value={ctx}>
       <div className="app">
         {tab === "home" ? (
-          <Beranda txs={txs} products={products} go={setTab} closeDay={closeDay} openDay={openDay} closed={closed} askLogout={() => setShowLogout(true)} openDetail={openDetail} settings={settings} setSettings={setSettings} />
+          <Beranda txs={txs} products={products} go={setTab} closeDay={closeDay} openDay={openDay} closed={closed} askLogout={() => setShowLogout(true)} openDetail={openDetail} settings={settings} setSettings={setSettings} fund={fund} openFund={() => setShowFund(true)} />
         ) : tab === "setting" ? (
           <Setting settings={settings} setSettings={setSettings} go={setTab} />
         ) : tab === "logs" ? (
@@ -1769,6 +1944,22 @@ export default function App() {
             products={products}
             onClose={() => setEditTx(null)}
             onSaved={(saved) => { patchTx(saved); reload(); }}
+          />
+        )}
+
+        {showFund && (
+          <ChangeFundModal
+            fund={fund}
+            onClose={() => setShowFund(false)}
+            onSaved={(f) => { touch(); setFund(f); }}
+          />
+        )}
+
+        {showOpen && (
+          <OpenDayModal
+            fund={fund}
+            onClose={() => setShowOpen(false)}
+            onConfirm={confirmOpenDay}
           />
         )}
 
