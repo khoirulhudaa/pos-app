@@ -1276,7 +1276,7 @@ function Kasir({ products, reload, patchTx, closed, openDay, fund, hideFund, col
         </div>
 
         <label className="switch-row">
-          <span>✏️ {t("customAmount")}</span>
+          <span>{t("customAmount")}</span>
           <input type="checkbox" checked={custom} onChange={(e) => { setCustom(e.target.checked); setCustomVal(""); }} />
         </label>
         {custom && (
