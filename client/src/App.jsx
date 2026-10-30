@@ -192,7 +192,7 @@ function ResetHistoryModal({ onClose, onDone }) {
       <div className="modal success" style={{ paddingTop: 32 }} onClick={(e) => e.stopPropagation()}>
         <div className="logout-ic"><Ic n="trash" s={30} /></div>
         <h3>{tl("Reset Semua Riwayat?", "Reset All History?")}</h3>
-        <p className="muted small" style={{marginBottom: 12}}>
+        <p className="muted small" style={{marginBottom: 16}}>
           {tl(
             "Semua transaksi akan dihapus permanen",
             "All transaction will be deleted"
@@ -208,7 +208,7 @@ function ResetHistoryModal({ onClose, onDone }) {
             required
           />
           {err && <p className="err small">{err}</p>}
-          <div className="row-actions" style={{ marginTop: 8 }}>
+          <div className="row-actions" style={{ marginTop: 5 }}>
             <button type="button" className="btn ghost" onClick={onClose}>{t("cancel")}</button>
             <button className="btn gold" style={{ background: "var(--err)" }} disabled={busy || !pw}>
               {busy ? "..." : tl("Reset", "Reset")}
@@ -922,7 +922,7 @@ function Setting({ settings, setSettings, go, onReset }) {
         </div>
 
         <div className="card" style={{ marginTop: 16, border: "1px solid rgba(229,72,77,.25)" }}>
-          <h3 style={{ marginBottom: 8 }}>{lang === "en" ? "Reset Transaction History" : "Reset Riwayat Transaksi"}</h3>
+          <h3 style={{ marginBottom: 8 }}>{lang === "en" ? "Transaction History" : "Riwayat Transaksi"}</h3>
           <small className="muted" style={{ display: "block", marginBottom: 12 }}>
             {lang === "en"
               ? "Delete all transaction history. Requires the reset password."
