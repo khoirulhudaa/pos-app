@@ -641,7 +641,7 @@ function Beranda({ txs, products, go, closeDay, openDay, closed, askLogout, open
           onToggle={() => setSettings((p) => ({ ...p, hideChart: !p.hideChart }))}
         />
 
-        <div className="sec-h"><h3>{t("latestTx")}</h3><button className="link" onClick={() => go("riwayat")}>{t("seeAll")}</button></div>
+        <div className="sec-h"><h3>{t("latestTx")}</h3></div>
         {displayTxs.map((x) => (
           <TxRow key={x._id} t={x} onClick={() => openDetail(x)} />
         ))}
