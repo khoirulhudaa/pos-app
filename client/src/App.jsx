@@ -488,7 +488,7 @@ function TxRow({ t, children, onClick }) {
             </b>
             {!inc && t.permanent && (
               <span className="perm-ic" title={lang === "en" ? "Permanent expense" : "Pengeluaran permanen"}>
-                <Ic n="repeat" s={14} />
+                <Ic n="repeat" s={11} />
               </span>
             )}
           </div>
@@ -1879,7 +1879,7 @@ function Detail({ tx, back, onEdit, onDelete }) {
               <p style={{ margin: 0 }}>{tx.description}</p>
               {tx.permanent && (
                 <span className="perm-ic" title={lang === "en" ? "Permanent expense" : "Pengeluaran permanen"}>
-                  <Ic n="repeat" s={15} />
+                  <Ic n="repeat" s={12} />
                 </span>
               )}
             </div>
