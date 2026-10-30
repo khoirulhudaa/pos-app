@@ -472,6 +472,7 @@ function Beranda({ txs, products, go, closeDay, openDay, closed, askLogout, open
   const displayTxs = filteredTxs.slice(0, settings.maxRiwayatBeranda);
 
   const money = (value) => (settings.hideNominal ? "••••••" : rp(value));
+  const fundMoney = (value) => (settings.hideNominal || settings.hideKembalian ? "••••••" : rp(value));
 
   return (
     <>
@@ -534,7 +535,7 @@ function Beranda({ txs, products, go, closeDay, openDay, closed, askLogout, open
           ))}
         </div>
 
-        <ChangeFundCard fund={fund} money={money} onManage={openFund} />
+        <ChangeFundCard fund={fund} money={fundMoney} onManage={openFund} />
 
         {closed && (
           <div className="card warn">
@@ -779,6 +780,10 @@ function Setting({ settings, setSettings, go }) {
             <span>{t("hideTxCount")}</span>
             <input type="checkbox" checked={settings.hideTransaksi} onChange={(e) => update("hideTransaksi", e.target.checked)} />
           </label>
+          <label className="switch-row">
+            <span>{lang === "en" ? "Hide change float" : "Sembunyikan nominal kembalian"}</span>
+            <input type="checkbox" checked={!!settings.hideKembalian} onChange={(e) => update("hideKembalian", e.target.checked)} />
+          </label>
         </div>
 
         <div className="card" style={{ marginTop: 16 }}>
@@ -907,7 +912,7 @@ function PaymentSuccess({ done, onClose }) {
 }
 
 // ---------- Kasir ----------
-function Kasir({ products, reload, patchTx, closed, openDay, fund }) {
+function Kasir({ products, reload, patchTx, closed, openDay, fund, hideFund }) {
   const { t, lang } = useT();
   const tl = (id, en) => (lang === "en" ? en : id);
   const [cart, setCart] = useState({});
@@ -1002,8 +1007,8 @@ function Kasir({ products, reload, patchTx, closed, openDay, fund }) {
           ))}
         </div>
         {fund && (
-          <small className="muted cf-mini" style={{marginBottom: 8}}>
-            💵 {tl("Sisa kembalian", "Change float")}: <b>{rp(fund.balance)}</b>
+          <small className="muted cf-mini">
+            💵 {tl("Sisa kembalian", "Change float")}: <b>{hideFund ? "••••••" : rp(fund.balance)}</b>
           </small>
         )}
         <div className="products">
@@ -1737,6 +1742,7 @@ const DEFAULT_SETTINGS = {
   hidePengeluaran: false,
   hideLaba: false,
   hideTransaksi: false,
+  hideKembalian: false,
   hideChart: false,
   maxRiwayatBeranda: 5,
   filterJenis: "all",
@@ -1912,7 +1918,7 @@ export default function App() {
           <>
             <Top title={titles[tab][0]} sub={titles[tab][1]} />
             <div className="page pull">
-              {tab === "kasir" && <Kasir products={products} reload={reload} patchTx={patchTx} closed={closed} openDay={openDay} fund={fund} />}    
+              {tab === "kasir" && <Kasir products={products} reload={reload} patchTx={patchTx} closed={closed} openDay={openDay} fund={fund} hideFund={settings.hideNominal || settings.hideKembalian} />}
               {tab === "produk" && <Produk products={products} reload={reload} closeDay={closeDay} openDay={openDay} closed={closed} patchProduct={patchProduct} removeProduct={removeProduct} />}
               {tab === "keluar" && <Pengeluaran products={products} reload={reload} patchTx={patchTx} closed={closed} openDay={openDay} go={setTab} />}
               {tab === "riwayat" && <Riwayat txs={txs} onEdit={setEditTx} onDelete={deleteTx} openDetail={openDetail} />}
