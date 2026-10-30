@@ -1168,7 +1168,16 @@ function Kasir({ products, reload, patchTx, closed, openDay, fund, hideFund }) {
             );
           })}
         </div>
-        {!shown.length && <p className="muted center">{products.length ? t("notFound") : t("noProducts")}</p>}
+         {!products.length && (
+            <EmptyState
+              img="/produk.png"
+              icon="box"
+              title={t("noProductsShort")}
+              desc={tl("Tambahkan produk pertama untuk anda", "Add your first your product")}
+              // actionText={t("addProduct")}
+              onAction={() => setShow(true)}
+            />
+          )}
       </div>
 
       {open && <div className="scrim" onClick={() => setOpen(false)} />}
