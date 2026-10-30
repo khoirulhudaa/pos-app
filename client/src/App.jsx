@@ -160,7 +160,6 @@ function EmptyState({ img, icon = "list", title, desc, actionText, onAction }) {
       </div>
       <h4>{title}</h4>
       {desc && <p>{desc}</p>}
-      {/* {actionText && <button className="btn gold" onClick={onAction}>{actionText}</button>} */}
     </div>
   );
 }
@@ -193,10 +192,10 @@ function ResetHistoryModal({ onClose, onDone }) {
       <div className="modal success" style={{ paddingTop: 32 }} onClick={(e) => e.stopPropagation()}>
         <div className="logout-ic"><Ic n="trash" s={30} /></div>
         <h3>{tl("Reset Semua Riwayat?", "Reset All History?")}</h3>
-        <p className="muted small">
+        <p className="muted small" style={{marginBottom: 12}}>
           {tl(
-            "Semua data transaksi akan dihapus permanen",
-            "All transaction data will be deleted"
+            "Semua transaksi akan dihapus permanen",
+            "All transaction will be deleted"
           )}
         </p>
         <form onSubmit={submit}>
@@ -209,7 +208,7 @@ function ResetHistoryModal({ onClose, onDone }) {
             required
           />
           {err && <p className="err small">{err}</p>}
-          <div className="row-actions" style={{ marginTop: 18 }}>
+          <div className="row-actions" style={{ marginTop: 8 }}>
             <button type="button" className="btn ghost" onClick={onClose}>{t("cancel")}</button>
             <button className="btn gold" style={{ background: "var(--err)" }} disabled={busy || !pw}>
               {busy ? "..." : tl("Reset", "Reset")}
