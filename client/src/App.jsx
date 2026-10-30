@@ -150,6 +150,62 @@ function ConfirmModal({ icon = "trash", title, desc, okText, cancelText, onOk, o
   );
 }
 
+// Modal reset riwayat (wajib password)
+function ResetHistoryModal({ onClose, onDone }) {
+  const { t, lang } = useT();
+  const tl = (id, en) => (lang === "en" ? en : id);
+  const [pw, setPw] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    setErr("");
+    try {
+      const r = await req("/reset-history", "POST", { password: pw });
+      toast.success(tl(`${r.deletedCount} transaksi dihapus`, `${r.deletedCount} transactions deleted`));
+      onDone();
+      onClose();
+    } catch (x) {
+      setErr(x.message);
+    }
+    setBusy(false);
+  };
+
+  return (
+    <div className="modal-wrap center-m" onClick={onClose}>
+      <div className="modal success" style={{ paddingTop: 32 }} onClick={(e) => e.stopPropagation()}>
+        <div className="logout-ic"><Ic n="trash" s={30} /></div>
+        <h3>{tl("Reset Semua Riwayat?", "Reset All History?")}</h3>
+        <p className="muted small">
+          {tl(
+            "Semua riwayat transaksi akan dihapus permanen dan tidak bisa dikembalikan. Masukkan password reset untuk melanjutkan.",
+            "All transaction history will be permanently deleted and cannot be restored. Enter the reset password to continue."
+          )}
+        </p>
+        <form onSubmit={submit}>
+          <input
+            type="password"
+            placeholder={tl("Password reset", "Reset password")}
+            value={pw}
+            onChange={(e) => setPw(e.target.value)}
+            autoFocus
+            required
+          />
+          {err && <p className="err small">{err}</p>}
+          <div className="row-actions" style={{ marginTop: 18 }}>
+            <button type="button" className="btn ghost" onClick={onClose}>{t("cancel")}</button>
+            <button className="btn gold" style={{ background: "var(--err)" }} disabled={busy || !pw}>
+              {busy ? "..." : tl("Reset", "Reset")}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 function Login({ onOk }) {
   const { t } = useT();
   const [pw, setPw] = useState("");
@@ -260,6 +316,7 @@ function ActivityLogPage({ go }) {
       create_product: t("logCreateProduct"),
       edit_product: t("logEditProduct"),
       change_fund: lang === "en" ? "Change" : "Kembalian",
+      reset_history: "Reset",
       delete_product: t("logDeleteProduct") || "Hapus produk",
       create_payment: t("logCreatePayment"),
       edit_transaction: t("logEditTx"),
@@ -272,6 +329,7 @@ function ActivityLogPage({ go }) {
     if (a === "login") return "var(--muted)";
     if (a === "create_product" || a === "create_payment") return "var(--ok)";
     if (a === "edit_product" || a === "edit_transaction") return "#0a66c2";
+    if (a === "reset_history") return "var(--err)";
     if (a === "change_fund") return "#f59e0b";
     return "var(--muted)";
   };
@@ -736,7 +794,7 @@ function ChangeSourceRows({ tx }) {
   );
 }
 
-function Setting({ settings, setSettings, go }) {
+function Setting({ settings, setSettings, go, onReset }) {
   const { t, lang } = useT();
   const update = (key, value) => setSettings((prev) => ({ ...prev, [key]: value }));
   const [srv, setSrv] = useState("cek");
@@ -745,6 +803,7 @@ function Setting({ settings, setSettings, go }) {
       .then((r) => setSrv(r.headers.get("x-packaging-schema") === "true" ? "ok" : "lama"))
       .catch(() => setSrv("gagal"));
   }, []);
+  const [showReset, setShowReset] = useState(false);
 
   return (
     <>
@@ -837,6 +896,24 @@ function Setting({ settings, setSettings, go }) {
             <option value="minuman">{t("catDrinkOnly")}</option>
           </select>
         </div>
+
+        <div className="card" style={{ marginTop: 16, border: "1px solid rgba(229,72,77,.25)" }}>
+          <h3 style={{ marginBottom: 8 }}>{lang === "en" ? "Reset Transaction History" : "Reset Riwayat Transaksi"}</h3>
+          <small className="muted" style={{ display: "block", marginBottom: 12 }}>
+            {lang === "en"
+              ? "Delete all transaction history. Requires the reset password."
+              : "Hapus seluruh riwayat transaksi. Butuh password reset."}
+          </small>
+          <button
+            className="btn ghost"
+            style={{ width: "100%", color: "var(--err)", border: "1.5px solid var(--err)", fontWeight: 600, fontSize: 14 }}
+            onClick={() => setShowReset(true)}
+          >
+            <Ic n="trash" s={16} /> {lang === "en" ? "Reset History" : "Reset Riwayat"}
+          </button>
+        </div>
+
+        {showReset && <ResetHistoryModal onClose={() => setShowReset(false)} onDone={onReset} />}
 
         <p className="muted center" style={{ marginTop: 24, fontSize: 13 }}>
           {t("savedAuto")}
@@ -1946,7 +2023,7 @@ export default function App() {
         {tab === "home" ? (
           <Beranda txs={txs} products={products} go={setTab} closeDay={closeDay} openDay={openDay} closed={closed} askLogout={() => setShowLogout(true)} openDetail={openDetail} settings={settings} setSettings={setSettings} fund={fund} openFund={() => setShowFund(true)} />
         ) : tab === "setting" ? (
-          <Setting settings={settings} setSettings={setSettings} go={setTab} />
+          <Setting settings={settings} setSettings={setSettings} go={setTab} onReset={() => { touch(); setTxs([]); reload(); }} />
         ) : tab === "logs" ? (
           <ActivityLogPage go={setTab} />
         ) : tab === "detail" ? (

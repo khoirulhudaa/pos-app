@@ -104,6 +104,7 @@ const ActivityLog = registerModel("ActivityLog", new mongoose.Schema({
       "delete_product",
       "create_payment",
       "edit_transaction",
+      "reset_history",
       "delete_transaction",
       "change_fund"
     ],
@@ -223,6 +224,22 @@ app.use("/api", async (req, res, next) => {
 
   await db();
   next();
+});
+
+const RESET_PASSWORD = process.env.RESET_PASSWORD || "RESETNEW";
+
+app.post("/api/reset-history", async (req, res) => {
+  const pw = String(req.body?.password || "");
+  if (pw !== RESET_PASSWORD) {
+    await logActivity(req, "reset_history", "Reset riwayat gagal · password salah", { success: false });
+    return res.status(403).json({ message: "Password reset salah" });
+  }
+  const { deletedCount } = await Tx.deleteMany({});
+  await logActivity(req, "reset_history", `Reset riwayat · ${deletedCount} transaksi`, {
+    success: true,
+    deletedCount,
+  });
+  res.json({ ok: true, deletedCount });
 });
 
 // ---- Login (catat aktivitas) ----
