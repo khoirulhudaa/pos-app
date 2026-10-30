@@ -878,7 +878,6 @@ function PaymentSuccess({ done, onClose }) {
           <div className="li"><span className="muted">{t("total")}</span><b>{rp(total)}</b></div>
           <div className="li"><span className="muted">{t("received")}</span><b>{rp(paid)}</b></div>
           <div className="li"><span className="muted">{t("change")}</span><b className="ok">{rp(change)}</b></div>
-          <div className="li"><span className="muted">{t("change")}</span><b className="ok">{rp(change)}</b></div>
           <ChangeSourceRows tx={tx} />
         </div>
 
@@ -908,7 +907,7 @@ function PaymentSuccess({ done, onClose }) {
 }
 
 // ---------- Kasir ----------
-function Kasir({ products, reload, patchTx, closed, openDay }) {
+function Kasir({ products, reload, patchTx, closed, openDay, fund }) {
   const { t, lang } = useT();
   const tl = (id, en) => (lang === "en" ? en : id);
   const [cart, setCart] = useState({});
@@ -1689,10 +1688,9 @@ function Detail({ tx, back, onEdit, onDelete }) {
             <>
               <div className="li"><span className="muted">{t("received")}</span><b>{rp(tx.cashReceived)}</b></div>
               <div className="li"><span className="muted">{t("change")}</span><b className="ok">{rp(tx.change)}</b></div>
+              <ChangeSourceRows tx={tx} />
             </>
           )}
-          <div className="li"><span className="muted">{t("change")}</span><b className="ok">{rp(tx.change)}</b></div>
-          <ChangeSourceRows tx={tx} />
         </div>
 
         {inc && (
@@ -1914,7 +1912,7 @@ export default function App() {
           <>
             <Top title={titles[tab][0]} sub={titles[tab][1]} />
             <div className="page pull">
-              {tab === "kasir" && <Kasir products={products} reload={reload} patchTx={patchTx} closed={closed} openDay={openDay} />}
+              {tab === "kasir" && <Kasir products={products} reload={reload} patchTx={patchTx} closed={closed} openDay={openDay} fund={fund} />}    
               {tab === "produk" && <Produk products={products} reload={reload} closeDay={closeDay} openDay={openDay} closed={closed} patchProduct={patchProduct} removeProduct={removeProduct} />}
               {tab === "keluar" && <Pengeluaran products={products} reload={reload} patchTx={patchTx} closed={closed} openDay={openDay} go={setTab} />}
               {tab === "riwayat" && <Riwayat txs={txs} onEdit={setEditTx} onDelete={deleteTx} openDetail={openDetail} />}
