@@ -585,7 +585,8 @@ function Beranda({ txs, products, go, closeDay, openDay, closed, askLogout, open
 
   const tt = txs.filter((x) => toKey(x.createdAt) === date);
   const inc = tt.filter((x) => x.type === "income").reduce((s, x) => s + x.total, 0);
-  const exp = tt.filter((x) => x.type === "expense").reduce((s, x) => s + x.total, 0);
+  // const exp = tt.filter((x) => x.type === "expense").reduce((s, x) => s + x.total, 0);
+  const exp = expenseOn(txs, date).total;
   const low = products.filter((p) => p.stock < LOW_LIMIT);
   const h = new Date().getHours();
   const greet = h < 11 ? t("greetMorning") : h < 15 ? t("greetNoon") : h < 18 ? t("greetAfternoon") : t("greetNight");
@@ -724,7 +725,15 @@ function ChangeFundCard({ fund, money, onManage }) {
       <div className="cf-h">
         <span className="cf-ic"><Ic n="wallet" s={16} /></span>
         <b>{tl("Uang Kembalian", "Change Float")}</b>
-        <button className="link" onClick={onManage}>{tl("Atur", "Manage")}</button>
+        <button
+          type="button"
+          className="cf-add"
+          onClick={onManage}
+          title={tl("Atur kembalian", "Manage change")}
+          aria-label={tl("Atur kembalian", "Manage change")}
+        >
+          <Ic n="plus" s={16} />
+        </button>
       </div>
       <strong className="cf-bal">{money(fund.balance)}</strong>
       <div className="cf-stats">
@@ -1094,7 +1103,7 @@ function Kasir({ products, reload, patchTx, closed, openDay, fund, hideFund, col
   const [custom, setCustom] = useState(false);
   const [customVal, setCustomVal] = useState("");
 
-  const shown = products.filter((p) => (cat === "all" || p.category === cat) && (p.name || "").toLowerCase().includes(q.toLowerCase()));
+  const shown = products.filter((p) => (q.trim() !== "" || p.category === cat) && (p.name || "").toLowerCase().includes(q.toLowerCase()));
   const lines = products.filter((p) => cart[p._id]);
   const subtotal = lines.reduce((s, p) => s + calcLineTotal(p, cart[p._id]), 0);
   const total = custom && customVal !== "" ? Math.max(0, Number(customVal)) : subtotal;
@@ -1222,7 +1231,7 @@ function Kasir({ products, reload, patchTx, closed, openDay, fund, hideFund, col
               title={t("noProductsShort")}
               desc={tl("Tambahkan produk pertama untuk anda", "Add your first your product")}
               // actionText={t("addProduct")}
-              onAction={() => setShow(true)}
+              // onAction={() => setShow(true)}
             />
           )}
       </div>
@@ -1453,7 +1462,7 @@ function Produk({ products, reload, closeDay, openDay, closed, patchProduct, rem
           title={t("noProductsShort")}
           desc={tl("Tambahkan produk pertama untuk mulai berjualan.", "Add your first product to start selling.")}
           // actionText={t("addProduct")}
-          onAction={() => setShow(true)}
+          // onAction={() => setShow(true)}
         />
       )}
 
