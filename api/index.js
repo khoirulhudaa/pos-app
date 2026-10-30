@@ -57,6 +57,7 @@ const Tx = registerModel("Tx", new mongoose.Schema({
   buyQty: Number,                                    // jumlah belanja (opsional, tanpa harus pilih produk)
   buyUnit: { type: String, default: "" },            // satuan belanja (pcs, bal, kg, ...)
   total: Number,
+  permanent: { type: Boolean, default: false },      // pengeluaran permanen: dihitung setiap hari
   subtotal: Number,                                  // total normal sebelum custom
   isCustom: { type: Boolean, default: false },       // true kalau total diisi manual
   mix: { type: Boolean, default: false },            // pesanan campur makanan + minuman
@@ -419,6 +420,7 @@ app.post("/api/transactions", async (req, res) => {
     customTotal,
     buyQty,
     buyUnit,
+    permanent 
   } = req.body;
 
   if (type === "income") {
@@ -542,6 +544,7 @@ app.post("/api/transactions", async (req, res) => {
         buyQty: Number(buyQty) > 0 ? Number(buyQty) : undefined,
         buyUnit: toUnit(buyUnit),
         total: finalAmount,
+        permanent: !!permanent,
         note,
         method: method || "cash",
       })
@@ -557,13 +560,14 @@ app.put("/api/transactions/:id", async (req, res) => {
   const oldChange = t.change || 0;
   let fundDelta = null;
 
-  const { note, description, amount, method, items, mix, packaging } = req.body;
+  const { note, description, amount, method, items, mix, packaging, permanent } = req.body;
   const income = t.type === "income";
   const hasAmount = amount !== undefined && amount !== null && amount !== "" && Number(amount) >= 0;
 
   if (note != null) t.note = note;
   if (method) t.method = method;
   if (!income && description) t.description = description;
+  if (!income && permanent !== undefined) t.permanent = !!permanent;
 
   if (Array.isArray(items)) {
     // ===== Ubah item per produk + sesuaikan stok =====

@@ -11,6 +11,34 @@ const toKey = (d) => {
   return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`;
 };
 
+// Pengeluaran permanen: dihitung setiap hari sejak tanggal dibuat
+const dayStart = (key) => new Date(key + "T00:00:00");
+const daysBetween = (fromKey, toKeyStr) => Math.round((dayStart(toKeyStr) - dayStart(fromKey)) / 86400000) + 1;
+
+// Total pengeluaran satu hari (biasa + permanen yang sudah berjalan)
+const expenseOn = (txs, key) => {
+  let normal = 0, perm = 0;
+  txs.forEach((x) => {
+    if (x.type !== "expense") return;
+    const k = toKey(x.createdAt);
+    if (x.permanent) { if (k <= key) perm += x.total; }
+    else if (k === key) normal += x.total;
+  });
+  return { total: normal + perm, perm };
+};
+
+// Total pengeluaran seluruh waktu (permanen dikali jumlah hari berjalan)
+const expenseAll = (txs) => {
+  const today = toKey(new Date());
+  let normal = 0, perm = 0;
+  txs.forEach((x) => {
+    if (x.type !== "expense") return;
+    if (x.permanent) perm += x.total * Math.max(1, daysBetween(toKey(x.createdAt), today));
+    else normal += x.total;
+  });
+  return { total: normal + perm, perm };
+};
+
 const rp = (n) => "Rp " + Number(n || 0).toLocaleString("id-ID");
 const methodLabel = (m, t) =>
   m === "qris" ? t("qris") : m === "transfer" ? t("transfer") : m === "ewallet" ? t("ewallet") : t("cash");
@@ -443,7 +471,7 @@ function TxIcon({ t }) {
 }
 
 function TxRow({ t, children, onClick }) {
-  const { t: tr, locale } = useT();
+  const { t: tr, locale, lang } = useT();
   const inc = t.type === "income";
   const pk = t.packaging || {};
   return (
@@ -477,6 +505,11 @@ function TxRow({ t, children, onClick }) {
               <span className="mix-chip">{tr("normalTag")}</span>
               <span className="pk-chip plastic">🛍️ {0}</span>
               <span className="pk-chip cup">🥤 {0}</span>
+            </div>
+          )}
+          {!inc && t.permanent && (
+            <div className="tags">
+              <span className="mix-chip perm-chip">♾️ {lang === "en" ? "Permanent" : "Permanen"}</span>
             </div>
           )}
         </div>
@@ -1472,7 +1505,8 @@ const UNITS = ["pcs", "bal", "pack", "unit", "kg", "gram", "renteng", "liter"];
 
 function Pengeluaran({ products, reload, patchTx, closed, openDay, go }) {
   const { t, lang } = useT();
-  const blank = { description: "", amount: "", product: "", qty: "", unit: "pcs", note: "", method: "cash" };
+  const tl = (id, en) => (lang === "en" ? en : id);
+  const blank = { description: "", amount: "", product: "", qty: "", unit: "pcs", note: "", method: "cash", permanent: false };
   const qtyLabel = (product) => (product ? t("stockBought") : lang === "en" ? "Quantity (optional)" : "Jumlah (opsional)");
   const [f, setF] = useState(blank);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
@@ -1488,6 +1522,7 @@ function Pengeluaran({ products, reload, patchTx, closed, openDay, go }) {
         items,
         buyQty: Number(f.qty) > 0 ? Number(f.qty) : undefined,
         buyUnit: f.unit,
+        permanent: f.permanent,
         note: f.note,
         method: f.method,
       });
@@ -1543,6 +1578,14 @@ function Pengeluaran({ products, reload, patchTx, closed, openDay, go }) {
       <label>{t("note")}</label>
       <input placeholder={t("optionalPh")} value={f.note} onChange={set("note")} />
 
+      <label className="switch-row" style={{ marginTop: 10 }}>
+        <span>♾️ {tl("Pengeluaran permanen", "Permanent expense")}</span>
+        <input type="checkbox" checked={f.permanent} onChange={(e) => setF({ ...f, permanent: e.target.checked })} />
+      </label>
+      <small className="muted" style={{ display: "block", marginBottom: 6 }}>
+        {tl("Dihitung di pengeluaran & laba setiap hari, mulai tanggal ini.", "Counted in expenses & profit every day, starting from this date.")}
+      </small>
+
       <button className="btn gold">{t("saveExpense")}</button>
     </form>
   );
@@ -1550,7 +1593,7 @@ function Pengeluaran({ products, reload, patchTx, closed, openDay, go }) {
 
 // ---------- Modal edit transaksi (dipakai Riwayat & Detail) ----------
 function TxEditModal({ tx, products, onClose, onSaved }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const inc = tx.type === "income";
   const [items, setItems] = useState(() =>
     (tx.items || []).map((i) => ({
@@ -1568,6 +1611,7 @@ function TxEditModal({ tx, products, onClose, onSaved }) {
     note: tx.note || "",
     description: tx.description || "",
     mix: !!tx.mix,
+    permanent: !!tx.permanent,
     plastic: tx.packaging?.plastic || 0,
     cup: tx.packaging?.cup || 0,
   });
@@ -1610,8 +1654,9 @@ function TxEditModal({ tx, products, onClose, onSaved }) {
         amount: Number(nominal),
         items: items.map((i) => ({ product: i.product, qty: Number(i.qty) })),
       };
-      if (!inc) {
+       if (!inc) {
         body.description = f.description;
+        body.permanent = f.permanent;
       } else {
         body.mix = f.mix;
         body.packaging = { plastic: Number(f.plastic) || 0, cup: Number(f.cup) || 0 };
@@ -1692,6 +1737,13 @@ function TxEditModal({ tx, products, onClose, onSaved }) {
           required
         />
 
+        {!inc && (
+          <label className="switch-row">
+            <span>♾️ {lang === "en" ? "Permanent expense" : "Pengeluaran permanen"}</span>
+            <input type="checkbox" checked={f.permanent} onChange={(e) => setF({ ...f, permanent: e.target.checked })} />
+          </label>
+        )}
+
         <label>{t("note")}</label>
         <input placeholder={t("optionalPh")} value={f.note} onChange={set("note")} />
 
@@ -1713,7 +1765,8 @@ function Riwayat({ txs, onEdit, onDelete, openDetail }) {
       ? txs
       : txs.filter((x) => toKey(x.createdAt) === (range === "date" ? date : todayKey));
   const inc = list.filter((x) => x.type === "income").reduce((s, x) => s + x.total, 0);
-  const exp = list.filter((x) => x.type === "expense").reduce((s, x) => s + x.total, 0);
+  const ex = range === "all" ? expenseAll(txs) : expenseOn(txs, range === "date" ? date : todayKey);
+  const exp = ex.total;
 
   return (
     <>
@@ -1739,6 +1792,11 @@ function Riwayat({ txs, onEdit, onDelete, openDetail }) {
         <div className="card"><small>{t("expense")}</small><b className="err">{rp(exp)}</b></div>
         <div className="card"><small>{t("profit")}</small><b>{rp(inc - exp)}</b></div>
       </div>
+      {ex.perm > 0 && (
+        <small className="muted perm-note">
+          ♾️ {tl("Termasuk pengeluaran permanen", "Includes permanent expenses")}: {rp(ex.perm)}
+        </small>
+      )}
       {list.map((x) => (
         <TxRow key={x._id} t={x} onClick={() => openDetail(x)}>
           <div className="pc-a" onClick={(e) => e.stopPropagation()}>
@@ -1815,6 +1873,11 @@ function Detail({ tx, back, onEdit, onDelete }) {
           <div className="card">
             <h3 style={{ marginBottom: 8 }}>{t("description")}</h3>
             <p>{tx.description}</p>
+            {tx.permanent && (
+              <small className="muted" style={{ display: "block" }}>
+                ♾️ {lang === "en" ? "Counted every day" : "Dihitung setiap hari"}
+              </small>
+            )}
             {tx.buyQty > 0 && <small className="muted">{tx.buyQty} {tx.buyUnit || "pcs"}</small>}
           </div>
         )}
