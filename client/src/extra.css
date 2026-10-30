@@ -36,7 +36,7 @@
 .cf-ic { width: 26px; height: 26px; border-radius: 8px; background: #e0eeff; color: #0a66c2; display: grid; place-items: center; flex-shrink: 0; }
 .cf-card.empty .cf-ic { background: #fde8e8; color: #e5484d; }
 .cf-bal { display: block; font-size: 22px; font-weight: 800; margin: 6px 0 8px; }
-.cf-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0px; }
+.cf-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .cf-stats > div { background: #fff; border-radius: 10px; padding: 6px 1px; min-width: 0; }
 .cf-stats small { display: block; font-size: 10.5px; color: #64748b; }
 .cf-stats b { font-size: 12.5px; }
