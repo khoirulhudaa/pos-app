@@ -150,6 +150,21 @@ function ConfirmModal({ icon = "trash", title, desc, okText, cancelText, onOk, o
   );
 }
 
+// Tampilan kosong (menggantikan teks polos)
+function EmptyState({ img, icon = "list", title, desc, actionText, onAction }) {
+  const [failed, setFailed] = useState(false);
+  return (
+    <div className="empty-state">
+      <div className="empty-ic">
+        {img && !failed ? <img src={img} alt="" onError={() => setFailed(true)} /> : <Ic n={icon} s={34} />}
+      </div>
+      <h4>{title}</h4>
+      {desc && <p>{desc}</p>}
+      {actionText && <button className="btn gold" onClick={onAction}>{actionText}</button>}
+    </div>
+  );
+}
+
 // Modal reset riwayat (wajib password)
 function ResetHistoryModal({ onClose, onDone }) {
   const { t, lang } = useT();
@@ -180,8 +195,8 @@ function ResetHistoryModal({ onClose, onDone }) {
         <h3>{tl("Reset Semua Riwayat?", "Reset All History?")}</h3>
         <p className="muted small">
           {tl(
-            "Semua riwayat transaksi akan dihapus permanen dan tidak bisa dikembalikan. Masukkan password reset untuk melanjutkan.",
-            "All transaction history will be permanently deleted and cannot be restored. Enter the reset password to continue."
+            "Semua data transaksi akan dihapus permanen",
+            "All transaction data will be deleted"
           )}
         </p>
         <form onSubmit={submit}>
@@ -513,7 +528,8 @@ function LowStock({ low, go }) {
 
 // ---------- Beranda ----------
 function Beranda({ txs, products, go, closeDay, openDay, closed, askLogout, openDetail, settings = {}, setSettings, fund, openFund }) {
-  const { t, locale } = useT();
+  const { t, locale, lang } = useT();
+  const tl = (id, en) => (lang === "en" ? en : id);
   const { hideLaba = false, hidePengeluaran = false, hideTransaksi = false } = settings;
 
   // Filter tanggal untuk kartu laba / pemasukan / pengeluaran / transaksi (null = hari ini)
@@ -645,7 +661,16 @@ function Beranda({ txs, products, go, closeDay, openDay, closed, askLogout, open
         {displayTxs.map((x) => (
           <TxRow key={x._id} t={x} onClick={() => openDetail(x)} />
         ))}
-        {!txs.length && <p className="muted center">{t("noTx")}</p>}
+        {!displayTxs.length && (
+          <EmptyState
+            img="/riwayat.png"
+            icon="list"
+            title={t("noTx")}
+            desc={tl("Transaksi hari ini akan muncul di sini.", "Today's transactions will show up here.")}
+            actionText={closed ? undefined : tl("Buka Kasir", "Open Cashier")}
+            onAction={() => go("kasir")}
+          />
+        )}
       </div>
     </>
   );
@@ -1268,6 +1293,7 @@ function Kasir({ products, reload, patchTx, closed, openDay, fund, hideFund }) {
 // ---------- Produk ----------
 function Produk({ products, reload, closeDay, openDay, closed, patchProduct, removeProduct }) {
   const { t, lang } = useT();
+  const tl = (id, en) => (lang === "en" ? en : id);
   const empty = {
     name: "", category: "makanan", price: "", stockInitial: "",
     promoEnabled: false, promoBuyQty: "", promoPayAmount: "",
@@ -1365,7 +1391,16 @@ function Produk({ products, reload, closeDay, openDay, closed, patchProduct, rem
           </div>
         ))}
       </div>
-      {!products.length && <p className="muted center">{t("noProductsShort")}</p>}
+      {!products.length && (
+        <EmptyState
+          img="/produk.png"
+          icon="box"
+          title={t("noProductsShort")}
+          desc={tl("Tambahkan produk pertama untuk mulai berjualan.", "Add your first product to start selling.")}
+          actionText={t("addProduct")}
+          onAction={() => setShow(true)}
+        />
+      )}
 
       {show && (
         <Modal title={editId ? t("editProduct") : t("addProduct")} onClose={close}>
@@ -1661,7 +1696,8 @@ function TxEditModal({ tx, products, onClose, onSaved }) {
 
 // ---------- Riwayat ----------
 function Riwayat({ txs, onEdit, onDelete, openDetail }) {
-  const { t } = useT();
+  const { t, lang } = useT();
+  const tl = (id, en) => (lang === "en" ? en : id);
   const [range, setRange] = useState("today"); // today | all | date
   const [date, setDate] = useState(toKey(new Date()));
   const todayKey = toKey(new Date());
@@ -1704,7 +1740,18 @@ function Riwayat({ txs, onEdit, onDelete, openDetail }) {
           </div>
         </TxRow>
       ))}
-      {!list.length && <p className="muted center">{range === "date" ? t("noTxDate") : t("noTx")}</p>}
+      {!list.length && (
+        <EmptyState
+          img="/riwayat.png"
+          icon="list"
+          title={range === "date" ? t("noTxDate") : t("noTx")}
+          desc={
+            range === "date"
+              ? tl("Coba pilih tanggal lain.", "Try picking another date.")
+              : tl("Penjualan dan belanja akan tercatat di sini.", "Sales and expenses will be recorded here.")
+          }
+        />
+      )}
     </>
   );
 }
