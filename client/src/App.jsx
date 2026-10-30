@@ -478,7 +478,7 @@ function Beranda({ txs, products, go, closeDay, openDay, closed, askLogout, open
       <div className="hero">
         <div className="hero-row">
           <div className="avatar">
-            <img src="/avatar.png" alt="avatar-img" style={{width: '80%', position: 'relative', top: 4}} />
+            <img src="/avatar2.png" alt="avatar-img" style={{width: '80%', position: 'relative', top: 4}} />
           </div>
           <div className="grow">
             <small>{greet},</small>
