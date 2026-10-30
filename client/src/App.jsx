@@ -897,8 +897,8 @@ function Setting({ settings, setSettings, go, onReset }) {
           <h3 style={{ marginBottom: 16 }}>{t("homeDisplay")}</h3>
 
           <label className="switch-row">
-            <span>{t("chartSetting")}</span>
-            <input type="checkbox" checked={!settings.hideChart} onChange={(e) => update("hideChart", !e.target.checked)} />
+            <span>{lang === "en" ? "Hide chart" : "Sembunyikan grafik"}</span>
+            <input type="checkbox" checked={!!settings.hideChart} onChange={(e) => update("hideChart", e.target.checked)} />
           </label>
 
           <label>{t("maxTx")}</label>
