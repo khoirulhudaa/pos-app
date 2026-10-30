@@ -864,7 +864,7 @@ function Setting({ settings, setSettings, go, onReset }) {
             <input type="checkbox" checked={settings.hideTransaksi} onChange={(e) => update("hideTransaksi", e.target.checked)} />
           </label>
           <label className="switch-row">
-            <span>{lang === "en" ? "Hide change float" : "Sembunyikan nominal kembalian"}</span>
+            <span>{lang === "en" ? "Hide change float" : "Sembunyikan kembalian"}</span>
             <input type="checkbox" checked={!!settings.hideKembalian} onChange={(e) => update("hideKembalian", e.target.checked)} />
           </label>
         </div>
