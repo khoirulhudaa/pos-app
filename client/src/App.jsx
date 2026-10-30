@@ -1622,7 +1622,7 @@ function Pengeluaran({ products, reload, patchTx, closed, openDay, go }) {
         <input type="checkbox" checked={f.permanent} onChange={(e) => setF({ ...f, permanent: e.target.checked })} />
       </label>
       <small className="muted" style={{ display: "block", marginBottom: 6 }}>
-        {tl("Dihitung di pengeluaran & laba setiap hari, mulai tanggal ini.", "Counted in expenses & profit every day, starting from this date.")}
+        {tl("Dihitung di pengeluaran & laba setiap hari", "Counted in expenses & profit every day")}
       </small>
 
       <button className="btn gold">{t("saveExpense")}</button>
