@@ -1166,7 +1166,7 @@ function Kasir({ products, reload, patchTx, closed, openDay, fund, hideFund }) {
 
 // ---------- Produk ----------
 function Produk({ products, reload, closeDay, openDay, closed, patchProduct, removeProduct }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const empty = {
     name: "", category: "makanan", price: "", stockInitial: "",
     promoEnabled: false, promoBuyQty: "", promoPayAmount: "",
@@ -1215,16 +1215,23 @@ function Produk({ products, reload, closeDay, openDay, closed, patchProduct, rem
     });
     setShow(true);
   };
-  const del = async (p) => {
-    if (!confirm(t("confirmDelProd", { name: p.name }))) return;
-    try {
-      await req(`/products/${p._id}`, "DELETE");
-      removeProduct(p._id);
-      reload();
-    } catch (x) {
-      toast.error(x.message);
-    }
-  };
+   const del = (p) =>
+    confirmToast({
+      title: t("confirmDelProd", { name: p.name }),
+      okText: t("yesDelete"),
+      cancelText: t("cancel"),
+      danger: true,
+      onOk: async () => {
+        try {
+          await req(`/products/${p._id}`, "DELETE");
+          removeProduct(p._id);
+          toast.success(lang === "en" ? "Product deleted" : "Produk dihapus");
+          reload();
+        } catch (x) {
+          toast.error(x.message);
+        }
+      },
+    });
 
   return (
     <>
