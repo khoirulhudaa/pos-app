@@ -1166,7 +1166,7 @@ function Kasir({ products, reload, patchTx, closed, openDay, fund, hideFund, col
         <div className="search"><Ic n="search" s={18} /><input placeholder={t("searchProd")} value={q} onChange={(e) => setQ(e.target.value)} /></div>
         <div className="pills-row">
           <div className="pills">
-            {[["minuman", t("drink"), ["makanan", t("food")]]].map(([k, l]) => (
+            {[["minuman", t("drink")], ["makanan", t("food")]].map(([k, l]) => (
               <button key={k} className={cat === k ? "on" : ""} onClick={() => setCat(k)}>{l}</button>
             ))}
           </div>
