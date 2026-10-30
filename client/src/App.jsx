@@ -1140,7 +1140,7 @@ function Kasir({ products, reload, patchTx, closed, openDay, fund }) {
           </div>
         )}
 
-        <input placeholder={t("noteOpt")} value={note} onChange={(e) => setNote(e.target.value)} style={{marginTop: 6}} />
+        <input placeholder={t("noteOpt")} value={note} onChange={(e) => setNote(e.target.value)} style={{marginTop: 10.5}} />
         <button className="btn gold" disabled={!canPay || busy} onClick={pay}>
           {busy ? t("processing") : t("payNow")}
         </button>
