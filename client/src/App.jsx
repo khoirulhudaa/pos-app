@@ -1831,11 +1831,6 @@ function Riwayat({ txs, onEdit, onDelete, openDetail }) {
         <div className="card"><small>{t("expense")}</small><b className="err">{rp(exp)}</b></div>
         <div className="card"><small>{t("profit")}</small><b>{rp(inc - exp)}</b></div>
       </div>
-      {ex.perm > 0 && (
-        <small className="muted perm-note">
-          ♾️ {tl("Termasuk pengeluaran permanen", "Includes permanent expenses")}: {rp(ex.perm)}
-        </small>
-      )}
       {list.map((x) => (
         <TxRow key={x._id} t={x} onClick={() => openDetail(x)}>
           <div className="pc-a" onClick={(e) => e.stopPropagation()}>
