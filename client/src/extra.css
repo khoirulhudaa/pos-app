@@ -44,3 +44,7 @@
 .cf-split > div { display: flex; justify-content: space-between; gap: 8px; }
 .cf-split.warn { background: #fff4e0; border: 1px solid rgba(245, 158, 11, .4); }
 .cf-mini { display: block; margin: 8px 2px 0; font-size: 12px; }
+
+/* Modal konfirmasi di tengah layar */
+.modal.success { padding-top: 32px; }
+.modal.success .logout-ic { margin-top: 4px; }
