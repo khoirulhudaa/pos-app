@@ -126,6 +126,30 @@ const Modal = ({ title, onClose, children }) => (
   </div>
 );
 
+// Konfirmasi di tengah layar (tampilan sama seperti modal logout)
+function ConfirmModal({ icon = "trash", title, desc, okText, cancelText, onOk, onClose }) {
+  const [busy, setBusy] = useState(false);
+  const ok = async () => {
+    if (busy) return;
+    setBusy(true);
+    await onOk();
+    onClose();
+  };
+  return (
+    <div className="modal-wrap center-m" onClick={onClose}>
+      <div className="modal success" onClick={(e) => e.stopPropagation()}>
+        <div className="logout-ic"><Ic n={icon} s={30} /></div>
+        <h3>{title}</h3>
+        {desc && <p className="muted small">{desc}</p>}
+        <div className="row-actions" style={{ marginTop: 18 }}>
+          <button className="btn ghost" onClick={onClose}>{cancelText}</button>
+          <button className="btn gold" style={{ background: "var(--err)" }} disabled={busy} onClick={ok}>{okText}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Login({ onOk }) {
   const { t } = useT();
   const [pw, setPw] = useState("");
@@ -1174,6 +1198,7 @@ function Produk({ products, reload, closeDay, openDay, closed, patchProduct, rem
   const [f, setF] = useState(empty);
   const [editId, setEditId] = useState(null);
   const [show, setShow] = useState(false);
+  const [delP, setDelP] = useState(null);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const close = () => { setShow(false); setEditId(null); setF(empty); };
 
@@ -1215,23 +1240,19 @@ function Produk({ products, reload, closeDay, openDay, closed, patchProduct, rem
     });
     setShow(true);
   };
-   const del = (p) =>
-    confirmToast({
-      title: t("confirmDelProd", { name: p.name }),
-      okText: t("yesDelete"),
-      cancelText: t("cancel"),
-      danger: true,
-      onOk: async () => {
-        try {
-          await req(`/products/${p._id}`, "DELETE");
-          removeProduct(p._id);
-          toast.success(lang === "en" ? "Product deleted" : "Produk dihapus");
-          reload();
-        } catch (x) {
-          toast.error(x.message);
-        }
-      },
-    });
+
+  const del = (p) => setDelP(p);
+
+  const doDelete = async (p) => {
+    try {
+      await req(`/products/${p._id}`, "DELETE");
+      removeProduct(p._id);
+      toast.success(lang === "en" ? "Product deleted" : "Produk dihapus");
+      reload();
+    } catch (x) {
+      toast.error(x.message);
+    }
+  };
 
   return (
     <>
@@ -1311,6 +1332,16 @@ function Produk({ products, reload, closeDay, openDay, closed, patchProduct, rem
             <button className="btn gold">{editId ? t("saveChanges") : t("addProduct")}</button>
           </form>
         </Modal>
+      )}
+
+      {delP && (
+        <ConfirmModal
+          title={t("confirmDelProd", { name: delP.name })}
+          okText={t("yesDelete")}
+          cancelText={t("cancel")}
+          onOk={() => doDelete(delP)}
+          onClose={() => setDelP(null)}
+        />
       )}
     </>
   );
@@ -1769,6 +1800,7 @@ export default function App() {
   const [fund, setFund] = useState(null);
   const [showFund, setShowFund] = useState(false);
   const [showOpen, setShowOpen] = useState(false);
+  const [confirmBox, setConfirmBox] = useState(null);
 
   const [settings, setSettings] = useState(() => {
     try {
@@ -1840,24 +1872,22 @@ export default function App() {
   };
 
   const deleteTx = (x, after) =>
-    confirmToast({
-      title: t("delTxTitle"),
-      desc: t("delTxDesc"),
-      okText: t("yesDelete"),
-      cancelText: t("cancel"),
-      danger: true,
-      onOk: async () => {
-        try {
-          await req(`/transactions/${x._id}`, "DELETE");
-          touch(); setTxs((l) => l.filter((y) => y._id !== x._id));
-          toast.success(t("txDeleted"));
-          after?.();
-          await reload();
-        } catch (e) {
-          toast.error(e.message);
-        }
-      },
-    });
+  setConfirmBox({
+    title: t("delTxTitle"),
+    desc: t("delTxDesc"),
+    okText: t("yesDelete"),
+    onOk: async () => {
+      try {
+        await req(`/transactions/${x._id}`, "DELETE");
+        touch(); setTxs((l) => l.filter((y) => y._id !== x._id));
+        toast.success(t("txDeleted"));
+        after?.();
+        await reload();
+      } catch (e) {
+        toast.error(e.message);
+      }
+    },
+  });
 
   const closeDay = () =>
     confirmToast({
@@ -1971,6 +2001,14 @@ export default function App() {
             fund={fund}
             onClose={() => setShowOpen(false)}
             onConfirm={confirmOpenDay}
+          />
+        )}
+
+        {confirmBox && (
+          <ConfirmModal
+            {...confirmBox}
+            cancelText={t("cancel")}
+            onClose={() => setConfirmBox(null)}
           />
         )}
 
