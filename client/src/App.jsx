@@ -1123,7 +1123,7 @@ function Kasir({ products, reload, patchTx, closed, openDay, fund }) {
         <input type="number" inputMode="numeric" value={cash} onChange={(e) => setCash(e.target.value)} placeholder="0" />
         <div className="chips">
           <button onClick={() => setCash(total)}>{t("exactCash")}</button>
-          {[20000, 50000, 100000].map((n) => <button key={n} onClick={() => setCash(n)}>{t("thousandK", { n: n / 1000 })}</button>)}
+          {[10000, 20000, 50000].map((n) => <button key={n} onClick={() => setCash(n)}>{t("thousandK", { n: n / 1000 })}</button>)}
         </div>
         <div className={"change " + (cash !== "" && change < 0 ? "bad" : "")}>
           <span>{cash !== "" && change < 0 ? t("short") : t("change")}</span>
