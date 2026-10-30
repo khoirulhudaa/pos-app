@@ -1133,7 +1133,6 @@ function Kasir({ products, reload, patchTx, closed, openDay, fund, hideFund }) {
         </div>
         {fund && (
           <small className="muted cf-mini">
-            💵 {tl("Sisa kembalian", "Change float")}: <b>{hideFund ? "••••••" : rp(fund.balance)}</b>
           </small>
         )}
         <div className="products">
