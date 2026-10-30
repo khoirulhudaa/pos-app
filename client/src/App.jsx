@@ -1753,7 +1753,7 @@ export default function App() {
   const [showLogout, setShowLogout] = useState(false);
   const [editTx, setEditTx] = useState(null);
   const [closed, setClosed] = useState(false);
-  const [fund, setFund] = useState(1);
+  const [fund, setFund] = useState(null);
   const [showFund, setShowFund] = useState(false);
   const [showOpen, setShowOpen] = useState(false);
 
