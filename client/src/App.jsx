@@ -61,6 +61,8 @@ const P = {
   cart: "M9 22a1 1 0 1 0 0-2 1 1 0 0 0 0 2z M20 22a1 1 0 1 0 0-2 1 1 0 0 0 0 2z M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6",
   list: "M8 6h13 M8 12h13 M8 18h13 M3 6h.01 M3 12h.01 M3 18h.01",
   down: "M23 18l-9.5-9.5-5 5L1 6 M17 18h6v-6",
+  view1: "M4 5h16v14H4z",
+  view2: "M4 5h7v14H4z M13 5h7v14h-7z",
   wallet: "M21 12V7H5a2 2 0 0 1 0-4h14v4 M3 5v14a2 2 0 0 0 2 2h16v-5 M18 12a2 2 0 0 0 0 4h4v-4z", 
   up: "M23 6l-9.5 9.5-5-5L1 18 M17 6h6v6",
   logout: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9",
@@ -1073,7 +1075,7 @@ function PaymentSuccess({ done, onClose }) {
 }
 
 // ---------- Kasir ----------
-function Kasir({ products, reload, patchTx, closed, openDay, fund, hideFund }) {
+function Kasir({ products, reload, patchTx, closed, openDay, fund, hideFund, cols = 2, setCols }) {
   const { t, lang } = useT();
   const tl = (id, en) => (lang === "en" ? en : id);
   const [cart, setCart] = useState({});
@@ -1162,16 +1164,26 @@ function Kasir({ products, reload, patchTx, closed, openDay, fund, hideFund }) {
     <div className="kasir">
       <div>
         <div className="search"><Ic n="search" s={18} /><input placeholder={t("searchProd")} value={q} onChange={(e) => setQ(e.target.value)} /></div>
-        <div className="pills">
-          {[["all", t("all")], ["makanan", t("food")], ["minuman", t("drink")]].map(([k, l]) => (
-            <button key={k} className={cat === k ? "on" : ""} onClick={() => setCat(k)}>{l}</button>
-          ))}
+        <div className="pills-row">
+          <div className="pills">
+            {[["all", t("all")], ["makanan", t("food")], ["minuman", t("drink")]].map(([k, l]) => (
+              <button key={k} className={cat === k ? "on" : ""} onClick={() => setCat(k)}>{l}</button>
+            ))}
+          </div>
+          <div className="view-seg" role="group" aria-label={tl("Tampilan menu", "Menu layout")}>
+            <button className={cols === 1 ? "on" : ""} onClick={() => setCols(1)} title={tl("1 kolom", "1 column")}>
+              <Ic n="view1" s={16} />
+            </button>
+            <button className={cols === 2 ? "on" : ""} onClick={() => setCols(2)} title={tl("2 kolom", "2 columns")}>
+              <Ic n="view2" s={16} />
+            </button>
+          </div>
         </div>
         {fund && (
           <small className="muted cf-mini">
           </small>
         )}
-        <div className="products">
+        <div className={"products cols-" + cols}>
           {shown.map((p) => {
             const qty = cart[p._id] || 0;
             const level = p.stock < 1 ? "empty" : p.stock < 5 ? "low" : "good";
@@ -1981,6 +1993,7 @@ const DEFAULT_SETTINGS = {
   hideTransaksi: false,
   hideKembalian: false,
   hideChart: false,
+  kasirCols: 2,
   maxRiwayatBeranda: 5,
   filterJenis: "all",
   filterKategori: "all",
@@ -2154,7 +2167,7 @@ export default function App() {
           <>
             <Top title={titles[tab][0]} sub={titles[tab][1]} />
             <div className="page pull">
-              {tab === "kasir" && <Kasir products={products} reload={reload} patchTx={patchTx} closed={closed} openDay={openDay} fund={fund} hideFund={settings.hideNominal || settings.hideKembalian} />}
+              {tab === "kasir" && <Kasir products={products} reload={reload} patchTx={patchTx} closed={closed} openDay={openDay} fund={fund} hideFund={settings.hideNominal || settings.hideKembalian} cols={settings.kasirCols === 1 ? 1 : 2} setCols={(n) => setSettings((p) => ({ ...p, kasirCols: n }))} />}
               {tab === "produk" && <Produk products={products} reload={reload} closeDay={closeDay} openDay={openDay} closed={closed} patchProduct={patchProduct} removeProduct={removeProduct} />}
               {tab === "keluar" && <Pengeluaran products={products} reload={reload} patchTx={patchTx} closed={closed} openDay={openDay} go={setTab} />}
               {tab === "riwayat" && <Riwayat txs={txs} onEdit={setEditTx} onDelete={deleteTx} openDetail={openDetail} />}

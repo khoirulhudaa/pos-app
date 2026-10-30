@@ -63,3 +63,12 @@
 .tx-name p { margin: 0; display: block; min-width: 0; line-height: 1.25; }
 .perm-ic { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 16px; height: 16px; border-radius: 5px; background: #fff4e0; color: #b45309; }
 .perm-ic svg { display: block; }
+
+/* ===== Pilihan kolom menu kasir ===== */
+.pills-row { display: flex; align-items: center; gap: 8px; }
+.pills-row .pills { flex: 1; min-width: 0; }
+.view-seg { display: flex; background: #eef2f7; border-radius: 10px; padding: 2px; flex-shrink: 0; }
+.view-seg button { width: 32px; height: 28px; display: grid; place-items: center; border-radius: 8px; color: #64748b; background: transparent; }
+.view-seg button.on { background: #fff; color: #0a66c2; box-shadow: 0 1px 3px rgba(0, 0, 0, .1); }
+.products.cols-1 { display: grid; grid-template-columns: 1fr !important; }
+.products.cols-2 { display: grid; grid-template-columns: repeat(2, 1fr) !important; }
