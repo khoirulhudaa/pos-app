@@ -445,7 +445,7 @@ function CatIcon({ c, s = 24 }) {
       src={drink ? "/drink.png" : "/food.png"}
       alt={drink ? "Minuman" : "Makanan"}
       onError={() => setFailed(true)}
-      style={{ width: s, height: s, objectFit: "contain", verticalAlign: "middle", flexShrink: 0, transform: drink ? "rotate(20deg)" : undefined }}
+      style={{ width: s, height: s, objectFit: "contain", verticalAlign: "middle", flexShrink: 0 }}
     />
   );
 }
