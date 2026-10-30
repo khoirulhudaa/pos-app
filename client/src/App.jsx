@@ -1618,7 +1618,7 @@ function Pengeluaran({ products, reload, patchTx, closed, openDay, go }) {
       <input placeholder={t("optionalPh")} value={f.note} onChange={set("note")} />
 
       <label className="switch-row" style={{ marginTop: 10 }}>
-        <span>♾️ {tl("Pengeluaran permanen", "Permanent expense")}</span>
+        <span>{tl("Pengeluaran permanen", "Permanent expense")}</span>
         <input type="checkbox" checked={f.permanent} onChange={(e) => setF({ ...f, permanent: e.target.checked })} />
       </label>
       <small className="muted" style={{ display: "block", marginBottom: 6 }}>
