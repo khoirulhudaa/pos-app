@@ -65,6 +65,7 @@ const P = {
   up: "M23 6l-9.5 9.5-5-5L1 18 M17 6h6v6",
   logout: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9",
   plus: "M12 5v14 M5 12h14",
+  repeat: "M17 1l4 4-4 4 M3 11V9a4 4 0 0 1 4-4h14 M7 23l-4-4 4-4 M21 13v2a4 4 0 0 1-4 4H3",
   out: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9",
   check: "M20 6L9 17l-5-5",
   trash: "M3 6h18 M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6 M10 11v6 M14 11v6 M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2",
@@ -481,9 +482,16 @@ function TxRow({ t, children, onClick }) {
           <TxIcon key={isMix(t) ? "m" : "n"} t={t} />
         </span>
         <div className="grow">
-          <b className="tx-t">
-            {inc ? (t.items || []).map((i) => `${i.name} ×${i.qty}`).join(", ") : t.description}
-          </b>
+          <div className="tx-name">
+            <b className="tx-t">
+              {inc ? (t.items || []).map((i) => `${i.name} ×${i.qty}`).join(", ") : t.description}
+            </b>
+            {!inc && t.permanent && (
+              <span className="perm-ic" title={lang === "en" ? "Permanent expense" : "Pengeluaran permanen"}>
+                <Ic n="repeat" s={14} />
+              </span>
+            )}
+          </div>
           <small className="muted">
             {new Date(t.createdAt).toLocaleString(locale, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
             {(inc || t.method) && `, ${methodLabel(t.method, tr)}`}
@@ -505,11 +513,6 @@ function TxRow({ t, children, onClick }) {
               <span className="mix-chip">{tr("normalTag")}</span>
               <span className="pk-chip plastic">🛍️ {0}</span>
               <span className="pk-chip cup">🥤 {0}</span>
-            </div>
-          )}
-          {!inc && t.permanent && (
-            <div className="tags">
-              <span className="mix-chip perm-chip">♾️ {lang === "en" ? "Permanent" : "Permanen"}</span>
             </div>
           )}
         </div>
@@ -1872,12 +1875,14 @@ function Detail({ tx, back, onEdit, onDelete }) {
         {!inc && (
           <div className="card">
             <h3 style={{ marginBottom: 8 }}>{t("description")}</h3>
-            <p>{tx.description}</p>
-            {tx.permanent && (
-              <small className="muted" style={{ display: "block" }}>
-                ♾️ {lang === "en" ? "Counted every day" : "Dihitung setiap hari"}
-              </small>
-            )}
+            <div className="tx-name">
+              <p style={{ margin: 0 }}>{tx.description}</p>
+              {tx.permanent && (
+                <span className="perm-ic" title={lang === "en" ? "Permanent expense" : "Pengeluaran permanen"}>
+                  <Ic n="repeat" s={15} />
+                </span>
+              )}
+            </div>
             {tx.buyQty > 0 && <small className="muted">{tx.buyQty} {tx.buyUnit || "pcs"}</small>}
           </div>
         )}
