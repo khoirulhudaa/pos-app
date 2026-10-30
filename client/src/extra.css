@@ -65,10 +65,18 @@
 .perm-ic svg { display: block; }
 
 /* ===== Pilihan kolom menu kasir ===== */
-.pills-row { display: flex; align-items: center; gap: 8px; }
-.pills-row .pills { flex: 1; min-width: 0; }
+.kasir > div:first-child { min-width: 0; max-width: 100%; }
+
+.pills-row { display: flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
+.pills-row .pills { flex: 1 1 0; min-width: 0; overflow-x: auto; scrollbar-width: none; margin-bottom: 0; }
+.pills-row .pills::-webkit-scrollbar { display: none; }
+.pills-row .pills button { flex-shrink: 0; }
+
 .view-seg { display: flex; background: #eef2f7; border-radius: 10px; padding: 2px; flex-shrink: 0; }
 .view-seg button { width: 32px; height: 28px; display: grid; place-items: center; border-radius: 8px; color: #64748b; background: transparent; }
 .view-seg button.on { background: #fff; color: #0a66c2; box-shadow: 0 1px 3px rgba(0, 0, 0, .1); }
-.products.cols-1 { display: grid; grid-template-columns: 1fr !important; }
-.products.cols-2 { display: grid; grid-template-columns: repeat(2, 1fr) !important; }
+
+.products.cols-1 { display: grid; grid-template-columns: minmax(0, 1fr) !important; }
+.products.cols-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+.products .prod { min-width: 0; max-width: 100%; box-sizing: border-box; }
+.products .prod-name b { overflow-wrap: anywhere; }
