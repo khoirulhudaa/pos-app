@@ -160,7 +160,7 @@ function EmptyState({ img, icon = "list", title, desc, actionText, onAction }) {
       </div>
       <h4>{title}</h4>
       {desc && <p>{desc}</p>}
-      {actionText && <button className="btn gold" onClick={onAction}>{actionText}</button>}
+      {/* {actionText && <button className="btn gold" onClick={onAction}>{actionText}</button>} */}
     </div>
   );
 }
@@ -667,7 +667,7 @@ function Beranda({ txs, products, go, closeDay, openDay, closed, askLogout, open
             icon="list"
             title={t("noTx")}
             desc={tl("Transaksi hari ini akan muncul di sini.", "Today's transactions will show up here.")}
-            actionText={closed ? undefined : tl("Buka Kasir", "Open Cashier")}
+            // actionText={closed ? undefined : tl("Buka Kasir", "Open Cashier")}
             onAction={() => go("kasir")}
           />
         )}
@@ -1397,7 +1397,7 @@ function Produk({ products, reload, closeDay, openDay, closed, patchProduct, rem
           icon="box"
           title={t("noProductsShort")}
           desc={tl("Tambahkan produk pertama untuk mulai berjualan.", "Add your first product to start selling.")}
-          actionText={t("addProduct")}
+          // actionText={t("addProduct")}
           onAction={() => setShow(true)}
         />
       )}
