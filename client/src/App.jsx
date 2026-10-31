@@ -1508,23 +1508,27 @@ function Produk({ products, reload, closeDay, openDay, closed, patchProduct, rem
 
   return (
     <>
-      <div className="row-actions">
-        <button className="btn ghost" style={{ backgroundColor: "white" }} onClick={() => setShow(true)}><Ic n="plus" s={18} /> {t("addProduct")}</button>
-        <button
-          className={"btn ghost" + (view === "top" ? " on" : "")}
-          style={{ backgroundColor: "white" }}
-          onClick={() => setView((v) => (v === "top" ? "list" : "top"))}
-        >
-          <Ic n="sparkles" s={18} /> {tl("Terlaris", "Best sellers")}
-        </button>
-        {closed ? (
-          <button className="btn ghost" onClick={openDay}>
-            <img src="/close2.png" alt="" style={{ width: 20, height: 20, objectFit: "contain" }} /> {t("openDay")}
-          </button>
-        ) : (
-          <button className="btn ghost" onClick={closeDay}><Ic n="moon" s={18} /> {t("closeDay")}</button>
-        )}
-      </div>
+   <div className="row-actions">
+      <button className="btn ghost" style={{ backgroundColor: "white" }} onClick={() => setShow(true)}>
+        <Ic n="plus" s={18} /> {t("addProduct")}
+      </button>
+
+      <button
+        className={"btn ghost" + (view === "list" ? " on" : "")}
+        style={{ backgroundColor: "white" }}
+        onClick={() => setView("list")}
+      >
+        <Ic n="list" s={18} /> {tl("Daftar", "List")}
+      </button>
+
+      <button
+        className={"btn ghost" + (view === "top" ? " on" : "")}
+        style={{ backgroundColor: "white" }}
+        onClick={() => setView("top")}
+      >
+        <Ic n="sparkles" s={18} /> {tl("Terlaris", "Best sellers")}
+      </button>
+    </div>
 
       {view === "top" && (
         <div className="plist">
