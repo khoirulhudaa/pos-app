@@ -950,7 +950,7 @@ function Setting({ settings, setSettings, go, onReset }) {
 
           <label>{t("maxTx")}</label>
           <select value={settings.maxRiwayatBeranda} onChange={(e) => update("maxRiwayatBeranda", Number(e.target.value))}>
-            {[3, 5, 8, 10, 15].map((n) => <option key={n} value={n}>{t("nTx", { n })}</option>)}
+            {[3, 5, 10, 15, 30].map((n) => <option key={n} value={n}>{t("nTx", { n })}</option>)}
           </select>
 
           <label style={{ marginTop: 16 }}>{t("showType")}</label>
