@@ -865,7 +865,60 @@ function ChangeSourceRows({ tx }) {
   );
 }
 
-function Setting({ settings, setSettings, go, onReset }) {
+const csvRow = (arr) => arr.map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(";");
+
+function downloadDailyRecap(txs, key, lang) {
+  const tl = (id, en) => (lang === "en" ? en : id);
+  const loc = lang === "en" ? "en-US" : "id-ID";
+  const mLabel = (m) => (m === "transfer" ? "Transfer" : m === "ewallet" ? "E-wallet" : tl("Tunai", "Cash"));
+  const time = (d) => new Date(d).toLocaleTimeString(loc, { hour: "2-digit", minute: "2-digit" });
+  const byTime = (a, b) => new Date(a.createdAt) - new Date(b.createdAt);
+
+  const sales = txs.filter((x) => x.type === "income" && toKey(x.createdAt) === key).sort(byTime);
+  const exps = txs
+    .filter((x) => x.type === "expense" && (x.permanent ? toKey(x.createdAt) <= key : toKey(x.createdAt) === key))
+    .sort(byTime);
+  const income = sales.reduce((s, x) => s + x.total, 0);
+  const expense = expenseOn(txs, key).total;
+
+  const rows = [
+    csvRow([tl("REKAP HARIAN", "DAILY RECAP"), key]),
+    "",
+    csvRow([tl("PENJUALAN", "SALES")]),
+    csvRow([tl("Jam", "Time"), "ID", tl("Item", "Items"), tl("Metode", "Method"), "Total", tl("Diterima", "Received"), tl("Kembalian", "Change"), tl("Plastik", "Plastic"), tl("Gelas", "Cup"), tl("Catatan", "Note")]),
+    ...sales.map((x) => csvRow([
+      time(x.createdAt), String(x._id).slice(-5),
+      (x.items || []).map((i) => `${i.name} x${i.qty}`).join(", "),
+      mLabel(x.method), x.total,
+      x.method === "cash" ? x.cashReceived ?? "" : "",
+      x.method === "cash" ? x.change ?? "" : "",
+      x.packaging?.plastic || 0, x.packaging?.cup || 0, x.note || "",
+    ])),
+    csvRow([tl("Total penjualan", "Total sales"), "", "", "", income]),
+    "",
+    csvRow([tl("PENGELUARAN", "EXPENSES")]),
+    csvRow([tl("Jam", "Time"), "ID", tl("Keterangan", "Description"), tl("Metode", "Method"), tl("Jumlah", "Amount"), tl("Permanen", "Permanent"), tl("Catatan", "Note")]),
+    ...exps.map((x) => csvRow([
+      time(x.createdAt), String(x._id).slice(-5), x.description, mLabel(x.method),
+      x.total, x.permanent ? tl("Ya", "Yes") : tl("Tidak", "No"), x.note || "",
+    ])),
+    csvRow([tl("Total pengeluaran", "Total expenses"), "", "", "", expense]),
+    "",
+    csvRow([tl("LABA", "PROFIT"), "", "", "", income - expense]),
+  ];
+
+  const blob = new Blob(["\uFEFF" + rows.join("\r\n")], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `rekap-${key}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function Setting({ settings, setSettings, go, onReset, txs = [] }) {
   const { t, lang } = useT();
   const update = (key, value) => setSettings((prev) => ({ ...prev, [key]: value }));
   const [srv, setSrv] = useState("cek");
@@ -875,6 +928,7 @@ function Setting({ settings, setSettings, go, onReset }) {
       .catch(() => setSrv("gagal"));
   }, []);
   const [showReset, setShowReset] = useState(false);
+  const [recapDate, setRecapDate] = useState(toKey(new Date()));
 
   return (
     <>
@@ -892,6 +946,26 @@ function Setting({ settings, setSettings, go, onReset }) {
             <button className={lang === "id" ? "on" : ""} onClick={() => update("lang", "id")}>Indonesia</button>
             <button className={lang === "en" ? "on" : ""} onClick={() => update("lang", "en")}>English</button>
           </div>
+        </div>
+
+        <div className="card" style={{ marginTop: 16 }}>
+          <h3 style={{ marginBottom: 8 }}>{lang === "en" ? "Daily Recap" : "Rekap Harian"}</h3>
+          <small className="muted" style={{ display: "block", marginBottom: 12 }}>
+            {lang === "en"
+              ? "Download sales and expenses for one day (CSV, opens in Excel/Sheets)."
+              : "Unduh rekap penjualan dan pengeluaran per hari (CSV, bisa dibuka di Excel/Sheets)."}
+          </small>
+          <input type="date" value={recapDate} max={toKey(new Date())} onChange={(e) => e.target.value && setRecapDate(e.target.value)} />
+          <button
+            className="btn gold"
+            style={{ marginTop: 12 }}
+            onClick={() => {
+              downloadDailyRecap(txs, recapDate, lang);
+              toast.success(lang === "en" ? "Recap downloaded" : "Rekap diunduh");
+            }}
+          >
+            <Ic n="download" s={18} /> {lang === "en" ? "Download Recap" : "Unduh Rekap"}
+          </button>
         </div>
 
         <div className="card" style={{ marginTop: 16 }}>
@@ -1053,9 +1127,13 @@ function PaymentSuccess({ done, onClose }) {
           <h3 style={{ marginBottom: 8 }}>{t("payment")}</h3>
           <div className="li"><span className="muted">{t("method")}</span><b>{methodLabel(tx.method || "cash", t)}</b></div>
           <div className="li"><span className="muted">{t("total")}</span><b>{rp(total)}</b></div>
-          <div className="li"><span className="muted">{t("received")}</span><b>{rp(paid)}</b></div>
-          <div className="li"><span className="muted">{t("change")}</span><b className="ok">{rp(change)}</b></div>
-          <ChangeSourceRows tx={tx} />
+          {(tx.method || "cash") === "cash" && (
+              <>
+                <div className="li"><span className="muted">{t("received")}</span><b>{rp(paid)}</b></div>
+                <div className="li"><span className="muted">{t("change")}</span><b className="ok">{rp(change)}</b></div>
+                <ChangeSourceRows tx={tx} />
+              </>
+            )}
         </div>
 
         <div className="card">
@@ -1094,6 +1172,8 @@ function Kasir({ products, reload, patchTx, closed, openDay, fund, hideFund, col
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [cat, setCat] = useState("minuman");
+  const [method, setMethod] = useState("cash");
+  const isCash = method === "cash";
   const [done, setDone] = useState(null);
 
   // opsi baru
@@ -1111,10 +1191,10 @@ function Kasir({ products, reload, patchTx, closed, openDay, fund, hideFund, col
   const change = Number(cash || 0) - total;
   // pratinjau asal kembalian
   const fundBal = fund?.balance ?? 0;
-  const needChange = Math.max(0, change);
+  const needChange = isCash ? Math.max(0, change) : 0;
   const fromStock = Math.min(fundBal, needChange);
   const fromOther = needChange - fromStock;
-  const canPay = lines.length && cash !== "" && change >= 0 && (!custom || customVal !== "");
+  const canPay = lines.length && (!custom || customVal !== "") && (isCash ? cash !== "" && change >= 0 : true);
 
   const add = (p, d) => setCart((c) => {
     const n = { ...c };
@@ -1125,6 +1205,7 @@ function Kasir({ products, reload, patchTx, closed, openDay, fund, hideFund, col
 
   const resetForm = () => {
     setCart({}); setCash(""); setNote(""); setOpen(false);
+    setMethod("cash");
     setMix(false); setPlastic(0); setCup(0); setCustom(false); setCustomVal("");
   };
 
@@ -1132,11 +1213,11 @@ function Kasir({ products, reload, patchTx, closed, openDay, fund, hideFund, col
     setBusy(true);
     try {
       const items = lines.map((p) => ({ product: p._id, qty: cart[p._id] }));
-      const paid = Number(cash);
+      const paid = isCash ? Number(cash) : total;
       const saved = await req("/transactions", "POST", {
         type: "income",
         items,
-        method: "cash",
+        method,            // ← sebelumnya "cash"
         cashReceived: paid,
         note,
         mix,
@@ -1366,6 +1447,9 @@ function Produk({ products, reload, closeDay, openDay, closed, patchProduct, rem
   const [editId, setEditId] = useState(null);
   const [show, setShow] = useState(false);
   const [delP, setDelP] = useState(null);
+  const [view, setView] = useState("list"); // list | top
+  const top = [...products].filter((p) => (p.sold || 0) > 0).sort((a, b) => b.sold - a.sold);
+  const maxSold = top[0]?.sold || 1;
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const close = () => { setShow(false); setEditId(null); setF(empty); };
 
@@ -1434,37 +1518,71 @@ function Produk({ products, reload, closeDay, openDay, closed, patchProduct, rem
         )}
       </div>
 
-      <div className="plist">
-        {products.map((p) => (
-          <div className="card pc" key={p._id}>
-            <div className="pc-h">
-              <span className="pe"><CatIcon c={p.category} s={28} /></span>
-              <div className="grow"><b>{p.name}</b><br /><small className="chip">{p.category === "minuman" ? t("drink") : t("food")}</small></div>
-              <b className="price">{rp(p.price)}</b>
-            </div>
-            <div className="stats4">
-              <div><small>{t("stockStart")}</small><b>{p.stockInitial}</b></div>
-              <div><small>{t("sold")}</small><b>{p.sold}</b></div>
-              <div className="hl"><small>{t("now")}</small><b>{p.stock}</b></div>
-              <div><small>{t("stockEnd")}</small><b>{p.stockEnd ?? "-"}</b></div>
-            </div>
-            <div className="pc-a">
-              <button onClick={() => edit(p)}><Ic n="edit" s={15} /> {t("edit")}</button>
-              <button className="d" onClick={() => del(p)}><Ic n="trash" s={15} /> {t("delete")}</button>
-            </div>
-          </div>
-        ))}
+      <div className="seg" style={{ marginTop: 12 }}>
+        <button className={view === "list" ? "on" : ""} onClick={() => setView("list")}>{tl("Daftar", "List")}</button>
+        <button className={view === "top" ? "on" : ""} onClick={() => setView("top")}>{tl("Terlaris", "Best sellers")}</button>
       </div>
-      {!products.length && (
-        <EmptyState
-          img="/produk.png"
-          icon="box"
-          title={t("noProductsShort")}
-          desc={tl("Tambahkan produk pertama untuk mulai berjualan.", "Add your first product to start selling.")}
-          // actionText={t("addProduct")}
-          // onAction={() => setShow(true)}
-        />
+
+      {view === "top" && (
+        <div className="plist">
+          {top.map((p, i) => (
+            <div className="card pc" key={p._id}>
+              <div className="pc-h">
+                <b style={{ width: 28, textAlign: "center", fontSize: 18 }}>{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}</b>
+                <span className="pe"><CatIcon c={p.category} s={28} /></span>
+                <div className="grow">
+                  <b>{p.name}</b><br />
+                  <small className="muted">{tl("Terjual", "Sold")} {p.sold} · {rp(p.sold * p.price)}</small>
+                </div>
+              </div>
+              <div style={{ height: 6, borderRadius: 6, background: "#e5e7eb", overflow: "hidden" }}>
+                <div style={{ width: `${(p.sold / maxSold) * 100}%`, height: "100%", background: "linear-gradient(90deg,#fbb02d,#f59e0b)" }} />
+              </div>
+            </div>
+          ))}
+          {!top.length && (
+            <EmptyState img="/produk.png" icon="box" title={tl("Belum ada penjualan", "No sales yet")} desc={tl("Produk terlaris akan muncul setelah ada transaksi.", "Best sellers will show up after sales are made.")} />
+          )}
+        </div>
       )}
+
+      {view === "list" && (
+        <>
+          <div className="plist">
+            {products.map((p) => (
+              <div className="card pc" key={p._id}>
+                <div className="pc-h">
+                  <span className="pe"><CatIcon c={p.category} s={28} /></span>
+                  <div className="grow"><b>{p.name}</b><br /><small className="chip">{p.category === "minuman" ? t("drink") : t("food")}</small></div>
+                  <b className="price">{rp(p.price)}</b>
+                </div>
+                <div className="stats4">
+                  <div><small>{t("stockStart")}</small><b>{p.stockInitial}</b></div>
+                  <div><small>{t("sold")}</small><b>{p.sold}</b></div>
+                  <div className="hl"><small>{t("now")}</small><b>{p.stock}</b></div>
+                  <div><small>{t("stockEnd")}</small><b>{p.stockEnd ?? "-"}</b></div>
+                </div>
+                <div className="pc-a">
+                  <button onClick={() => edit(p)}><Ic n="edit" s={15} /> {t("edit")}</button>
+                  <button className="d" onClick={() => del(p)}><Ic n="trash" s={15} /> {t("delete")}</button>
+                </div>
+              </div>
+            ))}
+          </div>
+     
+          {!products.length && (
+            <EmptyState
+              img="/produk.png"
+              icon="box"
+              title={t("noProductsShort")}
+              desc={tl("Tambahkan produk pertama untuk mulai berjualan.", "Add your first product to start selling.")}
+              // actionText={t("addProduct")}
+              // onAction={() => setShow(true)}
+            />
+          )}
+        </>
+      )}
+
 
       {show && (
         <Modal title={editId ? t("editProduct") : t("addProduct")} onClose={close}>
@@ -1595,11 +1713,35 @@ function Pengeluaran({ products, reload, patchTx, closed, openDay, go }) {
       )}
 
       <label>{t("payMethod")}</label>
-      <select value={f.method} onChange={set("method")}>
-        <option value="cash">{t("cash")}</option>
-        <option value="transfer">{t("transfer")}</option>
-        <option value="ewallet">{t("ewallet")}</option>
-      </select>
+      <div className="seg">
+        {[["cash", t("cash")], ["transfer", t("transfer")], ["ewallet", t("ewallet")]].map(([k, l]) => (
+          <button key={k} type="button" className={method === k ? "on" : ""} onClick={() => setMethod(k)}>{l}</button>
+        ))}
+      </div>
+
+      {isCash && (
+        <>
+          <label>{t("cashReceived")}</label>
+          <input type="number" inputMode="numeric" value={cash} onChange={(e) => setCash(e.target.value)} placeholder="0" />
+          <div className="chips">
+            <button onClick={() => setCash(total)}>{t("exactCash")}</button>
+            {[10000, 20000, 50000].map((n) => <button key={n} onClick={() => setCash(n)}>{t("thousandK", { n: n / 1000 })}</button>)}
+          </div>
+          <div className={"change " + (cash !== "" && change < 0 ? "bad" : "")}>
+            <span>{cash !== "" && change < 0 ? t("short") : t("change")}</span>
+            <b>{cash === "" ? "-" : rp(Math.abs(change))}</b>
+          </div>
+          {cash !== "" && needChange > 0 && (
+            <div className={"cf-split" + (fromOther > 0 ? " warn" : "")}>
+              <div><span>{tl("Dari stok kembalian", "From change float")}</span><b>{rp(fromStock)}</b></div>
+              {fromOther > 0 && (
+                <div><span>{tl("Kurang → ambil dari sumber lain", "Short → take from other source")}</span><b className="err">{rp(fromOther)}</b></div>
+              )}
+              <small className="muted">{tl("Sisa stok setelah ini", "Float after this")}: {rp(fundBal - fromStock)}</small>
+            </div>
+          )}
+        </>
+      )}
 
       <label>{t("addStockOpt")}</label>
       <select value={f.product} onChange={set("product")}>
@@ -2186,7 +2328,7 @@ export default function App() {
         {tab === "home" ? (
           <Beranda txs={txs} products={products} go={setTab} closeDay={closeDay} openDay={openDay} closed={closed} askLogout={() => setShowLogout(true)} openDetail={openDetail} settings={settings} setSettings={setSettings} fund={fund} openFund={() => setShowFund(true)} />
         ) : tab === "setting" ? (
-          <Setting settings={settings} setSettings={setSettings} go={setTab} onReset={() => { touch(); setTxs([]); reload(); }} />
+          <Setting settings={settings} setSettings={setSettings} go={setTab} txs={txs} onReset={() => { touch(); setTxs([]); reload(); }} />
         ) : tab === "logs" ? (
           <ActivityLogPage go={setTab} />
         ) : tab === "detail" ? (
