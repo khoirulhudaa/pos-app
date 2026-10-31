@@ -950,26 +950,6 @@ function Setting({ settings, setSettings, go, onReset, txs = [] }) {
         </div>
 
         <div className="card" style={{ marginTop: 16 }}>
-          <h3 style={{ marginBottom: 8 }}>{lang === "en" ? "Daily Recap" : "Rekap Harian"}</h3>
-          <small className="muted" style={{ display: "block", marginBottom: 12 }}>
-            {lang === "en"
-              ? "Download sales and expenses for one day (CSV, opens in Excel/Sheets)."
-              : "Unduh rekap penjualan dan pengeluaran per hari (CSV, bisa dibuka di Excel/Sheets)."}
-          </small>
-          <input type="date" value={recapDate} max={toKey(new Date())} onChange={(e) => e.target.value && setRecapDate(e.target.value)} />
-          <button
-            className="btn gold"
-            style={{ marginTop: 12 }}
-            onClick={() => {
-              downloadDailyRecap(txs, recapDate, lang);
-              toast.success(lang === "en" ? "Recap downloaded" : "Rekap diunduh");
-            }}
-          >
-            <Ic n="download" s={18} /> {lang === "en" ? "Download Recap" : "Unduh Rekap"}
-          </button>
-        </div>
-
-        <div className="card" style={{ marginTop: 16 }}>
           <h3 style={{ marginBottom: 8 }}>{t("activityLog")}</h3>
           <small className="muted" style={{ display: "block", marginBottom: 12 }}>
             {t("activityLogSub")}
@@ -1013,6 +993,26 @@ function Setting({ settings, setSettings, go, onReset, txs = [] }) {
             <span>{lang === "en" ? "Hide change float" : "Sembunyikan kembalian"}</span>
             <input type="checkbox" checked={!!settings.hideKembalian} onChange={(e) => update("hideKembalian", e.target.checked)} />
           </label>
+        </div>
+
+        <div className="card" style={{ marginTop: 16 }}>
+          <h3 style={{ marginBottom: 8 }}>{lang === "en" ? "Daily Recap" : "Rekap Harian"}</h3>
+          <small className="muted" style={{ display: "block", marginBottom: 12 }}>
+            {lang === "en"
+              ? "Download sales and expenses for one day (CSV, opens in Excel/Sheets)."
+              : "Unduh rekap penjualan dan pengeluaran per hari (CSV, bisa dibuka di Excel/Sheets)."}
+          </small>
+          <input type="date" value={recapDate} max={toKey(new Date())} onChange={(e) => e.target.value && setRecapDate(e.target.value)} />
+          <button
+            className="btn gold"
+            style={{ marginTop: 12 }}
+            onClick={() => {
+              downloadDailyRecap(txs, recapDate, lang);
+              toast.success(lang === "en" ? "Recap downloaded" : "Rekap diunduh");
+            }}
+          >
+            <Ic n="download" s={18} /> {lang === "en" ? "Download Recap" : "Unduh Rekap"}
+          </button>
         </div>
 
         <div className="card" style={{ marginTop: 16 }}>
