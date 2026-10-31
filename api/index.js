@@ -207,7 +207,7 @@ const PASSWORD_LABEL = {
   "123456": "Akun 1 - huda",
   "123123": "Akun 2 - sofyan",
   "121212": "Akun 3 - Fauzy",
-  "121212": "Akun 4 - Fazri",
+  "111111": "Akun 4 - Fazri",
 };
 
 app.use("/api", async (req, res, next) => {
