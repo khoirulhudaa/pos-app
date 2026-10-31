@@ -174,7 +174,7 @@ function ConfirmModal({ icon = "trash", title, desc, okText, cancelText, onOk, o
         <div className="logout-ic"><Ic n={icon} s={30} /></div>
         <h3>{title}</h3>
         {desc && <p className="muted small">{desc}</p>}
-        <div className="row-actions" style={{ marginTop: 18 }}>
+        <div className="row-actions-2" style={{ marginTop: 18 }}>
           <button className="btn ghost" onClick={onClose}>{cancelText}</button>
           <button className="btn gold" style={{ background: "var(--err)" }} disabled={busy} onClick={ok}>{okText}</button>
         </div>
@@ -241,7 +241,7 @@ function ResetHistoryModal({ onClose, onDone }) {
             required
           />
           {err && <p className="err small">{err}</p>}
-          <div className="row-actions" style={{ marginTop: 5 }}>
+          <div className="row-actions-2" style={{ marginTop: 5 }}>
             <button type="button" className="btn ghost" onClick={onClose}>{t("cancel")}</button>
             <button className="btn gold" style={{ background: "var(--err)" }} disabled={busy || !pw}>
               {busy ? "..." : tl("Reset", "Reset")}
@@ -842,7 +842,7 @@ function OpenDayModal({ fund, onClose, onConfirm }) {
         <small className="muted" style={{ display: "block", marginTop: 6 }}>
           {tl("Terisi otomatis dengan sisa kemarin. Kosongkan untuk tidak mengubah.", "Prefilled with yesterday's remaining. Leave empty to keep it unchanged.")}
         </small>
-        <div className="row-actions" style={{ marginTop: 16 }}>
+        <div className="row-actions-2" style={{ marginTop: 16 }}>
           <button type="button" className="btn ghost" onClick={onClose}>{t("cancel")}</button>
           <button className="btn gold" disabled={busy}>{t("yesOpen")}</button>
         </div>
@@ -2104,7 +2104,7 @@ function Detail({ tx, back, onEdit, onDelete }) {
           <Ic n="download" s={18} /> {pdfBusy ? t("makingPdf") : t("downloadPdf")}
         </button>
 
-        <div className="row-actions">
+        <div className="row-actions-2">
           <button className="btn ghost" onClick={() => onEdit(tx)}><Ic n="edit" s={16} /> {t("edit")}</button>
           <button className="btn ghost" style={{ color: "var(--err)" }} onClick={() => onDelete(tx, back)}><Ic n="trash" s={16} /> {t("delete")}</button>
         </div>
