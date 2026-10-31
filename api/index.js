@@ -737,6 +737,76 @@ app.delete("/api/transactions/:id", async (req, res) => {
   res.json({ ok: true });
 });
 
+// di file server (setelah endpoint transaksi yang sudah ada)
+
+app.post("/api/import-transactions", async (req, res) => {
+  try {
+    const { transactions = [], key } = req.body;
+
+    if (!Array.isArray(transactions) || transactions.length === 0) {
+      return bad(res, "Tidak ada transaksi untuk diimpor");
+    }
+
+    const created = [];
+
+    for (const raw of transactions) {
+      const doc = {
+        type: raw.type,
+        description: raw.description || "",
+        items: (raw.items || []).map((i) => ({
+          product: i.product || undefined,
+          name: i.name,
+          price: Number(i.price) || 0,
+          qty: Number(i.qty) || 1,
+          category: i.category || "makanan",
+          unit: i.unit || "",
+        })),
+        expenseItems: raw.expenseItems || [],
+        buyQty: raw.buyQty,
+        buyUnit: raw.buyUnit || "",
+        total: Number(raw.total) || 0,
+        permanent: !!raw.permanent,
+        subtotal: raw.subtotal,
+        isCustom: !!raw.isCustom,
+        mix: !!raw.mix,
+        packaging: {
+          plastic: Number(raw?.packaging?.plastic) || 0,
+          cup: Number(raw?.packaging?.cup) || 0,
+        },
+        method: raw.method || "cash",
+        cashReceived: raw.cashReceived,
+        change: raw.change,
+        changeSource: raw.changeSource || { stock: 0, other: 0 },
+        note: raw.note || "",
+        // pakai tanggal asli kalau ada, kalau tidak pakai tanggal rekap
+        createdAt: raw.createdAt
+          ? new Date(raw.createdAt)
+          : new Date((key || toKey(new Date())) + "T12:00:00"),
+      };
+
+      // Mode restore → hanya insert ke riwayat, stok & sold tidak disentuh
+      const tx = await Tx.create(doc);
+      created.push(tx);
+    }
+
+    await logActivity(
+      req,
+      "create_payment",
+      `Restore rekap · ${created.length} transaksi · ${key || ""}`,
+      {
+        count: created.length,
+        key,
+        restore: true,
+      }
+    );
+
+    res.json({ ok: true, imported: created.length });
+  } catch (e) {
+    console.error("import-transactions error:", e);
+    res.status(500).json({ message: e.message || "Gagal import transaksi" });
+  }
+});
+
 // ---- Logout (catat aktivitas) ----
 app.post("/api/logout", async (req, res) => {
   const label = req.authLabel;

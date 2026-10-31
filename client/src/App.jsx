@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { downloadReceipt } from "./receipt";
 import { LangCtx, makeT, useT } from "./I18n";
+import { extractTextFromPdf } from "./pdfHelper";
 import "./extra.css";
 import HourlyChartNew from "./Hourlychart";
 import { downloadRecapPdf } from "./recap";
@@ -893,6 +894,66 @@ function Setting({ settings, setSettings, go, onReset, txs = [] }) {
   }, []);
   const [showReset, setShowReset] = useState(false);
   const [recapDate, setRecapDate] = useState(toKey(new Date()));
+  const [uploading, setUploading] = useState(false);
+
+  // ===== fungsi upload & restore =====
+  const handleUploadRecap = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = ""; // reset input
+
+    setUploading(true);
+    const toastId = toast.loading(lang === "en" ? "Reading PDF..." : "Membaca PDF...");
+
+    try {
+      const text = await extractTextFromPdf(file);
+
+      const match = text.match(/---REKAP-DATA-START---([\s\S]*?)---REKAP-DATA-END---/);
+      if (!match) {
+        throw new Error(
+          lang === "en"
+            ? "This PDF does not contain restore data (old format?)"
+            : "PDF ini tidak mengandung data restore (format lama?)"
+        );
+      }
+
+      let payload;
+      try {
+        payload = JSON.parse(match[1].trim());
+      } catch {
+        throw new Error(lang === "en" ? "Invalid data inside PDF" : "Data di dalam PDF rusak");
+      }
+
+      const allTx = [...(payload.sales || []), ...(payload.exps || [])];
+      if (!allTx.length) {
+        throw new Error(lang === "en" ? "No transactions found" : "Tidak ada transaksi di PDF");
+      }
+
+      const result = await req("/import-transactions", "POST", {
+        transactions: allTx,
+        key: payload.key,
+        restore: true,
+      });
+
+      toast.success(
+        lang === "en"
+          ? `Successfully restored ${result.imported} transactions`
+          : `Berhasil memulihkan ${result.imported} transaksi`,
+        { id: toastId }
+      );
+
+      // refresh data di App
+      if (onReset) onReset();
+    } catch (err) {
+      console.error(err);
+      toast.error(
+        (lang === "en" ? "Failed to restore: " : "Gagal memulihkan: ") + (err.message || ""),
+        { id: toastId }
+      );
+    } finally {
+      setUploading(false);
+    }
+  };
 
   return (
     <>
@@ -958,35 +1019,99 @@ function Setting({ settings, setSettings, go, onReset, txs = [] }) {
           </label>
         </div>
 
+        {/* ==================== REKAP HARIAN + UPLOAD ==================== */}
         <div className="card" style={{ marginTop: 16 }}>
           <h3 style={{ marginBottom: 8 }}>{lang === "en" ? "Daily Recap" : "Rekap Harian"}</h3>
           <small className="muted" style={{ display: "block", marginBottom: 12 }}>
             {lang === "en"
-              ? "One day's sales and expenses - PDF"
-              : "Penjualan dan pengeluaran per hari - PDF"}
+              ? "Download one day's sales & expenses as PDF. You can later upload the same PDF to restore data."
+              : "Unduh penjualan & pengeluaran satu hari sebagai PDF. Nanti bisa di-upload lagi untuk memulihkan data."}
           </small>
-          <input type="date" value={recapDate} max={toKey(new Date())} onChange={(e) => e.target.value && setRecapDate(e.target.value)} />
+
+          <input
+            type="date"
+            value={recapDate}
+            max={toKey(new Date())}
+            onChange={(e) => e.target.value && setRecapDate(e.target.value)}
+          />
+
           <button
             className="btn ghost"
             style={{
               width: "100%",
+              marginTop: 10,
               background: "transparent",
               border: "1.5px solid var(--border, #cbd5e1)",
               color: "inherit",
               fontWeight: 600,
-              fontSize: 14
+              fontSize: 14,
             }}
             onClick={() => {
               try {
-                downloadRecapPdf({ ...buildRecap(txs, recapDate), key: recapDate, lang });
+                downloadRecapPdf({
+                  ...buildRecap(txs, recapDate),
+                  key: recapDate,
+                  lang,
+                });
                 toast.success(lang === "en" ? "Recap downloaded" : "Rekap diunduh");
               } catch (e) {
-                toast.error((lang === "en" ? "Failed to create PDF: " : "Gagal membuat PDF: ") + (e.message || ""));
+                toast.error(
+                  (lang === "en" ? "Failed to create PDF: " : "Gagal membuat PDF: ") +
+                    (e.message || "")
+                );
               }
             }}
           >
-            <Ic n="download" s={18} /> {lang === "en" ? "Download Recap" : "Unduh Rekap"}
+            <Ic n="download" s={18} />{" "}
+            {lang === "en" ? "Download Recap PDF" : "Unduh Rekap PDF"}
           </button>
+
+          {/* ===== UPLOAD ===== */}
+          <div
+            style={{
+              marginTop: 18,
+              paddingTop: 14,
+              borderTop: "1px dashed var(--border, #cbd5e1)",
+            }}
+          >
+            <small className="muted" style={{ display: "block", marginBottom: 8 }}>
+              {lang === "en"
+                ? "Upload a previously downloaded Recap PDF to restore the transactions of that day."
+                : "Upload PDF Rekap yang sudah pernah diunduh untuk memulihkan transaksi hari tersebut."}
+            </small>
+
+            <input
+              type="file"
+              accept="application/pdf,.pdf"
+              id="recap-upload-input"
+              style={{ display: "none" }}
+              onChange={handleUploadRecap}
+              disabled={uploading}
+            />
+
+            <button
+              className="btn ghost"
+              disabled={uploading}
+              style={{
+                width: "100%",
+                background: "transparent",
+                border: "1.5px solid var(--border, #cbd5e1)",
+                color: "inherit",
+                fontWeight: 600,
+                fontSize: 14,
+              }}
+              onClick={() => document.getElementById("recap-upload-input")?.click()}
+            >
+              <Ic n="up" s={18} />{" "}
+              {uploading
+                ? lang === "en"
+                  ? "Restoring..."
+                  : "Memulihkan..."
+                : lang === "en"
+                ? "Upload Recap PDF & Restore"
+                : "Upload PDF Rekap & Pulihkan"}
+            </button>
+          </div>
         </div>
 
         <div className="card" style={{ marginTop: 16 }}>
