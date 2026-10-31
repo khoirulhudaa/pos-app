@@ -1547,7 +1547,7 @@ function Pengeluaran({ products, reload, patchTx, closed, openDay, go }) {
     const v = e.target.value;
     const q = Number(v);
     const next = { ...f, qty: v };
-     mc  ve2  e   2eost > 0) next.amount = String(Math.round(unitCost * (q > 0 ? q : 1)));
+    if (unitCost > 0) next.amount = String(Math.round(unitCost * (q > 0 ? q : 1)));
     setF(next);
   };
 
