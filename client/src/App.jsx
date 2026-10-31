@@ -4,6 +4,7 @@ import { downloadReceipt } from "./receipt";
 import { LangCtx, makeT, useT } from "./I18n";
 import "./extra.css";
 import HourlyChartNew from "./Hourlychart";
+import { downloadRecapPdf } from "./recap";
 
 // Tanggal lokal "YYYY-MM-DD" (dipakai filter kalender)
 const toKey = (d) => {
@@ -866,57 +867,19 @@ function ChangeSourceRows({ tx }) {
   );
 }
 
-const csvRow = (arr) => arr.map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(";");
-
-function downloadDailyRecap(txs, key, lang) {
-  const tl = (id, en) => (lang === "en" ? en : id);
-  const loc = lang === "en" ? "en-US" : "id-ID";
-  const mLabel = (m) => (m === "transfer" ? "Transfer" : m === "ewallet" ? "E-wallet" : tl("Tunai", "Cash"));
-  const time = (d) => new Date(d).toLocaleTimeString(loc, { hour: "2-digit", minute: "2-digit" });
+// Kumpulkan data satu hari untuk rekap
+function buildRecap(txs, key) {
   const byTime = (a, b) => new Date(a.createdAt) - new Date(b.createdAt);
-
   const sales = txs.filter((x) => x.type === "income" && toKey(x.createdAt) === key).sort(byTime);
   const exps = txs
     .filter((x) => x.type === "expense" && (x.permanent ? toKey(x.createdAt) <= key : toKey(x.createdAt) === key))
     .sort(byTime);
-  const income = sales.reduce((s, x) => s + x.total, 0);
-  const expense = expenseOn(txs, key).total;
-
-  const rows = [
-    csvRow([tl("REKAP HARIAN", "DAILY RECAP"), key]),
-    "",
-    csvRow([tl("PENJUALAN", "SALES")]),
-    csvRow([tl("Jam", "Time"), "ID", tl("Item", "Items"), tl("Metode", "Method"), "Total", tl("Diterima", "Received"), tl("Kembalian", "Change"), tl("Plastik", "Plastic"), tl("Gelas", "Cup"), tl("Catatan", "Note")]),
-    ...sales.map((x) => csvRow([
-      time(x.createdAt), String(x._id).slice(-5),
-      (x.items || []).map((i) => `${i.name} x${i.qty}`).join(", "),
-      mLabel(x.method), x.total,
-      x.method === "cash" ? x.cashReceived ?? "" : "",
-      x.method === "cash" ? x.change ?? "" : "",
-      x.packaging?.plastic || 0, x.packaging?.cup || 0, x.note || "",
-    ])),
-    csvRow([tl("Total penjualan", "Total sales"), "", "", "", income]),
-    "",
-    csvRow([tl("PENGELUARAN", "EXPENSES")]),
-    csvRow([tl("Jam", "Time"), "ID", tl("Keterangan", "Description"), tl("Metode", "Method"), tl("Jumlah", "Amount"), tl("Permanen", "Permanent"), tl("Catatan", "Note")]),
-    ...exps.map((x) => csvRow([
-      time(x.createdAt), String(x._id).slice(-5), x.description, mLabel(x.method),
-      x.total, x.permanent ? tl("Ya", "Yes") : tl("Tidak", "No"), x.note || "",
-    ])),
-    csvRow([tl("Total pengeluaran", "Total expenses"), "", "", "", expense]),
-    "",
-    csvRow([tl("LABA", "PROFIT"), "", "", "", income - expense]),
-  ];
-
-  const blob = new Blob(["\uFEFF" + rows.join("\r\n")], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `rekap-${key}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
+  return {
+    sales,
+    exps,
+    income: sales.reduce((s, x) => s + x.total, 0),
+    expense: expenseOn(txs, key).total,
+  };
 }
 
 function Setting({ settings, setSettings, go, onReset, txs = [] }) {
@@ -999,16 +962,27 @@ function Setting({ settings, setSettings, go, onReset, txs = [] }) {
           <h3 style={{ marginBottom: 8 }}>{lang === "en" ? "Daily Recap" : "Rekap Harian"}</h3>
           <small className="muted" style={{ display: "block", marginBottom: 12 }}>
             {lang === "en"
-              ? "Download sales and expenses for one day (CSV, opens in Excel/Sheets)."
-              : "Unduh rekap penjualan dan pengeluaran per hari (CSV, bisa dibuka di Excel/Sheets)."}
+              ? "Download one day's sales and expenses - PDF."
+              : "Unduh rekap penjualan dan pengeluaran per hari - PDF."}
           </small>
           <input type="date" value={recapDate} max={toKey(new Date())} onChange={(e) => e.target.value && setRecapDate(e.target.value)} />
           <button
-            className="btn gold"
-            style={{ marginTop: 12 }}
+            className="btn ghost"
+            style={{
+              width: "100%",
+              background: "transparent",
+              border: "1.5px solid var(--border, #cbd5e1)",
+              color: "inherit",
+              fontWeight: 600,
+              fontSize: 14
+            }}
             onClick={() => {
-              downloadDailyRecap(txs, recapDate, lang);
-              toast.success(lang === "en" ? "Recap downloaded" : "Rekap diunduh");
+              try {
+                downloadRecapPdf({ ...buildRecap(txs, recapDate), key: recapDate, lang });
+                toast.success(lang === "en" ? "Recap downloaded" : "Rekap diunduh");
+              } catch (e) {
+                toast.error((lang === "en" ? "Failed to create PDF: " : "Gagal membuat PDF: ") + (e.message || ""));
+              }
             }}
           >
             <Ic n="download" s={18} /> {lang === "en" ? "Download Recap" : "Unduh Rekap"}
