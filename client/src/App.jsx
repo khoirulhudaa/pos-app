@@ -962,8 +962,8 @@ function Setting({ settings, setSettings, go, onReset, txs = [] }) {
           <h3 style={{ marginBottom: 8 }}>{lang === "en" ? "Daily Recap" : "Rekap Harian"}</h3>
           <small className="muted" style={{ display: "block", marginBottom: 12 }}>
             {lang === "en"
-              ? "Download one day's sales and expenses - PDF."
-              : "Unduh rekap penjualan dan pengeluaran per hari - PDF."}
+              ? "One day's sales and expenses - PDF"
+              : "Penjualan dan pengeluaran per hari - PDF"}
           </small>
           <input type="date" value={recapDate} max={toKey(new Date())} onChange={(e) => e.target.value && setRecapDate(e.target.value)} />
           <button
