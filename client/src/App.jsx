@@ -1694,35 +1694,11 @@ function Pengeluaran({ products, reload, patchTx, closed, openDay, go }) {
       )}
 
       <label>{t("payMethod")}</label>
-      <div className="seg">
-        {[["cash", t("cash")], ["transfer", t("transfer")], ["ewallet", t("ewallet")]].map(([k, l]) => (
-          <button key={k} type="button" className={method === k ? "on" : ""} onClick={() => setMethod(k)}>{l}</button>
-        ))}
-      </div>
-
-      {isCash && (
-        <>
-          <label>{t("cashReceived")}</label>
-          <input type="number" inputMode="numeric" value={cash} onChange={(e) => setCash(e.target.value)} placeholder="0" />
-          <div className="chips">
-            <button onClick={() => setCash(total)}>{t("exactCash")}</button>
-            {[10000, 20000, 50000].map((n) => <button key={n} onClick={() => setCash(n)}>{t("thousandK", { n: n / 1000 })}</button>)}
-          </div>
-          <div className={"change " + (cash !== "" && change < 0 ? "bad" : "")}>
-            <span>{cash !== "" && change < 0 ? t("short") : t("change")}</span>
-            <b>{cash === "" ? "-" : rp(Math.abs(change))}</b>
-          </div>
-          {cash !== "" && needChange > 0 && (
-            <div className={"cf-split" + (fromOther > 0 ? " warn" : "")}>
-              <div><span>{tl("Dari stok kembalian", "From change float")}</span><b>{rp(fromStock)}</b></div>
-              {fromOther > 0 && (
-                <div><span>{tl("Kurang → ambil dari sumber lain", "Short → take from other source")}</span><b className="err">{rp(fromOther)}</b></div>
-              )}
-              <small className="muted">{tl("Sisa stok setelah ini", "Float after this")}: {rp(fundBal - fromStock)}</small>
-            </div>
-          )}
-        </>
-      )}
+      <select value={f.method} onChange={set("method")}>
+        <option value="cash">{t("cash")}</option>
+        <option value="transfer">{t("transfer")}</option>
+        <option value="ewallet">{t("ewallet")}</option>
+      </select>
 
       <label>{t("addStockOpt")}</label>
       <select value={f.product} onChange={set("product")}>
