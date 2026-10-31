@@ -356,7 +356,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); backgro
 .rcp div { display: flex; justify-content: space-between; padding: 11px 0; font-size: 14px; } .rcp div + div { border-top: 1px dashed var(--line); } .rcp span { color: var(--muted); }
 
 /* ================= Produk ================= */
-.plist { display: grid; grid-template-columns: 1fr; column-gap: 12px; margin-top: 14px; }
+.plist { display: grid; grid-template-columns: 1fr; column-gap: 12px; margin-top: 12px; }
 .pc-h { display: flex; align-items: center; gap: 12px; } .pc-h .pe { margin: 0; }
 .chip { display: inline-block; background: var(--tb); color: var(--accent); padding: 2px 10px; border-radius: 10px; font-weight: 600; text-transform: capitalize; margin-top: 3px; }
 .stats4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 14px 0 10px; }
