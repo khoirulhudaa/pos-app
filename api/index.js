@@ -200,13 +200,14 @@ function calcLineTotal(product, qty) {
 }
 
 // Password yang diizinkan (3 akun)
-const ALLOWED_PASSWORDS = ["123456", "123123", "121212"];
+const ALLOWED_PASSWORDS = ["123456", "123123", "121212", "111111"];
 
 // Label opsional biar log lebih enak dibaca
 const PASSWORD_LABEL = {
   "123456": "Akun 1 - huda",
   "123123": "Akun 2 - sofyan",
   "121212": "Akun 3 - Fauzy",
+  "121212": "Akun 4 - Fazri",
 };
 
 app.use("/api", async (req, res, next) => {
