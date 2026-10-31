@@ -101,6 +101,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); backgro
 .btn:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
 .row-actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
 .row-actions .btn { margin-top: 0; }
+.row-actions-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.row-actions-2 .btn { margin-top: 0; }
 
 /* ================= LOGIN ================= */
 .login {

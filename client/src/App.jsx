@@ -2381,7 +2381,7 @@ export default function App() {
               <div className="logout-ic"><Ic n="logout" s={30} /></div>
               <h3>{t("logoutTitle")}</h3>
               <p className="muted small">{t("logoutDesc")}</p>
-              <div className="row-actions" style={{ marginTop: 18 }}>
+              <div className="row-actions-2" style={{ marginTop: 18 }}>
                 <button className="btn ghost" onClick={() => setShowLogout(false)}>{t("cancel")}</button>
                 <button className="btn gold" style={{ background: "var(--err)" }} onClick={logout}>{t("yesLogout")}</button>
               </div>
