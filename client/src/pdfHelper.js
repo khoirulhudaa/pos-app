@@ -12,7 +12,14 @@ export async function extractTextFromPdf(file) {
   for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
     const page = await pdf.getPage(pageNum);
     const content = await page.getTextContent();
-    fullText += content.items.map((item) => item.str).join(" ") + "\n";
+
+    // Gabungkan tanpa menambah spasi berlebih
+    const pageText = content.items
+      .map((item) => item.str)
+      .join("")          // ← penting: jangan pakai spasi
+      .replace(/\s+/g, " "); // rapikan spasi ganda
+
+    fullText += pageText + "\n";
   }
   return fullText;
 }

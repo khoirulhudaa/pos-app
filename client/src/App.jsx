@@ -909,20 +909,41 @@ function Setting({ settings, setSettings, go, onReset, txs = [] }) {
     try {
       const text = await extractTextFromPdf(file);
 
-      const match = text.match(/---REKAP-DATA-START---([\s\S]*?)---REKAP-DATA-END---/);
-      if (!match) {
+      // Cari marker
+      const startMarker = "---REKAP-DATA-START---";
+      const endMarker = "---REKAP-DATA-END---";
+
+      const startIdx = text.indexOf(startMarker);
+      const endIdx = text.indexOf(endMarker);
+
+      if (startIdx === -1 || endIdx === -1) {
         throw new Error(
           lang === "en"
-            ? "This PDF does not contain restore data (old format?)"
-            : "PDF ini tidak mengandung data restore (format lama?)"
+            ? "This PDF does not contain restore data"
+            : "PDF ini tidak mengandung data restore"
         );
       }
 
+      // Ambil teks di antara marker
+      let jsonRaw = text
+        .substring(startIdx + startMarker.length, endIdx)
+        .trim();
+
+      // Bersihkan karakter yang sering merusak JSON
+      jsonRaw = jsonRaw
+        .replace(/\u00A0/g, " ")      // non-breaking space
+        .replace(/[\u200B-\u200D\uFEFF]/g, "") // zero-width
+        .replace(/\s+/g, " ")         // spasi ganda
+        .trim();
+
       let payload;
       try {
-        payload = JSON.parse(match[1].trim());
-      } catch {
-        throw new Error(lang === "en" ? "Invalid data inside PDF" : "Data di dalam PDF rusak");
+        payload = JSON.parse(jsonRaw);
+      } catch (err) {
+        console.error("JSON yang gagal diparse:", jsonRaw.slice(0, 300));
+        throw new Error(
+          lang === "en" ? "Invalid data inside PDF" : "Data di dalam PDF rusak"
+        );
       }
 
       const allTx = [...(payload.sales || []), ...(payload.exps || [])];
