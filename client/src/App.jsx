@@ -1787,7 +1787,7 @@ function TxEditModal({ tx, products, onClose, onSaved }) {
 
         {!inc && (
           <label className="switch-row">
-            <span>♾️ {lang === "en" ? "Permanent expense" : "Pengeluaran permanen"}</span>
+            <span>{lang === "en" ? "Permanent expense" : "Pengeluaran permanen"}</span>
             <input type="checkbox" checked={f.permanent} onChange={(e) => setF({ ...f, permanent: e.target.checked })} />
           </label>
         )}
