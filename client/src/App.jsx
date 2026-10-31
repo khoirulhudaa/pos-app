@@ -1370,25 +1370,35 @@ function Kasir({ products, reload, patchTx, closed, openDay, fund, hideFund, col
           </b>
         </div>
 
-        <label>{t("cashReceived")}</label>
-        <input type="number" inputMode="numeric" value={cash} onChange={(e) => setCash(e.target.value)} placeholder="0" />
-        <div className="chips">
-          <button onClick={() => setCash(total)}>{t("exactCash")}</button>
-          {[10000, 20000, 50000].map((n) => <button key={n} onClick={() => setCash(n)}>{t("thousandK", { n: n / 1000 })}</button>)}
-        </div>
-        <div className={"change " + (cash !== "" && change < 0 ? "bad" : "")}>
-          <span>{cash !== "" && change < 0 ? t("short") : t("change")}</span>
-          <b>{cash === "" ? "-" : rp(Math.abs(change))}</b>
+        <label>{t("payMethod")}</label>
+        <div className="seg">
+          {[["cash", t("cash")], ["transfer", t("transfer")], ["ewallet", t("ewallet")]].map(([k, l]) => (
+            <button key={k} type="button" className={method === k ? "on" : ""} onClick={() => setMethod(k)}>{l}</button>
+          ))}
         </div>
 
-        {cash !== "" && needChange > 0 && (
-          <div className={"cf-split" + (fromOther > 0 ? " warn" : "")}>
-            <div><span>{tl("Dari stok kembalian", "From change float")}</span><b>{rp(fromStock)}</b></div>
-            {fromOther > 0 && (
-              <div><span>{tl("Kurang → ambil dari sumber lain", "Short → take from other source")}</span><b className="err">{rp(fromOther)}</b></div>
+        {isCash && (
+          <>
+            <label>{t("cashReceived")}</label>
+            <input type="number" inputMode="numeric" value={cash} onChange={(e) => setCash(e.target.value)} placeholder="0" />
+            <div className="chips">
+              <button onClick={() => setCash(total)}>{t("exactCash")}</button>
+              {[10000, 20000, 50000].map((n) => <button key={n} onClick={() => setCash(n)}>{t("thousandK", { n: n / 1000 })}</button>)}
+            </div>
+            <div className={"change " + (cash !== "" && change < 0 ? "bad" : "")}>
+              <span>{cash !== "" && change < 0 ? t("short") : t("change")}</span>
+              <b>{cash === "" ? "-" : rp(Math.abs(change))}</b>
+            </div>
+            {cash !== "" && needChange > 0 && (
+              <div className={"cf-split" + (fromOther > 0 ? " warn" : "")}>
+                <div><span>{tl("Dari stok kembalian", "From change float")}</span><b>{rp(fromStock)}</b></div>
+                {fromOther > 0 && (
+                  <div><span>{tl("Kurang → ambil dari sumber lain", "Short → take from other source")}</span><b className="err">{rp(fromOther)}</b></div>
+                )}
+                <small className="muted">{tl("Sisa stok setelah ini", "Float after this")}: {rp(fundBal - fromStock)}</small>
+              </div>
             )}
-            <small className="muted">{tl("Sisa stok setelah ini", "Float after this")}: {rp(fundBal - fromStock)}</small>
-          </div>
+          </>
         )}
 
         <input placeholder={t("noteOpt")} value={note} onChange={(e) => setNote(e.target.value)} style={{marginTop: 10.5}} />
