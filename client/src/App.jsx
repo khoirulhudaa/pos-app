@@ -65,6 +65,7 @@ const P = {
   down: "M23 18l-9.5-9.5-5 5L1 6 M17 18h6v-6",
   view1: "M4 5h16v14H4z",
   view2: "M4 5h7v14H4z M13 5h7v14h-7z",
+  upload: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M17 8l-5-5-5 5 M12 3v12",
   wallet: "M21 12V7H5a2 2 0 0 1 0-4h14v4 M3 5v14a2 2 0 0 0 2 2h16v-5 M18 12a2 2 0 0 0 0 4h4v-4z", 
   up: "M23 6l-9.5 9.5-5-5L1 18 M17 6h6v6",
   logout: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9",
@@ -1063,7 +1064,7 @@ function Setting({ settings, setSettings, go, onReset, txs = [] }) {
             }}
           >
             <Ic n="download" s={18} />{" "}
-            {lang === "en" ? "Download Recap PDF" : "Unduh Rekap PDF"}
+            {lang === "en" ? "Download PDF" : "Download PDF"}
           </button>
 
           {/* ===== UPLOAD ===== */}
@@ -1102,14 +1103,14 @@ function Setting({ settings, setSettings, go, onReset, txs = [] }) {
               }}
               onClick={() => document.getElementById("recap-upload-input")?.click()}
             >
-              <Ic n="up" s={18} />{" "}
+              <Ic n="upload" s={18} />{" "}
               {uploading
                 ? lang === "en"
                   ? "Restoring..."
                   : "Memulihkan..."
                 : lang === "en"
-                ? "Upload Recap PDF & Restore"
-                : "Upload PDF Rekap & Pulihkan"}
+                ? "Upload PDF"
+                : "Upload PDF"}
             </button>
           </div>
         </div>
