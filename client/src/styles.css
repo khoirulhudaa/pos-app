@@ -99,7 +99,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); backgro
 .btn.gold { background: rgb(1, 103, 219); border: 1.5px solid var(--line); color: white; }
 .btn:hover:not(:disabled) { filter: brightness(1.04); } .btn:active:not(:disabled) { transform: scale(.98); }
 .btn:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
-.row-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.row-actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
 .row-actions .btn { margin-top: 0; }
 
 /* ================= LOGIN ================= */
@@ -730,3 +730,4 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); backgro
   background: linear-gradient(180deg, rgba(238, 242, 248, 0), var(--bg) 35%);
 }
 .pay-actions .btn { margin-top: 0; }
+.btn.ghost.on { border-color: #f59e0b; color: #b45309; background: #fff7e6 !important; }

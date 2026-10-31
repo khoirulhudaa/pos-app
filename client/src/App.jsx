@@ -66,13 +66,14 @@ const P = {
   wallet: "M21 12V7H5a2 2 0 0 1 0-4h14v4 M3 5v14a2 2 0 0 0 2 2h16v-5 M18 12a2 2 0 0 0 0 4h4v-4z", 
   up: "M23 6l-9.5 9.5-5-5L1 18 M17 6h6v6",
   logout: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9",
-  plus: "M12 5v14 M5 12h14",
+  plus: "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M8 12h8 M12 8v8",
   repeat: "M17 1l4 4-4 4 M3 11V9a4 4 0 0 1 4-4h14 M7 23l-4-4 4-4 M21 13v2a4 4 0 0 1-4 4H3",
   out: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9",
   check: "M20 6L9 17l-5-5",
   trash: "M3 6h18 M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6 M10 11v6 M14 11v6 M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2",
   edit: "M12 20h9 M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z",
   x: "M18 6L6 18 M6 6l12 12",
+  sparkles: "M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z M20 3v4 M22 5h-4 M4 17v2 M5 18H3",
   moon: "M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z",
   alert: "M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z M12 9v4 M12 17h.01",
   search: "M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16z M21 21l-4.35-4.35",
@@ -1509,6 +1510,13 @@ function Produk({ products, reload, closeDay, openDay, closed, patchProduct, rem
     <>
       <div className="row-actions">
         <button className="btn ghost" style={{ backgroundColor: "white" }} onClick={() => setShow(true)}><Ic n="plus" s={18} /> {t("addProduct")}</button>
+        <button
+          className={"btn ghost" + (view === "top" ? " on" : "")}
+          style={{ backgroundColor: "white" }}
+          onClick={() => setView((v) => (v === "top" ? "list" : "top"))}
+        >
+          <Ic n="sparkles" s={18} /> {tl("Terlaris", "Best sellers")}
+        </button>
         {closed ? (
           <button className="btn ghost" onClick={openDay}>
             <img src="/close2.png" alt="" style={{ width: 20, height: 20, objectFit: "contain" }} /> {t("openDay")}
@@ -1516,11 +1524,6 @@ function Produk({ products, reload, closeDay, openDay, closed, patchProduct, rem
         ) : (
           <button className="btn ghost" onClick={closeDay}><Ic n="moon" s={18} /> {t("closeDay")}</button>
         )}
-      </div>
-
-      <div className="seg" style={{ marginTop: 12 }}>
-        <button className={view === "list" ? "on" : ""} onClick={() => setView("list")}>{tl("Daftar", "List")}</button>
-        <button className={view === "top" ? "on" : ""} onClick={() => setView("top")}>{tl("Terlaris", "Best sellers")}</button>
       </div>
 
       {view === "top" && (
