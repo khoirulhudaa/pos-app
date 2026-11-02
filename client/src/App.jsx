@@ -1796,7 +1796,7 @@ function SelBar({ selecting, count, allPicked, onStart, onToggleAll, onDelete, o
 }
 
 // ---------- Produk ----------
-function Produk({ products, txs = [], reload, suppliers = [], patchProduct, removeProduct }) {
+function Produk({ products, txs = [], reload, suppliers = [], go, patchProduct, removeProduct }) {
   const { t, lang } = useT();
   const tl = (id, en) => (lang === "en" ? en : id);
   const [q, setQ] = useState("");
