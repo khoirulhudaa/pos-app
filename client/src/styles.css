@@ -379,9 +379,6 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); backgro
   padding: 13px;
   margin-bottom: 0;
 }
-.sum3 .card:last-child {
-  grid-column: 1 / -1;               /* Laba full width */
-}
 .sum3 b {
   display: block;
   font-size: 15px;
