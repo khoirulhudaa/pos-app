@@ -458,7 +458,7 @@ function CatIcon({ c, s = 24 }) {
 
 // Mix = diceklis mix, ATAU isinya campur makanan + minuman
 const isMix = (t) =>
-  !!t.mix || new Set((t.items || []).map((i) => i.category)).size > 1;
+  !!t.mix || new Set((t.items || []).filter((i) => !i.custom).map((i) => i.category)).size > 1;
 
 // ---------- Ikon transaksi (mix pakai /mix.png) ----------
 function TxIcon({ t }) {
@@ -490,7 +490,7 @@ function TxRow({ t, children, onClick }) {
         <div className="grow">
           <div className="tx-name">
             <b className="tx-t">
-              {inc ? (t.items || []).map((i) => `${i.name} ×${i.qty}`).join(", ") : t.description}
+              {inc ? (t.items || []).map((i) => `${i.name}${i.raw ? ` (${lang === "en" ? "not brewed" : "tanpa seduh"})` : ""} ×${i.qty}`).join(", ") : t.description}
             </b>
             {!inc && t.permanent && (
               <span className="perm-ic" title={lang === "en" ? "Permanent expense" : "Pengeluaran permanen"}>
@@ -1193,7 +1193,7 @@ function Setting({ settings, setSettings, go, onReset, txs = [] }) {
 
 // ---------- Halaman Pembayaran Berhasil (layar penuh, rincian seperti detail transaksi) ----------
 function PaymentSuccess({ done, onClose }) {
-  const { t, locale } = useT();
+  const { t, locale, lang } = useT();
   const [pdfBusy, setPdfBusy] = useState(false);
   const tx = done.tx || {};
   const items = tx.items || [];
@@ -1234,9 +1234,15 @@ function PaymentSuccess({ done, onClose }) {
               <div className="li" key={idx}>
                 <span>
                   <CatIcon c={i.category} s={18} /> {i.name}
-                  <small className="muted"> {rp(i.price)} × {i.qty}</small>
+                  <small className="muted">
+                    {" "}{rp(i.price)} × {i.qty}
+                    {i.raw && ` · ${lang === "en" ? "not brewed" : "tanpa seduh"}`}
+                    {i.custom && ` · ${lang === "en" ? "custom" : "kustom"}`}
+                  </small>
                 </span>
                 <b>{rp(i.price * i.qty)}</b>
+                {i.raw && ` · ${lang === "en" ? "not brewed" : "tanpa seduh"}`}
+                {i.custom && ` · ${lang === "en" ? "custom" : "kustom"}`}
               </div>
             ))}
             {adj > 0 && (
@@ -1288,6 +1294,9 @@ function Kasir({ products, reload, patchTx, closed, openDay, fund, hideFund, col
   const { t, lang } = useT();
   const tl = (id, en) => (lang === "en" ? en : id);
   const [cart, setCart] = useState({});
+  const [rawCart, setRawCart] = useState({});     // minuman "tanpa seduh"
+  const [extraItems, setExtraItems] = useState([]); // item kustom
+  const [showExtra, setShowExtra] = useState(false);
   const [cash, setCash] = useState("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
@@ -1306,35 +1315,56 @@ function Kasir({ products, reload, patchTx, closed, openDay, fund, hideFund, col
   const [customVal, setCustomVal] = useState("");
 
   const shown = products.filter((p) => (q.trim() !== "" || p.category === cat) && (p.name || "").toLowerCase().includes(q.toLowerCase()));
+  
   const lines = products.filter((p) => cart[p._id]);
-  const subtotal = lines.reduce((s, p) => s + calcLineTotal(p, cart[p._id]), 0);
+  const rawLines = products.filter((p) => rawCart[p._id]);
+  const usedOf = (p) => (cart[p._id] || 0) + (rawCart[p._id] || 0);
+  const subtotal =
+    lines.reduce((s, p) => s + calcLineTotal(p, cart[p._id]), 0) +
+    rawLines.reduce((s, p) => s + p.priceRaw * rawCart[p._id], 0) +
+    extraItems.reduce((s, c) => s + c.price * c.qty, 0);
+  const count =
+    lines.reduce((s, p) => s + cart[p._id], 0) +
+    rawLines.reduce((s, p) => s + rawCart[p._id], 0) +
+    extraItems.reduce((s, c) => s + c.qty, 0);
+
   const total = custom && customVal !== "" ? Math.max(0, Number(customVal)) : subtotal;
-  const count = lines.reduce((s, p) => s + cart[p._id], 0);
   const change = Number(cash || 0) - total;
-  // pratinjau asal kembalian
   const fundBal = fund?.balance ?? 0;
   const needChange = isCash ? Math.max(0, change) : 0;
   const fromStock = Math.min(fundBal, needChange);
   const fromOther = needChange - fromStock;
-  const canPay = lines.length && (!custom || customVal !== "") && (isCash ? cash !== "" && change >= 0 : true);
+  const canPay = count > 0 && (!custom || customVal !== "") && (isCash ? cash !== "" && change >= 0 : true);
 
-  const add = (p, d) => setCart((c) => {
-    const n = { ...c };
-    const v = Math.max(0, Math.min(p.stock, (c[p._id] || 0) + d));
-    if (v) n[p._id] = v; else delete n[p._id];
-    return n;
-  });
+  const add = (p, d, raw = false) => {
+    const other = raw ? cart[p._id] || 0 : rawCart[p._id] || 0;
+    (raw ? setRawCart : setCart)((c) => {
+      const n = { ...c };
+      const v = Math.max(0, Math.min(p.stock - other, (c[p._id] || 0) + d));
+      if (v) n[p._id] = v; else delete n[p._id];
+      return n;
+    });
+  };
+  const setExtraQty = (id, d) =>
+    setExtraItems((l) => l.map((c) => (c.id === id ? { ...c, qty: c.qty + d } : c)).filter((c) => c.qty > 0));
 
   const resetForm = () => {
     setCart({}); setCash(""); setNote(""); setOpen(false);
     setMethod("cash");
+    setRawCart({}); setExtraItems([]);
     setMix(false); setPlastic(0); setCup(0); setCustom(false); setCustomVal("");
   };
-
+  
+  
+  
   const pay = async () => {
     setBusy(true);
     try {
-      const items = lines.map((p) => ({ product: p._id, qty: cart[p._id] }));
+      const items = [
+        ...lines.map((p) => ({ product: p._id, qty: cart[p._id] })),
+        ...rawLines.map((p) => ({ product: p._id, qty: rawCart[p._id], raw: true })),
+        ...extraItems.map((c) => ({ custom: true, name: c.name, price: c.price, qty: c.qty })),
+      ];
       const paid = isCash ? Number(cash) : total;
       const saved = await req("/transactions", "POST", {
         type: "income",
@@ -1391,6 +1421,9 @@ function Kasir({ products, reload, patchTx, closed, openDay, fund, hideFund, col
             </button>
           </div>
         </div>
+        <button type="button" className="btn ghost extra-btn" onClick={() => setShowExtra(true)}>
+          <Ic n="plus" s={16} /> {tl("Item kustom (sedotan, cup, dll)", "Custom item (straw, cup, etc.)")}
+        </button>
         {fund && (
           <small className="muted cf-mini">
           </small>
@@ -1400,7 +1433,7 @@ function Kasir({ products, reload, patchTx, closed, openDay, fund, hideFund, col
             const qty = cart[p._id] || 0;
             const level = p.stock < 1 ? "empty" : p.stock < 5 ? "low" : "good";
             return (
-              <div key={p._id} className={"prod" + (qty ? " active" : "") + (p.stock < 1 ? " out" : "")}>
+              <div key={p._id} className={"prod" + (qty || rawCart[p._id] ? " active" : "") + (p.stock < 1 ? " out" : "")}>
                 <div style={{
                   background: p.promo?.enabled ? "linear-gradient(135deg, #fbb02d, #f59e0b)" : "#e5e7eb",
                   color: p.promo?.enabled ? "#00264d" : "#6b7280",
@@ -1419,10 +1452,20 @@ function Kasir({ products, reload, patchTx, closed, openDay, fund, hideFund, col
                     <span style={{ position: "relative", top: -3.2 }}>−</span>
                   </button>
                   <span>{qty}</span>
-                  <button onClick={() => add(p, 1)} disabled={qty >= p.stock}>
+                  <button onClick={() => add(p, 1)} disabled={usedOf(p) >= p.stock}>
                     <span style={{ position: "relative", top: -3.2 }}>+</span>
                   </button>
                 </div>
+                {p.category === "minuman" && p.priceRaw != null && (
+                  <div className="prod-raw">
+                    <span>{tl("Tanpa seduh", "Not brewed")} · {rp(p.priceRaw)}</span>
+                    <div className="stepper">
+                      <button onClick={() => add(p, -1, true)} disabled={!rawCart[p._id]}>−</button>
+                      <span>{rawCart[p._id] || 0}</span>
+                      <button onClick={() => add(p, 1, true)} disabled={usedOf(p) >= p.stock}>+</button>
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -1474,7 +1517,34 @@ function Kasir({ products, reload, patchTx, closed, openDay, fund, hideFund, col
             </div>
           );
         })}
-        {!lines.length && <p className="muted center">{t("pickToStart")}</p>}
+        {rawLines.map((p) => {
+          const qty = rawCart[p._id];
+          return (
+            <div className="row" key={p._id + ":raw"}>
+              <div className="grow">
+                <b>{p.name}</b><br />
+                <small className="muted">{tl("Tanpa seduh", "Not brewed")} · {rp(p.priceRaw)} × {qty}</small>
+              </div>
+              <div className="qty">
+                <button onClick={() => add(p, -1, true)}>−</button><span>{qty}</span><button onClick={() => add(p, 1, true)}>+</button>
+              </div>
+              <b className="w">{rp(p.priceRaw * qty)}</b>
+            </div>
+          );
+        })}
+        {extraItems.map((c) => (
+          <div className="row" key={c.id}>
+            <div className="grow">
+              <b>{c.name}</b><br />
+              <small className="muted">{tl("Kustom", "Custom")} · {rp(c.price)} × {c.qty}</small>
+            </div>
+            <div className="qty">
+              <button onClick={() => setExtraQty(c.id, -1)}>−</button><span>{c.qty}</span><button onClick={() => setExtraQty(c.id, 1)}>+</button>
+            </div>
+            <b className="w">{rp(c.price * c.qty)}</b>
+          </div>
+        ))}
+        {count === 0 && <p className="muted center">{t("pickToStart")}</p>}
 
         {/* ===== Opsi pesanan ===== */}
         <label className="switch-row" style={{ marginTop: 10 }}>
@@ -1563,25 +1633,59 @@ function Kasir({ products, reload, patchTx, closed, openDay, fund, hideFund, col
       )}
 
       {done && <PaymentSuccess done={done} onClose={() => setDone(null)} />}
+      {showExtra && <ExtraItemModal onClose={() => setShowExtra(false)} onAdd={(c) => setExtraItems((l) => [...l, c])} />}
     </div>
   );
 }
 
+function ExtraItemModal({ onClose, onAdd }) {
+  const { lang } = useT();
+  const tl = (id, en) => (lang === "en" ? en : id);
+  const [name, setName] = useState("");
+  const [price, setPrice] = useState("");
+  const [qty, setQty] = useState("1");
+  const submit = (e) => {
+    e.preventDefault();
+    onAdd({ id: Date.now() + Math.random(), name: name.trim(), price: Number(price), qty: Math.max(1, Math.floor(Number(qty) || 1)) });
+    onClose();
+  };
+  return (
+    <Modal title={tl("Item Kustom", "Custom Item")} onClose={onClose}>
+      <form onSubmit={submit}>
+        <label>{tl("Nama item", "Item name")}</label>
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder={tl("mis. Sedotan", "e.g. Straw")} required autoFocus />
+        <div className="chips">
+          {["Sedotan", "Cup", "Plastik"].map((n) => <button type="button" key={n} onClick={() => setName(n)}>{n}</button>)}
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div>
+            <label>{tl("Harga satuan (Rp)", "Unit price (Rp)")}</label>
+            <input type="number" inputMode="numeric" min="0" value={price} onChange={(e) => setPrice(e.target.value)} required />
+          </div>
+          <div>
+            <label>{tl("Jumlah", "Qty")}</label>
+            <input type="number" inputMode="numeric" min="1" value={qty} onChange={(e) => setQty(e.target.value)} required />
+          </div>
+        </div>
+        <button className="btn gold">{tl("Tambah ke keranjang", "Add to cart")}</button>
+      </form>
+    </Modal>
+  );
+}
+
 // ---------- Produk ----------
-function Produk({ products, reload, closeDay, openDay, closed, patchProduct, removeProduct }) {
+function Produk({ products, txs = [], reload, closeDay, openDay, closed, patchProduct, removeProduct }) {
   const { t, lang } = useT();
   const tl = (id, en) => (lang === "en" ? en : id);
-  const empty = {
-    name: "", category: "makanan", price: "", stockInitial: "",
-    promoEnabled: false, promoBuyQty: "", promoPayAmount: "",
-  };
+  const [q, setQ] = useState("");
+  const [rank, setRank] = useState("best"); // best | worst
+  const empty = { name: "", category: "makanan", price: "", priceRaw: "", stockInitial: "",
+    promoEnabled: false, promoBuyQty: "", promoPayAmount: "" };
   const [f, setF] = useState(empty);
   const [editId, setEditId] = useState(null);
   const [show, setShow] = useState(false);
   const [delP, setDelP] = useState(null);
   const [view, setView] = useState("list"); // list | top
-  const top = [...products].filter((p) => (p.sold || 0) > 0).sort((a, b) => b.sold - a.sold);
-  const maxSold = top[0]?.sold || 1;
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const close = () => { setShow(false); setEditId(null); setF(empty); };
 
@@ -1592,6 +1696,7 @@ function Produk({ products, reload, closeDay, openDay, closed, patchProduct, rem
         name: f.name,
         category: f.category,
         price: Number(f.price),
+        priceRaw: f.category === "minuman" && f.priceRaw !== "" ? Number(f.priceRaw) : null,
         stockInitial: Number(f.stockInitial),
         promo: {
           enabled: !!f.promoEnabled,
@@ -1616,6 +1721,7 @@ function Produk({ products, reload, closeDay, openDay, closed, patchProduct, rem
       name: p.name,
       category: p.category,
       price: p.price,
+      priceRaw: p.priceRaw ?? "",
       stockInitial: p.stockInitial,
       promoEnabled: p.promo?.enabled || false,
       promoBuyQty: p.promo?.buyQty || "",
@@ -1637,8 +1743,29 @@ function Produk({ products, reload, closeDay, openDay, closed, patchProduct, rem
     }
   };
 
+  const shown = products.filter((p) => (p.name || "").toLowerCase().includes(q.trim().toLowerCase()));
+  const stats = {};
+  txs.forEach((x) => {
+    if (x.type !== "income") return;
+    (x.items || []).forEach((i) => {
+      if (!i.product) return;
+      const s = (stats[i.product] ||= { qty: 0, raw: 0, rev: 0 });
+      s.qty += i.qty;
+      s.rev += (i.price || 0) * i.qty;
+      if (i.raw) s.raw += i.qty;
+    });
+  });
+  const totalOf = (p) => stats[p._id]?.qty || 0;
+  const ranked = [...shown].sort((a, b) => (rank === "best" ? totalOf(b) - totalOf(a) : totalOf(a) - totalOf(b)));
+  const list = rank === "best" ? ranked.filter((p) => totalOf(p) > 0) : ranked;
+  const maxSold = Math.max(1, ...shown.map(totalOf));
+
   return (
     <>
+    <div className="search" style={{ marginBottom: 10 }}>
+      <Ic n="search" s={18} />
+      <input placeholder={tl("Cari produk...", "Search products...")} value={q} onChange={(e) => setQ(e.target.value)} />
+    </div>
    <div className="row-actions">
       <button className="btn ghost" style={{ backgroundColor: "white" }} onClick={() => setShow(true)}>
         <Ic n="plus" s={18} /> {t("addProduct")}
@@ -1661,33 +1788,47 @@ function Produk({ products, reload, closeDay, openDay, closed, patchProduct, rem
       </button>
     </div>
 
-      {view === "top" && (
-        <div className="plist">
-          {top.map((p, i) => (
-            <div className="card pc" key={p._id}>
-              <div className="pc-h">
-                <b style={{ width: 28, textAlign: "center", fontSize: 18 }}>{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}</b>
-                <span className="pe"><CatIcon c={p.category} s={28} /></span>
-                <div className="grow">
-                  <b>{p.name}</b><br />
-                  <small className="muted">{tl("Terjual", "Sold")} {p.sold} · {rp(p.sold * p.price)}</small>
+    {view === "top" && (
+      <>
+          <div className="seg" style={{ marginBottom: 10 }}>
+            <button className={rank === "best" ? "on" : ""} onClick={() => setRank("best")}>{tl("Terlaris", "Best")}</button>
+            <button className={rank === "worst" ? "on" : ""} onClick={() => setRank("worst")}>{tl("Kurang laris", "Slowest")}</button>
+          </div>
+          <div className="plist">
+            {list.map((p, i) => (
+              <div className="card pc" key={p._id}>
+                <div className="pc-h">
+                  <b style={{ width: 28, textAlign: "center", fontSize: 18 }}>
+                    {rank === "best" ? (i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1) : i + 1}
+                  </b>
+                  <span className="pe"><CatIcon c={p.category} s={28} /></span>
+                  <div className="grow">
+                    <b>{p.name}</b><br />
+                    <small className="muted">
+                      {totalOf(p) > 0
+                        ? `${tl("Terjual", "Sold")} ${totalOf(p)} · ${rp(stats[p._id]?.rev || 0)}`
+                        : tl("Belum pernah terjual", "Never sold")}
+                    </small>
+                  </div>
+                </div>
+                <div style={{ height: 6, borderRadius: 6, background: "#e5e7eb", overflow: "hidden" }}>
+                  <div style={{ width: `${(totalOf(p) / maxSold) * 100}%`, height: "100%",
+                    background: rank === "best" ? "linear-gradient(90deg,#fbb02d,#f59e0b)" : "linear-gradient(90deg,#94a3b8,#64748b)" }} />
                 </div>
               </div>
-              <div style={{ height: 6, borderRadius: 6, background: "#e5e7eb", overflow: "hidden" }}>
-                <div style={{ width: `${(p.sold / maxSold) * 100}%`, height: "100%", background: "linear-gradient(90deg,#fbb02d,#f59e0b)" }} />
-              </div>
-            </div>
-          ))}
-          {!top.length && (
-            <EmptyState img="/produk.png" icon="box" title={tl("Belum ada penjualan", "No sales yet")} desc={tl("Produk terlaris akan muncul setelah ada transaksi.", "Best sellers will show up after sales are made.")} />
-          )}
-        </div>
-      )}
+            ))}
+            {!list.length && (
+              <EmptyState img="/produk.png" icon="box" title={tl("Belum ada penjualan", "No sales yet")}
+                desc={tl("Peringkat muncul setelah ada transaksi.", "Ranking appears after sales are made.")} />
+            )}
+          </div>
+      </>
+    )}
 
       {view === "list" && (
         <>
           <div className="plist">
-            {products.map((p) => (
+            {shown.map((p) => (
               <div className="card pc" key={p._id}>
                 <div className="pc-h">
                   <span className="pe"><CatIcon c={p.category} s={28} /></span>
@@ -1700,6 +1841,10 @@ function Produk({ products, reload, closeDay, openDay, closed, patchProduct, rem
                   <div className="hl"><small>{t("now")}</small><b>{p.stock}</b></div>
                   <div><small>{t("stockEnd")}</small><b>{p.stockEnd ?? "-"}</b></div>
                 </div>
+                <small className="muted" style={{ display: "block", margin: "6px 0 2px" }}>
+                  {tl("Total terbeli", "Total bought")}: <b>{totalOf(p)}</b>
+                  {p.priceRaw != null && ` · ${tl("tanpa seduh", "not brewed")}: ${stats[p._id]?.raw || 0}`}
+                </small>
                 <div className="pc-a">
                   <button onClick={() => edit(p)}><Ic n="edit" s={15} /> {t("edit")}</button>
                   <button className="d" onClick={() => del(p)}><Ic n="trash" s={15} /> {t("delete")}</button>
@@ -1708,7 +1853,7 @@ function Produk({ products, reload, closeDay, openDay, closed, patchProduct, rem
             ))}
           </div>
      
-          {!products.length && (
+          {!shown.length && (
             <EmptyState
               img="/produk.png"
               icon="box"
@@ -1731,6 +1876,16 @@ function Produk({ products, reload, closeDay, openDay, closed, patchProduct, rem
             <select value={f.category} onChange={set("category")}><option value="makanan">{t("food")}</option><option value="minuman">{t("drink")}</option></select>
             <label>{t("price")}</label>
             <input type="number" inputMode="numeric" placeholder="0" value={f.price} onChange={set("price")} required />
+            {f.category === "minuman" && (
+            <>
+              <label>{tl("Harga tanpa seduh (opsional)", "Price without brewing (optional)")}</label>
+              <input type="number" inputMode="numeric" placeholder="0" value={f.priceRaw} onChange={set("priceRaw")} />
+              <small className="muted" style={{ display: "block", marginTop: 4 }}>
+                {tl("Untuk pembeli yang hanya beli produknya, tanpa diseduh. Boleh lebih murah.",
+                    "For customers who buy the product only, not brewed. Can be cheaper.")}
+              </small>
+            </>
+          )}
             <label>{t("stockStart")}</label>
             <input type="number" inputMode="numeric" placeholder="0" value={f.stockInitial} onChange={set("stockInitial")} required />
 
@@ -1900,14 +2055,12 @@ function TxEditModal({ tx, products, onClose, onSaved }) {
   const { t, lang } = useT();
   const inc = tx.type === "income";
   const [items, setItems] = useState(() =>
-    (tx.items || []).map((i) => ({
-      product: String(i.product),
-      name: i.name,
-      price: i.price || 0,
-      category: i.category,
-      qty: i.qty,
-    }))
-  );
+    (tx.items || []).map((i) =>
+      i.custom || !i.product
+        ? { custom: true, name: i.name, price: i.price || 0, category: i.category, qty: i.qty }
+        : { product: String(i.product), name: i.name, price: i.price || 0, category: i.category, qty: i.qty, raw: !!i.raw }
+    )
+  );  
   const [itemsChanged, setItemsChanged] = useState(false);
   const [nominalTouched, setNominalTouched] = useState(false);
   const [f, setF] = useState({
@@ -1922,10 +2075,10 @@ function TxEditModal({ tx, products, onClose, onSaved }) {
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
 
   const prodOf = (id) => products.find((p) => p._id === id);
-  const computed = items.reduce(
-    (sum, it) => sum + calcLineTotal({ price: it.price, promo: prodOf(it.product)?.promo }, Number(it.qty) || 0),
-    0
-  );
+  const computed = items.reduce((sum, it) => {
+    const q = Number(it.qty) || 0;
+    return sum + (it.custom || it.raw ? it.price * q : calcLineTotal({ price: it.price, promo: prodOf(it.product)?.promo }, q));
+  }, 0);
   // Penjualan: total ikut dihitung ulang dari item, kecuali nominal diubah manual
   const nominal = !inc || nominalTouched ? f.nominal : itemsChanged ? computed : tx.total;
 
@@ -1935,7 +2088,7 @@ function TxEditModal({ tx, products, onClose, onSaved }) {
   };
   const changeProduct = (idx, id) => {
     const p = prodOf(id);
-    if (p) updateItem(idx, { product: p._id, name: p.name, price: p.price, category: p.category });
+    if (p) updateItem(idx, { product: p._id, name: p.name, price: p.price, category: p.category, raw: false });
   };
   const removeItem = (idx) => {
     setItems((l) => l.filter((_, i) => i !== idx));
@@ -1956,7 +2109,11 @@ function TxEditModal({ tx, products, onClose, onSaved }) {
       const body = {
         note: f.note,
         amount: Number(nominal),
-        items: items.map((i) => ({ product: i.product, qty: Number(i.qty) })),
+        items: items.map((i) =>
+          i.custom
+            ? { custom: true, name: i.name, price: i.price, qty: Number(i.qty) }
+            : { product: i.product, qty: Number(i.qty), raw: !!i.raw }
+        ),
       };
        if (!inc) {
         body.description = f.description;
@@ -1992,24 +2149,27 @@ function TxEditModal({ tx, products, onClose, onSaved }) {
 
         <label>{inc ? t("itemsBought") : t("stockAdded")}</label>
         {items.map((it, idx) => (
-          <div className="edit-item" key={idx}>
-            <select value={it.product} onChange={(e) => changeProduct(idx, e.target.value)}>
-              {!prodOf(it.product) && <option value={it.product}>{it.name} {t("deletedTag")}</option>}
-              {products.map((p) => (
-                <option key={p._id} value={p._id}>{p.name}</option>
-              ))}
-            </select>
-            <input
-              type="number"
-              inputMode="numeric"
-              min="1"
-              value={it.qty}
-              onChange={(e) => updateItem(idx, { qty: e.target.value })}
-              aria-label={t("qtyAria")}
-            />
-            <button type="button" className="icon-btn dark" onClick={() => removeItem(idx)} title={t("removeItem")}>
-              <Ic n="trash" s={16} />
-            </button>
+          <div key={idx}>
+            <div className="edit-item">
+              {it.custom ? (
+                <input value={`${it.name} · ${rp(it.price)}`} disabled />
+              ) : (
+                <select value={it.product} onChange={(e) => changeProduct(idx, e.target.value)}>
+                  {!prodOf(it.product) && <option value={it.product}>{it.name} {t("deletedTag")}</option>}
+                  {products.map((p) => <option key={p._id} value={p._id}>{p.name}</option>)}
+                </select>
+              )}
+              <input type="number" inputMode="numeric" min="1" value={it.qty}
+                onChange={(e) => updateItem(idx, { qty: e.target.value })} aria-label={t("qtyAria")} />
+              <button type="button" className="icon-btn dark" onClick={() => removeItem(idx)} title={t("removeItem")}>
+                <Ic n="trash" s={16} />
+              </button>
+            </div>
+            {it.raw && (
+              <small className="muted" style={{ display: "block", margin: "-2px 0 8px" }}>
+                {lang === "en" ? "Not brewed" : "Tanpa seduh"} · {rp(it.price)}
+              </small>
+            )}
           </div>
         ))}
         {!items.length && <p className="muted small">{t("noItems")}</p>}
@@ -2207,7 +2367,11 @@ function Detail({ tx, back, onEdit, onDelete }) {
               <div className="li" key={idx}>
                 <span>
                   <CatIcon c={i.category} s={18} /> {i.name}
-                  <small className="muted"> {inc ? `${rp(i.price)} × ${i.qty}` : `+${i.qty}${i.unit ? " " + i.unit : ""}`}</small>
+                  <small className="muted">
+                    {" "}{inc ? `${rp(i.price)} × ${i.qty}` : `+${i.qty}${i.unit ? " " + i.unit : ""}`}
+                    {inc && i.raw && ` · ${lang === "en" ? "not brewed" : "tanpa seduh"}`}
+                    {inc && i.custom && ` · ${lang === "en" ? "custom" : "kustom"}`}
+                  </small>
                 </span>
                 {inc && <b>{rp(i.price * i.qty)}</b>}
               </div>
@@ -2452,7 +2616,7 @@ export default function App() {
             <Top title={titles[tab][0]} sub={titles[tab][1]} />
             <div className="page pull">
               {tab === "kasir" && <Kasir products={products} reload={reload} patchTx={patchTx} closed={closed} openDay={openDay} fund={fund} hideFund={settings.hideNominal || settings.hideKembalian} cols={settings.kasirCols === 1 ? 1 : 2} setCols={(n) => setSettings((p) => ({ ...p, kasirCols: n }))} />}
-              {tab === "produk" && <Produk products={products} reload={reload} closeDay={closeDay} openDay={openDay} closed={closed} patchProduct={patchProduct} removeProduct={removeProduct} />}
+              {tab === "produk" && <Produk products={products} reload={reload} closeDay={closeDay} txs={txs} openDay={openDay} closed={closed} patchProduct={patchProduct} removeProduct={removeProduct} />}
               {tab === "keluar" && <Pengeluaran products={products} reload={reload} patchTx={patchTx} closed={closed} openDay={openDay} go={setTab} />}
               {tab === "riwayat" && <Riwayat txs={txs} onEdit={setEditTx} onDelete={deleteTx} openDetail={openDetail} />}
             </div>

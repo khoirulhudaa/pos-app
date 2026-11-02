@@ -13,6 +13,11 @@ const db = async () => {
   await conn;
 };
 
+const toKey = (d) => {
+  const x = new Date(d);
+  return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`;
+};
+
 // Selalu pakai schema TERBARU (hindari model lama yang ter-cache saat hot-reload / warm instance)
 const registerModel = (name, schema) => {
   if (mongoose.models[name]) mongoose.deleteModel(name);
@@ -24,6 +29,7 @@ const Product = registerModel("Product", new mongoose.Schema({
   category: { type: String, enum: ["makanan", "minuman"], default: "makanan" },
   price: { type: Number, required: true, min: 0 },
   stockInitial: { type: Number, default: 0 },
+  priceRaw: { type: Number, min: 0, default: null }, // harga tanpa seduh (minuman)
   stock: { type: Number, default: 0 },
   stockEnd: { type: Number, default: null },
   sold: { type: Number, default: 0 },
@@ -43,6 +49,8 @@ const Tx = registerModel("Tx", new mongoose.Schema({
     product: mongoose.Schema.Types.ObjectId,
     name: String,
     price: Number,
+    raw: { type: Boolean, default: false },     // dijual tanpa seduh
+    custom: { type: Boolean, default: false },  // item kustom (sedotan, cup, dll), tidak memengaruhi stok
     qty: Number,
     category: { type: String, enum: ["makanan", "minuman"], default: "makanan" },
     unit: { type: String, default: "" },               // satuan pembelian stok (pcs, bal, kg, ...)
@@ -307,16 +315,21 @@ app.post("/api/change-fund", async (req, res) => {
 app.get("/api/products", async (_, res) => res.json(await Product.find().sort({ name: 1 })));
 
 app.post("/api/products", async (req, res) => {
-  const { name, category, price, stockInitial = 0, promo } = req.body;
+  const { name, category, price, stockInitial = 0, promo, priceRaw } = req.body;
+  
   if (!name || !(Number(price) >= 0)) return bad(res, "Nama & harga wajib diisi");
 
-  const data = {
-    name,
-    category,
-    price: Number(price),
-    stockInitial: Number(stockInitial),
-    stock: Number(stockInitial),
-  };
+    const data = {
+      name,
+      category,
+      price: Number(price),
+      stockInitial: Number(stockInitial),
+      stock: Number(stockInitial),
+      priceRaw:
+        category === "minuman" && priceRaw !== "" && priceRaw != null && Number(priceRaw) >= 0
+          ? Number(priceRaw)
+          : null,
+    };
 
   if (promo) {
     data.promo = {
@@ -340,10 +353,15 @@ app.put("/api/products/:id", async (req, res) => {
   const p = await Product.findById(req.params.id);
   if (!p) return res.status(404).json({ message: "Produk tidak ditemukan" });
 
-  const { name, category, price, stockInitial, promo } = req.body;
+  const { name, category, price, stockInitial, promo, priceRaw } = req.body;
 
   if (name) p.name = name;
   if (category) p.category = category;
+  if (priceRaw !== undefined) {
+    p.priceRaw =
+      p.category === "minuman" && priceRaw !== "" && priceRaw !== null && Number(priceRaw) >= 0
+        ? Number(priceRaw) : null;
+  }
   if (price != null) p.price = Number(price);
 
   if (stockInitial != null) {
@@ -427,24 +445,40 @@ app.post("/api/transactions", async (req, res) => {
   if (type === "income") {
     if (!items.length) return bad(res, "Keranjang kosong");
 
-    const prods = await Product.find({ _id: { $in: items.map((i) => i.product) } });
+    const prods = await Product.find({
+      _id: { $in: items.filter((i) => !i.custom).map((i) => i.product) },
+    });
     const lines = [];
+    const used = new Map(); // total qty per produk (biasa + tanpa seduh) untuk cek stok
     let total = 0;
 
     for (const i of items) {
-      const p = prods.find((x) => String(x._id) === String(i.product));
       const qty = Math.floor(Number(i.qty));
+
+      if (i.custom) {
+        const name = String(i.name || "").trim();
+        const price = Number(i.price);
+        if (!name || !(price >= 0) || qty < 1) return bad(res, "Item kustom tidak valid");
+        total += price * qty;
+        lines.push({ name, price, qty, category: "makanan", custom: true });
+        continue;
+      }
+
+      const p = prods.find((x) => String(x._id) === String(i.product));
       if (!p || qty < 1) return bad(res, "Item tidak valid");
-      if (p.stock < qty) return bad(res, `Stok ${p.name} tidak cukup (sisa ${p.stock})`);
+      const raw = !!i.raw;
+      if (raw && !(p.category === "minuman" && p.priceRaw != null)) {
+        return bad(res, `${p.name} tidak punya harga tanpa seduh`);
+      }
+      const id = String(p._id);
+      const need = (used.get(id) || 0) + qty;
+      if (p.stock < need) return bad(res, `Stok ${p.name} tidak cukup (sisa ${p.stock})`);
+      used.set(id, need);
 
-      total += calcLineTotal(p, qty);
-
+      total += raw ? p.priceRaw * qty : calcLineTotal(p, qty);
       lines.push({
-        product: p._id,
-        name: p.name,
-        price: p.price,
-        qty,
-        category: p.category || "makanan",
+        product: p._id, name: p.name, price: raw ? p.priceRaw : p.price,
+        qty, category: p.category || "makanan", raw,
       });
     }
 
@@ -459,14 +493,14 @@ app.post("/api/transactions", async (req, res) => {
     // ===== Sumber kembalian: stok dulu, kekurangan dari sumber lain =====
     const src = splitChange(paid - total, (await getFund()).balance);
 
-    await Product.bulkWrite(
-      lines.map((l) => ({
-        updateOne: {
-          filter: { _id: l.product },
-          update: { $inc: { stock: -l.qty, sold: l.qty } },
-        },
-      }))
-    );
+    const stockLines = lines.filter((l) => l.product);
+    if (stockLines.length) {
+      await Product.bulkWrite(
+        stockLines.map((l) => ({
+          updateOne: { filter: { _id: l.product }, update: { $inc: { stock: -l.qty, sold: l.qty } } },
+        }))
+      );
+    }
 
     const tx = await Tx.create({
       type,
@@ -571,73 +605,79 @@ app.put("/api/transactions/:id", async (req, res) => {
   if (!income && permanent !== undefined) t.permanent = !!permanent;
 
   if (Array.isArray(items)) {
-    // ===== Ubah item per produk + sesuaikan stok =====
     const old = t.toObject().items || [];
-    const ids = [...new Set([...old, ...items].map((i) => String(i.product)).filter(Boolean))];
+    const hasP = (i) => !i.custom && i.product;
+    const kv = (i) => String(i.product) + (i.raw ? ":r" : ":n");
+    const ids = [...new Set([...old, ...items].filter(hasP).map((i) => String(i.product)))];
     const prods = await Product.find({ _id: { $in: ids } });
     const byId = new Map(prods.map((p) => [String(p._id), p]));
-    const oldBy = new Map(old.map((i) => [String(i.product), i]));
+    const oldBy = new Map(old.filter(hasP).map((i) => [kv(i), i]));
 
-    const delta = new Map(); // id -> { stock, sold }
+    const delta = new Map();
     const bump = (id, stock, sold) => {
       const d = delta.get(id) || { stock: 0, sold: 0 };
-      d.stock += stock;
-      d.sold += sold;
+      d.stock += stock; d.sold += sold;
       delta.set(id, d);
     };
 
-    // 1) batalkan efek item lama
+    // 1) batalkan efek item lama (item kustom tidak punya stok)
     for (const o of old) {
+      if (!hasP(o)) continue;
       const id = String(o.product);
-      if (!byId.has(id)) continue; // produk sudah dihapus
-      if (income) bump(id, +o.qty, -o.qty);
-      else bump(id, -o.qty, 0);
+      if (!byId.has(id)) continue;
+      if (income) bump(id, +o.qty, -o.qty); else bump(id, -o.qty, 0);
     }
 
     // 2) terapkan item baru
     const lines = [];
     for (const i of items) {
-      const id = String(i.product);
       const qty = Math.floor(Number(i.qty));
       if (!(qty >= 1)) return bad(res, "Jumlah item tidak valid");
-      const p = byId.get(id);
-      const prev = oldBy.get(id);
-      if (!p && !prev) return bad(res, "Produk tidak ditemukan");
 
-      if (p) {
-        if (income) bump(id, -qty, +qty);
-        else bump(id, +qty, 0);
+      if (i.custom) {
+        const price = Number(i.price);
+        if (!String(i.name || "").trim() || !(price >= 0)) return bad(res, "Item kustom tidak valid");
+        lines.push({ name: String(i.name).trim(), price, qty, category: "makanan", custom: true });
+        continue;
       }
+
+      const id = String(i.product);
+      const raw = !!i.raw;
+      const p = byId.get(id);
+      const prev = oldBy.get(id + (raw ? ":r" : ":n"));
+      if (!p && !prev) return bad(res, "Produk tidak ditemukan");
+      if (raw && !prev && !(p && p.priceRaw != null)) return bad(res, "Produk tidak punya harga tanpa seduh");
+
+      if (p) { if (income) bump(id, -qty, +qty); else bump(id, +qty, 0); }
       lines.push({
         product: p ? p._id : prev.product,
         name: p ? p.name : prev.name,
-        price: income ? (prev ? prev.price : p.price) : 0, // harga lama dipertahankan
+        price: income ? (prev ? prev.price : raw ? p.priceRaw : p.price) : 0,
         qty,
         category: p ? p.category : prev.category,
-        unit: income ? "" : toUnit(i.unit, prev?.unit || "pcs"), // satuan belanja dipertahankan
+        unit: income ? "" : toUnit(i.unit, prev?.unit || "pcs"),
+        raw,
       });
     }
 
-    // 3) cek stok tidak boleh minus
+    // 3) stok tidak boleh minus
     for (const [id, d] of delta) {
       const p = byId.get(id);
-      if (p.stock + d.stock < 0) {
-        return bad(res, `Stok ${p.name} tidak cukup untuk perubahan ini (sisa ${p.stock})`);
-      }
+      if (p.stock + d.stock < 0) return bad(res, `Stok ${p.name} tidak cukup untuk perubahan ini (sisa ${p.stock})`);
     }
-
-    const ops = [...delta]
-      .filter(([, d]) => d.stock || d.sold)
-      .map(([id, d]) => ({
-        updateOne: { filter: { _id: id }, update: { $inc: { stock: d.stock, sold: d.sold } } },
-      }));
+    const ops = [...delta].filter(([, d]) => d.stock || d.sold).map(([id, d]) => ({
+      updateOne: { filter: { _id: id }, update: { $inc: { stock: d.stock, sold: d.sold } } },
+    }));
     if (ops.length) await Product.bulkWrite(ops);
 
     t.items = lines;
 
     if (income) {
       const subtotal = lines.reduce(
-        (s, l) => s + calcLineTotal({ price: l.price, promo: byId.get(String(l.product))?.promo }, l.qty),
+        (s, l) =>
+          s + (l.raw || l.custom
+            ? l.price * l.qty
+            : calcLineTotal({ price: l.price, promo: byId.get(String(l.product))?.promo }, l.qty)),
         0
       );
       t.subtotal = subtotal;
@@ -696,10 +736,10 @@ app.delete("/api/transactions/:id", async (req, res) => {
   const shortId = String(t._id).slice(-5).toUpperCase();
   const sign = t.type === "income" ? 1 : -1;
 
-  if (t.items.length) {
-    await Product.bulkWrite(
-      t.items.map((i) => ({
-        updateOne: {
+  const stockItems = t.items.filter((i) => i.product);
+  if (stockItems.length) {
+    await Product.bulkWrite(stockItems.map((i) => ({ 
+      updateOne: {
           filter: { _id: i.product },
           update: {
             $inc: {
@@ -708,9 +748,24 @@ app.delete("/api/transactions/:id", async (req, res) => {
             },
           },
         },
-      }))
-    );
+     })));
   }
+
+  // if (t.items.length) {
+  //   await Product.bulkWrite(
+  //     t.items.map((i) => ({
+  //       updateOne: {
+  //         filter: { _id: i.product },
+  //         update: {
+  //           $inc: {
+  //             stock: sign * i.qty,
+  //             sold: t.type === "income" ? -i.qty : 0,
+  //           },
+  //         },
+  //       },
+  //     }))
+  //   );
+  // }
 
   await t.deleteOne();
 
@@ -754,13 +809,15 @@ app.post("/api/import-transactions", async (req, res) => {
         type: raw.type,
         description: raw.description || "",
         items: (raw.items || []).map((i) => ({
-          product: i.product || undefined,
-          name: i.name,
-          price: Number(i.price) || 0,
-          qty: Number(i.qty) || 1,
-          category: i.category || "makanan",
-          unit: i.unit || "",
-        })),
+            product: i.product || undefined,
+            name: i.name,
+            price: Number(i.price) || 0,
+            qty: Number(i.qty) || 1,
+            category: i.category || "makanan",
+            unit: i.unit || "",
+            raw: !!i.raw,
+            custom: !!i.custom,
+          })),
         expenseItems: raw.expenseItems || [],
         buyQty: raw.buyQty,
         buyUnit: raw.buyUnit || "",
