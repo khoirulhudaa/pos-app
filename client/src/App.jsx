@@ -66,6 +66,9 @@ const P = {
   monitor: "M20 3H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2z M8 21h8 M12 17v4 M3 3l18 18",
   view1: "M4 5h16v14H4z",
   view2: "M4 5h7v14H4z M13 5h7v14h-7z",
+  phone: "M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z",
+  users: "M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M23 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75",
+  send: "M22 2L11 13 M22 2l-7 20-4-9-9-4 20-7z",
   upload: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M17 8l-5-5-5 5 M12 3v12",
   wallet: "M21 12V7H5a2 2 0 0 1 0-4h14v4 M3 5v14a2 2 0 0 0 2 2h16v-5 M18 12a2 2 0 0 0 0 4h4v-4z", 
   up: "M23 6l-9.5 9.5-5-5L1 18 M17 6h6v6",
@@ -566,8 +569,52 @@ function TxRow({ t, children, onClick }) {
 // ---------- Daftar stok menipis (ramping) ----------
 const LOW_LIMIT = 5;
 
+// Nomor HP Indonesia -> format wa.me (08xx -> 628xx)
+const waNumber = (p) => {
+  let d = String(p || "").replace(/\D/g, "");
+  if (d.startsWith("0")) d = "62" + d.slice(1);
+  else if (d.startsWith("8")) d = "62" + d;
+  return d;
+};
+const waLink = (phone, text) => `https://wa.me/${waNumber(phone)}?text=${encodeURIComponent(text)}`;
+
+// Rekomendasi penjual untuk satu produk yang stoknya menipis
+function SupplierReco({ product, suppliers = [], go }) {
+  const { lang } = useT();
+  const tl = (id, en) => (lang === "en" ? en : id);
+  const list = suppliers.filter((s) => (s.products || []).includes(product._id));
+  const msg = (s) =>
+    tl(
+      `Halo ${s.name}, stok ${product.name} saya tinggal ${product.stock}. Apakah tersedia untuk dipesan?`,
+      `Hi ${s.name}, my stock of ${product.name} is down to ${product.stock}. Is it available to order?`
+    );
+  if (!list.length) {
+    return (
+      <button type="button" className="reco-none" onClick={() => go("suppliers")}>
+        <Ic n="users" s={13} /> {tl("Belum ada penjual untuk produk ini · Tambah", "No supplier for this product · Add one")}
+      </button>
+    );
+  }
+  return (
+    <div className="reco">
+      <small className="muted">{tl("Hubungi penjual:", "Contact supplier:")}</small>
+      <div className="reco-list">
+        {list.map((s) =>
+          s.phone ? (
+            <a key={s._id} className="reco-chip" href={waLink(s.phone, msg(s))} target="_blank" rel="noreferrer">
+              <Ic n="send" s={12} /> {s.name}
+            </a>
+          ) : (
+            <span key={s._id} className="reco-chip off">{s.name} · {tl("tanpa nomor", "no number")}</span>
+          )
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ---------- Beranda ----------
-function Beranda({ txs, products, go, closeDay, openDay, closed, askLogout, openDetail, settings = {}, setSettings, fund, openFund }) {
+function Beranda({ txs, products, suppliers = [], go, closeDay, openDay, closed, askLogout, openDetail, settings = {}, setSettings, fund, openFund }) {
   const { t, locale, lang } = useT();
   const tl = (id, en) => (lang === "en" ? en : id);
   const { hideLaba = false, hidePengeluaran = false, hideTransaksi = false } = settings;
@@ -687,7 +734,10 @@ function Beranda({ txs, products, go, closeDay, openDay, closed, askLogout, open
           <div className="card warn">
             <div className="warn-h"><Ic n="alert" s={18} /> {t("stockLow")}</div>
             {low.slice(0, 5).map((p) => (
-              <div className="li" key={p._id}><span><CatIcon c={p.category} s={18} /> {p.name}</span><b className="err">{t("remaining")} {p.stock}</b></div>
+              <div key={p._id}>
+                <div className="li"><span><CatIcon c={p.category} s={18} /> {p.name}</span><b className="err">{t("remaining")} {p.stock}</b></div>
+                <SupplierReco product={p} suppliers={suppliers} go={go} />
+              </div>
             ))}
           </div>
         )}
@@ -1013,6 +1063,16 @@ function Setting({ settings, setSettings, go, onReset, txs = [] }) {
             onClick={() => go("logs")}
           >
             {t("goToLogs")}
+          </button>
+        </div>
+
+        <div className="card" style={{ marginTop: 16 }}>
+          <h3 style={{ marginBottom: 8 }}>{lang === "en" ? "Suppliers" : "Kontak Penjual"}</h3>
+          <small className="muted" style={{ display: "block", marginBottom: 12 }}>
+            {lang === "en" ? "Save supplier contacts for restocking." : "Simpan kontak penjual bahan baku untuk belanja stok."}
+          </small>
+          <button className="btn ghost" style={{ width: "100%", background: "transparent", border: "1.5px solid var(--border, #cbd5e1)", color: "inherit", fontWeight: 600, fontSize: 14 }} onClick={() => go("suppliers")}>
+            {lang === "en" ? "Manage suppliers" : "Kelola kontak penjual"}
           </button>
         </div>
 
@@ -1736,7 +1796,7 @@ function SelBar({ selecting, count, allPicked, onStart, onToggleAll, onDelete, o
 }
 
 // ---------- Produk ----------
-function Produk({ products, txs = [], reload, closeDay, openDay, closed, patchProduct, removeProduct }) {
+function Produk({ products, txs = [], reload, suppliers = [], patchProduct, removeProduct }) {
   const { t, lang } = useT();
   const tl = (id, en) => (lang === "en" ? en : id);
   const [q, setQ] = useState("");
@@ -1941,7 +2001,7 @@ function Produk({ products, txs = [], reload, closeDay, openDay, closed, patchPr
                       <div><small>{t("stockEnd")}</small><b>{p.stockEnd ?? "-"}</b></div>
                     </div>
                     <small className="muted" style={{ display: "block", margin: "6px 0 2px" }}>
-                      {tl("Total terbeli", "Total bought")}: <b>{totalOf(p)}</b>
+                      {p.stock < LOW_LIMIT && !selecting && <SupplierReco product={p} suppliers={suppliers} go={go} />}
                       {p.priceRaw != null && ` · ${tl("tanpa seduh", "not brewed")}: ${stats[p._id]?.raw || 0}`}
                     </small>
                     {!selecting && (
@@ -2040,6 +2100,162 @@ function Produk({ products, txs = [], reload, closeDay, openDay, closed, patchPr
           cancelText={t("cancel")}
           onOk={doDeleteMany}
           onClose={() => setConfirmMany(false)}
+        />
+      )}
+    </>
+  );
+}
+
+// ---------- Kontak Penjual (CRUD) ----------
+function Penjual({ suppliers, products, setSuppliers, go }) {
+  const { lang } = useT();
+  const tl = (id, en) => (lang === "en" ? en : id);
+  const blank = { name: "", phone: "", note: "", products: [] };
+  const [f, setF] = useState(blank);
+  const [editId, setEditId] = useState(null);
+  const [show, setShow] = useState(false);
+  const [del, setDel] = useState(null);
+  const [q, setQ] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const close = () => { setShow(false); setEditId(null); setF(blank); };
+  const openEdit = (s) => {
+    setEditId(s._id);
+    setF({ name: s.name, phone: s.phone || "", note: s.note || "", products: s.products || [] });
+    setShow(true);
+  };
+  const toggleProd = (id) =>
+    setF((p) => ({ ...p, products: p.products.includes(id) ? p.products.filter((x) => x !== id) : [...p.products, id] }));
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const saved = await (editId ? req(`/suppliers/${editId}`, "PUT", f) : req("/suppliers", "POST", f));
+      setSuppliers((l) => {
+        const i = l.findIndex((x) => x._id === saved._id);
+        const n = i < 0 ? [...l, saved] : l.map((x) => (x._id === saved._id ? saved : x));
+        return n.sort((a, b) => a.name.localeCompare(b.name));
+      });
+      toast.success(editId ? tl("Penjual diperbarui", "Supplier updated") : tl("Penjual ditambahkan", "Supplier added"));
+      close();
+    } catch (x) {
+      toast.error(x.message);
+    }
+    setBusy(false);
+  };
+
+  const doDelete = async (s) => {
+    try {
+      await req(`/suppliers/${s._id}`, "DELETE");
+      setSuppliers((l) => l.filter((x) => x._id !== s._id));
+      toast.success(tl("Penjual dihapus", "Supplier deleted"));
+    } catch (x) {
+      toast.error(x.message);
+    }
+  };
+
+  const shown = suppliers.filter((s) =>
+    `${s.name} ${s.phone}`.toLowerCase().includes(q.trim().toLowerCase())
+  );
+  const nameOf = (id) => products.find((p) => p._id === id)?.name;
+
+  return (
+    <>
+      <Top
+        title={tl("Kontak Penjual", "Suppliers")}
+        sub={tl("Penjual bahan baku", "Raw material sellers")}
+        right={<button className="icon-btn dark" onClick={() => go("home")}><Ic n="x" /></button>}
+      />
+      <div className="page pull">
+        <div className="search" style={{ marginBottom: 10 }}>
+          <Ic n="search" s={18} />
+          <input placeholder={tl("Cari penjual...", "Search suppliers...")} value={q} onChange={(e) => setQ(e.target.value)} />
+        </div>
+        <button className="btn ghost" style={{ marginTop: 0, marginBottom: 12, backgroundColor: "white" }} onClick={() => setShow(true)}>
+          <Ic n="plus" s={18} /> {tl("Tambah penjual", "Add supplier")}
+        </button>
+
+        {shown.map((s) => {
+          const names = (s.products || []).map(nameOf).filter(Boolean);
+          return (
+            <div className="card sp" key={s._id}>
+              <div className="sp-h">
+                <span className="cf-ic"><Ic n="users" s={16} /></span>
+                <div className="grow">
+                  <b>{s.name}</b>
+                  <br />
+                  <small className="muted">{s.phone || tl("Tanpa nomor", "No number")}</small>
+                </div>
+              </div>
+              {names.length > 0 && (
+                <div className="sp-prods">
+                  {names.map((n) => <span key={n} className="chip">{n}</span>)}
+                </div>
+              )}
+              {s.note && <small className="muted" style={{ display: "block", marginTop: 6 }}>{s.note}</small>}
+              <div className="pc-a">
+                {s.phone && (
+                  <>
+                    <a className="sp-act" href={waLink(s.phone, tl(`Halo ${s.name}, saya mau pesan bahan.`, `Hi ${s.name}, I'd like to order supplies.`))} target="_blank" rel="noreferrer">
+                      <Ic n="send" s={15} /> WhatsApp
+                    </a>
+                    <a className="sp-act" href={`tel:+${waNumber(s.phone)}`}>
+                      <Ic n="phone" s={15} /> {tl("Telepon", "Call")}
+                    </a>
+                  </>
+                )}
+                <button onClick={() => openEdit(s)}><Ic n="edit" s={15} /> {tl("Edit", "Edit")}</button>
+                <button className="d" onClick={() => setDel(s)}><Ic n="trash" s={15} /> {tl("Hapus", "Delete")}</button>
+              </div>
+            </div>
+          );
+        })}
+
+        {!shown.length && (
+          <EmptyState
+            icon="users"
+            title={q ? tl("Penjual tidak ditemukan", "No suppliers found") : tl("Belum ada kontak penjual", "No suppliers yet")}
+            desc={q ? tl("Coba kata kunci lain.", "Try another keyword.") : tl("Simpan kontak penjual supaya mudah dihubungi saat stok habis.", "Save supplier contacts so you can reach them when stock runs out.")}
+          />
+        )}
+      </div>
+
+      {show && (
+        <Modal title={editId ? tl("Edit Penjual", "Edit Supplier") : tl("Tambah Penjual", "Add Supplier")} onClose={close}>
+          <form onSubmit={submit}>
+            <label>{tl("Nama penjual / toko", "Supplier / shop name")}</label>
+            <input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} required autoFocus />
+
+            <label>{tl("Nomor WhatsApp / HP", "WhatsApp / phone number")}</label>
+            <input type="tel" inputMode="tel" placeholder="08xxxxxxxxxx" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
+
+            <label>{tl("Produk yang dijual", "Products they supply")}</label>
+            <div className="sp-pick">
+              {products.map((p) => (
+                <label key={p._id} className={"sp-opt" + (f.products.includes(p._id) ? " on" : "")}>
+                  <input type="checkbox" checked={f.products.includes(p._id)} onChange={() => toggleProd(p._id)} />
+                  <span>{p.name}</span>
+                </label>
+              ))}
+              {!products.length && <small className="muted">{tl("Belum ada produk", "No products yet")}</small>}
+            </div>
+
+            <label>{tl("Catatan", "Note")}</label>
+            <input placeholder={tl("Opsional (alamat, jam buka, dll)", "Optional (address, hours, etc.)")} value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} />
+
+            <button className="btn gold" disabled={busy}>{editId ? tl("Simpan perubahan", "Save changes") : tl("Tambah penjual", "Add supplier")}</button>
+          </form>
+        </Modal>
+      )}
+
+      {del && (
+        <ConfirmModal
+          title={tl(`Hapus ${del.name}?`, `Delete ${del.name}?`)}
+          okText={tl("Ya, hapus", "Yes, delete")}
+          cancelText={tl("Batal", "Cancel")}
+          onOk={() => doDelete(del)}
+          onClose={() => setDel(null)}
         />
       )}
     </>
@@ -2709,6 +2925,7 @@ function PcBlock({ lang }) {
 
 export default function App() {
   const [authed, setAuthed] = useState(!!localStorage.getItem("pos_pass"));
+  const [suppliers, setSuppliers] = useState([]);
   const [tab, setTab] = useState("home");
   const [backTab, setBackTab] = useState("riwayat");
   const [detailId, setDetailId] = useState(null);
@@ -2760,15 +2977,17 @@ export default function App() {
   const reload = async () => {
     const startedAt = Date.now();
     try {
-      const [p, tr, s, fd] = await Promise.all([
+      const [p, tr, s, fd, sp] = await Promise.all([
         req("/products"),
         req("/transactions"),
         req("/status").catch((e) => { if (e.status === 401) throw e; return null; }),
         req("/change-fund").catch((e) => { if (e.status === 401) throw e; return null; }),
+        req("/suppliers").catch((e) => { if (e.status === 401) throw e; return null; }),
       ]);
       if (s) setClosed(!!s.closed);
       if (startedAt < lastChange.current) return; // data lama, sudah ada perubahan yang lebih baru
       if (fd) setFund(fd);
+      if (Array.isArray(sp)) setSuppliers(sp);
       setProducts(Array.isArray(p) ? p.filter((x) => x && x.name) : []);
       setTxs(Array.isArray(tr) ? tr : []);
     } catch (e) {
@@ -2868,19 +3087,21 @@ export default function App() {
     <LangCtx.Provider value={ctx}>
       <div className="app">
         {tab === "home" ? (
-          <Beranda txs={txs} products={products} go={setTab} closeDay={closeDay} openDay={openDay} closed={closed} askLogout={() => setShowLogout(true)} openDetail={openDetail} settings={settings} setSettings={setSettings} fund={fund} openFund={() => setShowFund(true)} />
+          <Beranda txs={txs} products={products} suppliers={suppliers} go={setTab} closeDay={closeDay} openDay={openDay} closed={closed} askLogout={() => setShowLogout(true)} openDetail={openDetail} settings={settings} setSettings={setSettings} fund={fund} openFund={() => setShowFund(true)} />
         ) : tab === "setting" ? (
           <Setting settings={settings} setSettings={setSettings} go={setTab} txs={txs} onReset={() => { touch(); setTxs([]); reload(); }} />
         ) : tab === "logs" ? (
           <ActivityLogPage go={setTab} />
         ) : tab === "detail" ? (
           <Detail tx={detailTx} back={() => setTab(backTab)} onEdit={setEditTx} onDelete={deleteTx} />
+        ) : tab === "suppliers" ? (
+          <Penjual suppliers={suppliers} products={products} setSuppliers={setSuppliers} go={setTab} />
         ) : (
           <>
             <Top title={titles[tab][0]} sub={titles[tab][1]} />
             <div className="page pull">
               {tab === "kasir" && <Kasir products={products} reload={reload} patchTx={patchTx} closed={closed} openDay={openDay} fund={fund} hideFund={settings.hideNominal || settings.hideKembalian} cols={settings.kasirCols === 1 ? 1 : 2} setCols={(n) => setSettings((p) => ({ ...p, kasirCols: n }))} />}
-              {tab === "produk" && <Produk products={products} reload={reload} closeDay={closeDay} txs={txs} openDay={openDay} closed={closed} patchProduct={patchProduct} removeProduct={removeProduct} />}
+              {tab === "produk" && <Produk products={products} suppliers={suppliers} go={setTab} reload={reload} closeDay={closeDay} txs={txs} openDay={openDay} closed={closed} patchProduct={patchProduct} removeProduct={removeProduct} />}
               {tab === "keluar" && <Pengeluaran products={products} reload={reload} patchTx={patchTx} closed={closed} openDay={openDay} go={setTab} />}
               {tab === "riwayat" && (
                 <Riwayat

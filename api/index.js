@@ -88,6 +88,13 @@ const Tx = registerModel("Tx", new mongoose.Schema({
   note: { type: String, default: "" },
 }, { timestamps: true }));
 
+const Supplier = registerModel("Supplier", new mongoose.Schema({
+  name: { type: String, required: true, trim: true },
+  phone: { type: String, default: "", trim: true },
+  note: { type: String, default: "" },
+  products: [{ type: mongoose.Schema.Types.ObjectId }], // produk yang dijual penjual ini
+}, { timestamps: true }));
+
 const Setting = registerModel("Setting", new mongoose.Schema({
   key: { type: String, unique: true },
   closed: { type: Boolean, default: false },
@@ -423,6 +430,35 @@ app.post("/api/close-day", async (_, res) => {
   }
   await setClosed(true);
   res.json({ ok: true, closed: true });
+});
+
+// ---- Kontak penjual ----
+const cleanSupplier = (b = {}) => ({
+  name: String(b.name || "").trim(),
+  phone: String(b.phone || "").trim(),
+  note: String(b.note || "").trim(),
+  products: (Array.isArray(b.products) ? b.products : []).filter((id) => mongoose.isValidObjectId(id)),
+});
+
+app.get("/api/suppliers", async (_, res) => res.json(await Supplier.find().sort({ name: 1 })));
+
+app.post("/api/suppliers", async (req, res) => {
+  const data = cleanSupplier(req.body);
+  if (!data.name) return bad(res, "Nama penjual wajib diisi");
+  res.json(await Supplier.create(data));
+});
+
+app.put("/api/suppliers/:id", async (req, res) => {
+  const data = cleanSupplier(req.body);
+  if (!data.name) return bad(res, "Nama penjual wajib diisi");
+  const saved = await Supplier.findByIdAndUpdate(req.params.id, data, { new: true });
+  if (!saved) return res.status(404).json({ message: "Penjual tidak ditemukan" });
+  res.json(saved);
+});
+
+app.delete("/api/suppliers/:id", async (req, res) => {
+  await Supplier.findByIdAndDelete(req.params.id);
+  res.json({ ok: true });
 });
 
 // ---- Transaksi ----
