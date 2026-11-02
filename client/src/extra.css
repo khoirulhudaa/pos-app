@@ -76,7 +76,7 @@
 .pills-row .pills button { border-radius: 14px; }
 
 /* tinggi ikut tombol Makanan/Minuman */
-.view-seg { border-radius: 16px; }
+.view-seg { border-radius: 18px; }
 .view-seg button { border-radius: 9px; } /* radius luar dikurangi padding 3px */
 .view-seg { display: flex; align-items: stretch; align-self: stretch; flex-shrink: 0; gap: 2px; padding: 3px; background: #fff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0, 0, 0, .08); }
 .view-seg button { width: 36px; height: auto; display: grid; place-items: center; border-radius: 12px; color: #64748b; background: transparent; }
