@@ -161,13 +161,35 @@ const Modal = ({ title, onClose, children }) => (
   </div>
 );
 
+// Pilihan refund saat menghapus transaksi (pilih salah satu)
+function RefundPicker({ value, onChange }) {
+  const { lang } = useT();
+  const tl = (id, en) => (lang === "en" ? en : id);
+  const opts = [
+    ["stock", tl("Refund produk", "Refund products"), tl("Stok produk dikembalikan", "Product stock is restored")],
+    ["full", tl("Refund produk + uang", "Refund products + money"), tl("Stok dikembalikan & saldo kembalian disesuaikan", "Stock restored & change float adjusted")],
+    ["none", tl("Hapus data saja", "Delete data only"), tl("Stok dan saldo tidak berubah", "Stock and float stay unchanged")],
+  ];
+  return (
+    <div className="refund-list">
+      {opts.map(([k, label, hint]) => (
+        <label key={k} className={"refund-opt" + (value === k ? " on" : "")}>
+          <input type="radio" name="refund-mode" checked={value === k} onChange={() => onChange(k)} />
+          <div><b>{label}</b><small>{hint}</small></div>
+        </label>
+      ))}
+    </div>
+  );
+}
+
 // Konfirmasi di tengah layar (tampilan sama seperti modal logout)
-function ConfirmModal({ icon = "trash", title, desc, okText, cancelText, onOk, onClose }) {
+function ConfirmModal({ icon = "trash", title, desc, okText, cancelText, onOk, onClose, refund = null }) {
   const [busy, setBusy] = useState(false);
+  const [mode, setMode] = useState(refund?.defaultMode || "none");
   const ok = async () => {
     if (busy) return;
     setBusy(true);
-    await onOk();
+    await onOk(mode);
     onClose();
   };
   return (
@@ -176,6 +198,7 @@ function ConfirmModal({ icon = "trash", title, desc, okText, cancelText, onOk, o
         <div className="logout-ic"><Ic n={icon} s={30} /></div>
         <h3>{title}</h3>
         {desc && <p className="muted small">{desc}</p>}
+        {refund && <RefundPicker value={mode} onChange={setMode} />}
         <div className="row-actions-2" style={{ marginTop: 18 }}>
           <button className="btn ghost" onClick={onClose}>{cancelText}</button>
           <button className="btn gold" style={{ background: "var(--err)" }} disabled={busy} onClick={ok}>{okText}</button>
@@ -1733,6 +1756,26 @@ function Produk({ products, txs = [], reload, closeDay, openDay, closed, patchPr
   const list = rank === "best" ? ranked.filter((p) => totalOf(p) > 0) : ranked;
   const maxSold = Math.max(1, ...shown.map(totalOf));
 
+  const [selecting, setSelecting] = useState(false);
+  const [sel, setSel] = useState([]);
+  const [confirmMany, setConfirmMany] = useState(false);
+  const toggle = (id) => setSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+  const allIds = shown.map((p) => p._id);
+  const allPicked = allIds.length > 0 && allIds.every((id) => sel.includes(id));
+  const stopSelect = () => { setSelecting(false); setSel([]); };
+
+  const doDeleteMany = async () => {
+    try {
+      const r = await req("/products/bulk-delete", "POST", { ids: sel });
+      (r.ids || sel).forEach(removeProduct);
+      toast.success(tl(`${r.deletedCount} produk dihapus`, `${r.deletedCount} products deleted`));
+      stopSelect();
+      reload();
+    } catch (x) {
+      toast.error(x.message);
+    }
+  };
+
   return (
     <>
     <div className="search" style={{ marginBottom: 10 }}>
@@ -1798,47 +1841,74 @@ function Produk({ products, txs = [], reload, closeDay, openDay, closed, patchPr
       </>
     )}
 
-      {view === "list" && (
-        <>
-          <div className="plist">
-            {shown.map((p) => (
-              <div className="card pc" key={p._id}>
-                <div className="pc-h">
-                  <span className="pe"><CatIcon c={p.category} s={28} /></span>
-                  <div className="grow"><b>{p.name}</b><br /><small className="chip">{p.category === "minuman" ? t("drink") : t("food")}</small></div>
-                  <b className="price">{rp(p.price)}</b>
-                </div>
-                <div className="stats4">
-                  <div><small>{t("stockStart")}</small><b>{p.stockInitial}</b></div>
-                  <div><small>{t("sold")}</small><b>{p.sold}</b></div>
-                  <div className="hl"><small>{t("now")}</small><b>{p.stock}</b></div>
-                  <div><small>{t("stockEnd")}</small><b>{p.stockEnd ?? "-"}</b></div>
-                </div>
-                <small className="muted" style={{ display: "block", margin: "6px 0 2px" }}>
-                  {tl("Total terbeli", "Total bought")}: <b>{totalOf(p)}</b>
-                  {p.priceRaw != null && ` · ${tl("tanpa seduh", "not brewed")}: ${stats[p._id]?.raw || 0}`}
-                </small>
-                <div className="pc-a">
-                  <button onClick={() => edit(p)}><Ic n="edit" s={15} /> {t("edit")}</button>
-                  <button className="d" onClick={() => del(p)}><Ic n="trash" s={15} /> {t("delete")}</button>
+    {view === "list" && (
+      <>
+        {shown.length > 0 && (
+          <div className="sel-bar">
+            {!selecting ? (
+              <button className="btn ghost" onClick={() => setSelecting(true)}>
+                <Ic n="check" s={16} /> {tl("Pilih", "Select")}
+              </button>
+            ) : (
+              <>
+                <button className="btn ghost" onClick={() => setSel(allPicked ? [] : allIds)}>
+                  {allPicked ? tl("Batal semua", "Unselect all") : tl("Pilih semua", "Select all")}
+                </button>
+                <button className="btn gold" style={{ background: "var(--err)" }} disabled={!sel.length} onClick={() => setConfirmMany(true)}>
+                  <Ic n="trash" s={16} /> {tl("Hapus", "Delete")} ({sel.length})
+                </button>
+                <button className="btn ghost" onClick={stopSelect}>{t("cancel")}</button>
+              </>
+            )}
+          </div>
+        )}
+
+        <div className="plist">
+          {shown.map((p) => {
+            const on = sel.includes(p._id);
+            return (
+              <div className={"sel-wrap" + (on ? " picked" : "")} key={p._id}>
+                {selecting && <input type="checkbox" className="sel-cb" checked={on} onChange={() => toggle(p._id)} />}
+                <div className="sel-body">
+                  <div className="card pc" onClick={selecting ? () => toggle(p._id) : undefined}>
+                    <div className="pc-h">
+                      <span className="pe"><CatIcon c={p.category} s={28} /></span>
+                      <div className="grow"><b>{p.name}</b><br /><small className="chip">{p.category === "minuman" ? t("drink") : t("food")}</small></div>
+                      <b className="price">{rp(p.price)}</b>
+                    </div>
+                    <div className="stats4">
+                      <div><small>{t("stockStart")}</small><b>{p.stockInitial}</b></div>
+                      <div><small>{t("sold")}</small><b>{p.sold}</b></div>
+                      <div className="hl"><small>{t("now")}</small><b>{p.stock}</b></div>
+                      <div><small>{t("stockEnd")}</small><b>{p.stockEnd ?? "-"}</b></div>
+                    </div>
+                    <small className="muted" style={{ display: "block", margin: "6px 0 2px" }}>
+                      {tl("Total terbeli", "Total bought")}: <b>{totalOf(p)}</b>
+                      {p.priceRaw != null && ` · ${tl("tanpa seduh", "not brewed")}: ${stats[p._id]?.raw || 0}`}
+                    </small>
+                    {!selecting && (
+                      <div className="pc-a">
+                        <button onClick={() => edit(p)}><Ic n="edit" s={15} /> {t("edit")}</button>
+                        <button className="d" onClick={() => del(p)}><Ic n="trash" s={15} /> {t("delete")}</button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-            ))}
-          </div>
-     
-          {!shown.length && (
-            <EmptyState
-              img="/produk.png"
-              icon="box"
-              title={t("noProductsShort")}
-              desc={tl("Tambahkan produk pertama untuk mulai berjualan.", "Add your first product to start selling.")}
-              // actionText={t("addProduct")}
-              // onAction={() => setShow(true)}
-            />
-          )}
-        </>
-      )}
+            );
+          })}
+        </div>
 
+        {!shown.length && (
+          <EmptyState
+            img="/produk.png"
+            icon="box"
+            title={q ? tl("Produk tidak ditemukan", "No products found") : t("noProductsShort")}
+            desc={q ? tl("Coba kata kunci lain.", "Try another keyword.") : tl("Tambahkan produk pertama untuk mulai berjualan.", "Add your first product to start selling.")}
+          />
+        )}
+      </>
+    )}
 
       {show && (
         <Modal title={editId ? t("editProduct") : t("addProduct")} onClose={close}>
@@ -1901,6 +1971,17 @@ function Produk({ products, txs = [], reload, closeDay, openDay, closed, patchPr
           cancelText={t("cancel")}
           onOk={() => doDelete(delP)}
           onClose={() => setDelP(null)}
+        />
+      )}
+
+      {confirmMany && (
+        <ConfirmModal
+          title={tl(`Hapus ${sel.length} produk?`, `Delete ${sel.length} products?`)}
+          desc={tl("Produk yang dipilih dihapus permanen. Riwayat transaksi tetap aman.", "Selected products are deleted permanently. Transaction history is kept.")}
+          okText={t("yesDelete")}
+          cancelText={t("cancel")}
+          onOk={doDeleteMany}
+          onClose={() => setConfirmMany(false)}
         />
       )}
     </>
@@ -2191,8 +2272,8 @@ function TxEditModal({ tx, products, onClose, onSaved }) {
 }
 
 // ---------- Riwayat ----------
-function Riwayat({ txs, onEdit, onDelete, openDetail }) {
-  const { t, lang } = useT();
+function Riwayat({ txs, onEdit, onDelete, openDetail, onRemoved }) {
+  const { t, lang, locale } = useT();
   const tl = (id, en) => (lang === "en" ? en : id);
   const [range, setRange] = useState("today"); // today | all | date
   const [date, setDate] = useState(toKey(new Date()));
@@ -2204,6 +2285,47 @@ function Riwayat({ txs, onEdit, onDelete, openDetail }) {
   const inc = list.filter((x) => x.type === "income").reduce((s, x) => s + x.total, 0);
   const ex = range === "all" ? expenseAll(txs) : expenseOn(txs, range === "date" ? date : todayKey);
   const exp = ex.total;
+
+  // ===== mode pilih & hapus massal =====
+  const [selecting, setSelecting] = useState(false);
+  const [sel, setSel] = useState([]);
+  const [confirm, setConfirm] = useState(null); // "sel" | "date"
+  useEffect(() => { setSel([]); }, [range, date]);
+
+  const toggle = (id) => setSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+  const allIds = list.map((x) => x._id);
+  const allPicked = allIds.length > 0 && allIds.every((id) => sel.includes(id));
+  const stopSelect = () => { setSelecting(false); setSel([]); };
+
+  const targetDate = range === "date" ? date : range === "today" ? todayKey : null;
+  const targetLabel = targetDate
+    ? new Date(targetDate + "T00:00:00").toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" })
+    : "";
+  const hasPerm = list.some((x) => x.permanent);
+
+  const delSelected = async (mode) => {
+    try {
+      const r = await req("/transactions/bulk-delete", "POST", { ids: sel, mode });
+      onRemoved(r.ids || sel);
+      toast.success(tl(`${r.deletedCount} transaksi dihapus`, `${r.deletedCount} transactions deleted`));
+      stopSelect();
+    } catch (e) {
+      toast.error(e.message);
+    }
+  };
+
+  const delByDate = async (mode) => {
+    try {
+      const from = new Date(targetDate + "T00:00:00").toISOString();
+      const to = new Date(targetDate + "T23:59:59.999").toISOString();
+      const r = await req("/transactions/delete-by-date", "POST", { from, to, mode });
+      onRemoved(r.ids || []);
+      toast.success(tl(`${r.deletedCount} transaksi dihapus`, `${r.deletedCount} transactions deleted`));
+      stopSelect();
+    } catch (e) {
+      toast.error(e.message);
+    }
+  };
 
   return (
     <>
@@ -2229,14 +2351,57 @@ function Riwayat({ txs, onEdit, onDelete, openDetail }) {
         <div className="card"><small>{t("expense")}</small><b className="err">{rp(exp)}</b></div>
         <div className="card"><small>{t("profit")}</small><b>{rp(inc - exp)}</b></div>
       </div>
-      {list.map((x) => (
-        <TxRow key={x._id} t={x} onClick={() => openDetail(x)}>
-          <div className="pc-a" onClick={(e) => e.stopPropagation()}>
-            <button onClick={() => onEdit(x)}><Ic n="edit" s={15} /> {t("edit")}</button>
-            <button className="d" onClick={() => onDelete(x)}><Ic n="trash" s={15} /> {t("delete")}</button>
+
+      {/* Bilah pilih & hapus massal */}
+      {list.length > 0 && (
+        <div className="sel-bar">
+          {!selecting ? (
+            <>
+              <button className="btn ghost" onClick={() => setSelecting(true)}>
+                <Ic n="check" s={16} /> {tl("Pilih", "Select")}
+              </button>
+              {targetDate && (
+                <button className="btn ghost danger" onClick={() => setConfirm("date")}>
+                  <Ic n="trash" s={16} /> {tl("Hapus tanggal ini", "Delete this date")} ({list.length})
+                </button>
+              )}
+            </>
+          ) : (
+            <>
+              <button className="btn ghost" onClick={() => setSel(allPicked ? [] : allIds)}>
+                {allPicked ? tl("Batal semua", "Unselect all") : tl("Pilih semua", "Select all")}
+              </button>
+              <button className="btn gold" style={{ background: "var(--err)" }} disabled={!sel.length}
+                onClick={() => setConfirm("sel")}>
+                <Ic n="trash" s={16} /> {tl("Hapus", "Delete")} ({sel.length})
+              </button>
+              <button className="btn ghost" onClick={stopSelect}>{t("cancel")}</button>
+            </>
+          )}
+        </div>
+      )}
+
+      {list.map((x) => {
+        const on = sel.includes(x._id);
+        return (
+          <div className={"sel-wrap" + (on ? " picked" : "")} key={x._id}>
+            {selecting && (
+              <input type="checkbox" className="sel-cb" checked={on} onChange={() => toggle(x._id)} />
+            )}
+            <div className="sel-body">
+              <TxRow t={x} onClick={() => (selecting ? toggle(x._id) : openDetail(x))}>
+                {!selecting && (
+                  <div className="pc-a" onClick={(e) => e.stopPropagation()}>
+                    <button onClick={() => onEdit(x)}><Ic n="edit" s={15} /> {t("edit")}</button>
+                    <button className="d" onClick={() => onDelete(x)}><Ic n="trash" s={15} /> {t("delete")}</button>
+                  </div>
+                )}
+              </TxRow>
+            </div>
           </div>
-        </TxRow>
-      ))}
+        );
+      })}
+
       {!list.length && (
         <EmptyState
           img="/riwayat.png"
@@ -2247,6 +2412,29 @@ function Riwayat({ txs, onEdit, onDelete, openDetail }) {
               ? tl("Coba pilih tanggal lain.", "Try picking another date.")
               : tl("Penjualan dan belanja akan tercatat di sini.", "Sales and expenses will be recorded here.")
           }
+        />
+      )}
+
+      {confirm && (
+        <ConfirmModal
+          title={
+            confirm === "sel"
+              ? tl(`Hapus ${sel.length} transaksi?`, `Delete ${sel.length} transactions?`)
+              : tl(`Hapus semua transaksi ${targetLabel}?`, `Delete all transactions on ${targetLabel}?`)
+          }
+          desc={
+            confirm === "sel"
+              ? tl("Transaksi yang dipilih dihapus permanen.", "Selected transactions are deleted permanently.")
+              : tl(
+                  `${list.length} transaksi dihapus permanen.` + (hasPerm ? " Termasuk pengeluaran permanen, yang berhenti dihitung di hari-hari berikutnya." : ""),
+                  `${list.length} transactions are deleted permanently.` + (hasPerm ? " This includes permanent expenses, which stop counting on later days." : "")
+                )
+          }
+          okText={t("yesDelete")}
+          cancelText={t("cancel")}
+          refund={{ defaultMode: "none" }}
+          onOk={confirm === "sel" ? delSelected : delByDate}
+          onClose={() => setConfirm(null)}
         />
       )}
     </>
@@ -2509,9 +2697,10 @@ export default function App() {
     title: t("delTxTitle"),
     desc: t("delTxDesc"),
     okText: t("yesDelete"),
-    onOk: async () => {
+    refund: { defaultMode: "full" },
+    onOk: async (mode) => {
       try {
-        await req(`/transactions/${x._id}`, "DELETE");
+        await req(`/transactions/${x._id}`, "DELETE", { mode });
         touch(); setTxs((l) => l.filter((y) => y._id !== x._id));
         toast.success(t("txDeleted"));
         after?.();
@@ -2591,7 +2780,19 @@ export default function App() {
               {tab === "kasir" && <Kasir products={products} reload={reload} patchTx={patchTx} closed={closed} openDay={openDay} fund={fund} hideFund={settings.hideNominal || settings.hideKembalian} cols={settings.kasirCols === 1 ? 1 : 2} setCols={(n) => setSettings((p) => ({ ...p, kasirCols: n }))} />}
               {tab === "produk" && <Produk products={products} reload={reload} closeDay={closeDay} txs={txs} openDay={openDay} closed={closed} patchProduct={patchProduct} removeProduct={removeProduct} />}
               {tab === "keluar" && <Pengeluaran products={products} reload={reload} patchTx={patchTx} closed={closed} openDay={openDay} go={setTab} />}
-              {tab === "riwayat" && <Riwayat txs={txs} onEdit={setEditTx} onDelete={deleteTx} openDetail={openDetail} />}
+              {tab === "riwayat" && (
+                <Riwayat
+                  txs={txs}
+                  onEdit={setEditTx}
+                  onDelete={deleteTx}
+                  openDetail={openDetail}
+                  onRemoved={(ids) => {
+                    touch();
+                    setTxs((l) => l.filter((x) => !ids.includes(x._id)));
+                    reload();
+                  }}
+                />
+              )}
             </div>
           </>
         )}

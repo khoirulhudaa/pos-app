@@ -761,32 +761,30 @@ app.put("/api/transactions/:id", async (req, res) => {
   res.json(saved);
 });
 
-app.delete("/api/transactions/:id", async (req, res) => {
-  const t = await Tx.findById(req.params.id);
-  if (!t) return res.json({ ok: true });
+const REFUND_MODES = ["none", "stock", "full"];
+const toMode = (m, fallback = "none") => (REFUND_MODES.includes(m) ? m : fallback);
+const MODE_LABEL = { none: "tanpa refund", stock: "refund produk", full: "refund produk + uang" };
 
-  const shortId = String(t._id).slice(-5).toUpperCase();
-  const sign = t.type === "income" ? 1 : -1;
-
-  const stockItems = t.items.filter((i) => i.product);
-  if (stockItems.length) {
-    await Product.bulkWrite(stockItems.map((i) => ({ 
-      updateOne: {
-          filter: { _id: i.product },
-          update: {
-            $inc: {
-              stock: sign * i.qty,
-              sold: t.type === "income" ? -i.qty : 0,
-            },
+// mode: "none" = hapus data saja | "stock" = balikkan stok | "full" = balikkan stok + saldo kembalian
+const removeTx = async (t, mode = "none") => {
+  if (mode === "stock" || mode === "full") {
+    const sign = t.type === "income" ? 1 : -1;
+    const stockItems = (t.items || []).filter((i) => i.product);
+    if (stockItems.length) {
+      await Product.bulkWrite(
+        stockItems.map((i) => ({
+          updateOne: {
+            filter: { _id: i.product },
+            update: { $inc: { stock: sign * i.qty, sold: t.type === "income" ? -i.qty : 0 } },
           },
-        },
-     })));
+        }))
+      );
+    }
   }
 
   await t.deleteOne();
 
-  // balikkan efek transaksi ini ke saldo
-  if (t.type === "income") {
+  if (mode === "full" && t.type === "income") {
     const fund = await getFund();
     if (fundApplies(t, fund)) {
       const cashIn = t.cashIn || 0;
@@ -800,20 +798,76 @@ app.delete("/api/transactions/:id", async (req, res) => {
       }
     }
   }
+};
 
+const validIds = (arr) =>
+  (Array.isArray(arr) ? arr : []).filter((id) => mongoose.isValidObjectId(id)).slice(0, 500);
+
+app.delete("/api/transactions/:id", async (req, res) => {
+  const t = await Tx.findById(req.params.id);
+  if (!t) return res.json({ ok: true });
+
+  const mode = toMode(req.body?.mode, "full");   // default sama seperti perilaku lama
+  const shortId = String(t._id).slice(-5).toUpperCase();
   const label =
-    t.type === "income"
+    (t.type === "income"
       ? `Hapus transaksi · ID ${shortId} · Rp ${Number(t.total).toLocaleString("id-ID")}`
-      : `Hapus pengeluaran · ID ${shortId} · Rp ${Number(t.total).toLocaleString("id-ID")}`;
+      : `Hapus pengeluaran · ID ${shortId} · Rp ${Number(t.total).toLocaleString("id-ID")}`) +
+    ` · ${MODE_LABEL[mode]}`;
 
-  await logActivity(req, "delete_transaction", label, {
-    txId: t._id,
-    shortId,
-    type: t.type,
-    total: t.total,
-  });
+  await removeTx(t, mode);
 
+  await logActivity(req, "delete_transaction", label, { txId: t._id, shortId, type: t.type, total: t.total, mode });
   res.json({ ok: true });
+});
+
+// Hapus beberapa transaksi pilihan
+app.post("/api/transactions/bulk-delete", async (req, res) => {
+  const ids = validIds(req.body?.ids);
+  if (!ids.length) return bad(res, "Pilih minimal 1 transaksi");
+  const mode = toMode(req.body?.mode);
+
+  const list = await Tx.find({ _id: { $in: ids } });
+  for (const t of list) await removeTx(t, mode);
+
+  await logActivity(req, "delete_transaction", `Hapus ${list.length} transaksi (pilihan) · ${MODE_LABEL[mode]}`, {
+    count: list.length,
+    mode,
+  });
+  res.json({ ok: true, deletedCount: list.length, ids: list.map((t) => String(t._id)) });
+});
+
+// Hapus semua transaksi pada satu tanggal (rentang waktu dikirim dari klien supaya zona waktu benar)
+app.post("/api/transactions/delete-by-date", async (req, res) => {
+  const from = new Date(req.body?.from);
+  const to = new Date(req.body?.to);
+  if (isNaN(from) || isNaN(to) || to < from) return bad(res, "Tanggal tidak valid");
+  if (to - from > 36 * 3600 * 1000) return bad(res, "Rentang maksimal 1 hari");
+  const mode = toMode(req.body?.mode);
+
+  const list = await Tx.find({ createdAt: { $gte: from, $lte: to } });
+  for (const t of list) await removeTx(t, mode);
+
+  await logActivity(req, "delete_transaction", `Hapus ${list.length} transaksi tanggal ${toKey(from)} · ${MODE_LABEL[mode]}`, {
+    count: list.length,
+    mode,
+    from,
+    to,
+  });
+  res.json({ ok: true, deletedCount: list.length, ids: list.map((t) => String(t._id)) });
+});
+
+app.post("/api/products/bulk-delete", async (req, res) => {
+  const ids = validIds(req.body?.ids);
+  if (!ids.length) return bad(res, "Pilih minimal 1 produk");
+
+  const list = await Product.find({ _id: { $in: ids } });
+  await Product.deleteMany({ _id: { $in: list.map((p) => p._id) } });
+
+  await logActivity(req, "delete_product", `Hapus ${list.length} produk: ${list.map((p) => p.name).join(", ").slice(0, 200)}`, {
+    count: list.length,
+  });
+  res.json({ ok: true, deletedCount: list.length, ids: list.map((p) => String(p._id)) });
 });
 
 // di file server (setelah endpoint transaksi yang sudah ada)
