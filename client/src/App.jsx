@@ -1463,7 +1463,7 @@ function Kasir({ products, reload, patchTx, closed, openDay, fund, hideFund, col
                     <span style={{ position: "relative", top: -3.2 }}>+</span>
                   </button>
                 </div>
-                {p.category === "minuman" && p.priceRaw != null && (
+                {/* {p.category === "minuman" && p.priceRaw != null && (
                   <div className="prod-raw">
                     <span>{tl("Tanpa seduh", "Not brewed")} · {rp(p.priceRaw)}</span>
                     <div className="stepper">
@@ -1472,7 +1472,7 @@ function Kasir({ products, reload, patchTx, closed, openDay, fund, hideFund, col
                       <button onClick={() => add(p, 1, true)} disabled={usedOf(p) >= p.stock}>+</button>
                     </div>
                   </div>
-                )}
+                )} */}
               </div>
             );
           })}
