@@ -1492,6 +1492,7 @@ function Kasir({ products, reload, patchTx, closed, openDay, fund, hideFund, col
       {open && <div className="scrim" onClick={() => setOpen(false)} />}
       <div className={"cart-panel" + (open ? " open" : "")}>
         <div className="modal-h"><h3>{t("cart")}</h3><button className="icon-btn dark sheet-x" onClick={() => setOpen(false)}><Ic n="x" /></button></div>
+        
         {lines.map((p) => {
           const qty = cart[p._id];
           const lineTotal = calcLineTotal(p, qty);
@@ -1502,7 +1503,27 @@ function Kasir({ products, reload, patchTx, closed, openDay, fund, hideFund, col
           return (
             <div key={p._id}>
               <div className="row">
-                {/* ...isi row seperti sebelumnya, tidak diubah... */}
+                <div className="grow">
+                  <b>{p.name}</b>
+                  <br />
+                  <small className="muted">
+                    {rp(p.price)} × {qty}
+                    {hasPromo && <span style={{ color: "var(--ok)", fontWeight: 700 }}> → {t("promo")}</span>}
+                  </small>
+                </div>
+                <div className="qty">
+                  <button onClick={() => add(p, -1)}>−</button>
+                  <span>{qty}</span>
+                  <button onClick={() => add(p, 1)}>+</button>
+                </div>
+                <b className="w" style={{ color: hasPromo ? "var(--ok)" : undefined }}>
+                  {rp(lineTotal)}
+                  {hasPromo && normalTotal !== lineTotal && (
+                    <small style={{ display: "block", fontSize: 11, color: "var(--muted)", textDecoration: "line-through" }}>
+                      {rp(normalTotal)}
+                    </small>
+                  )}
+                </b>
               </div>
               {canRaw && (
                 <label className="raw-check">
@@ -1513,12 +1534,20 @@ function Kasir({ products, reload, patchTx, closed, openDay, fund, hideFund, col
             </div>
           );
         })}
+
         {rawLines.map((p) => {
           const qty = rawCart[p._id];
           return (
             <div key={p._id + ":raw"}>
               <div className="row">
-                {/* ...isi row seperti sebelumnya... */}
+                <div className="grow">
+                  <b>{p.name}</b><br />
+                  <small className="muted">{tl("Tanpa seduh", "Not brewed")} · {rp(p.priceRaw)} × {qty}</small>
+                </div>
+                <div className="qty">
+                  <button onClick={() => add(p, -1, true)}>−</button><span>{qty}</span><button onClick={() => add(p, 1, true)}>+</button>
+                </div>
+                <b className="w">{rp(p.priceRaw * qty)}</b>
               </div>
               <label className="raw-check on">
                 <input type="checkbox" checked onChange={() => moveLine(p, false)} />
