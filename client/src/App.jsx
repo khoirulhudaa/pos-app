@@ -488,15 +488,21 @@ const isMix = (t) =>
 function TxIcon({ t }) {
   const [failed, setFailed] = useState(false);
   const mixed = isMix(t);
-  const other = t.type === "expense" && (t.expenseItems || []).length > 0 && !mixed; // belanja custom
-  const src = mixed ? "/mix.png" : other ? "/other.png" : "/drink.png";
-  if (failed) return <span style={{ fontSize: 20 }}>{mixed ? "" : "🍜"}</span>;
+  const other = t.type === "expense" && (t.expenseItems || []).length > 0 && !mixed; // belanja custom (lama)
+  // Pengeluaran non-belanja: tanpa produk, tanpa jumlah belanja, tanpa item belanja custom
+  const nonShop =
+    t.type === "expense" &&
+    !(t.items || []).length &&
+    !(t.buyQty > 0) &&
+    !(t.expenseItems || []).length;
+  const src = nonShop ? "/candy.png" : mixed ? "/mix.png" : other ? "/other.png" : "/drink.png";
+  if (failed) return <span style={{ fontSize: 20 }}>{nonShop ? "🍬" : mixed ? "" : "🍜"}</span>;
   return (
     <img
       src={src}
       alt=""
       onError={() => setFailed(true)}
-      style={{ width: 24, height: 24, objectFit: "contain", transform: other ? undefined : "rotate(20deg)" }}
+      style={{ width: 24, height: 24, objectFit: "contain", transform: other || nonShop ? undefined : "rotate(20deg)" }}
     />
   );
 }
