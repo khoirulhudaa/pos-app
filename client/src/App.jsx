@@ -710,6 +710,7 @@ function ChangeFundCard({ fund, money, onManage }) {
       <strong className="cf-bal">{money(fund.balance)}</strong>
       <div className="cf-stats">
         <div><small>{tl("Modal awal", "Opening")}</small><b>{money(fund.initial)}</b></div>
+        <div><small>{tl("Penjualan tunai", "Cash sales")}</small><b className="ok">{money(fund.sales)}</b></div>
         <div><small>{tl("Tambahan", "Added")}</small><b>{money(fund.added)}</b></div>
         <div><small>{tl("Sumber lain", "Other source")}</small><b className={fund.otherUsed > 0 ? "err" : ""}>{money(fund.otherUsed)}</b></div>
       </div>
@@ -1584,7 +1585,7 @@ function Kasir({ products, reload, patchTx, closed, openDay, fund, hideFund, col
                 {fromOther > 0 && (
                   <div><span>{tl("Kurang → ambil dari sumber lain", "Short → take from other source")}</span><b className="err">{rp(fromOther)}</b></div>
                 )}
-                <small className="muted">{tl("Sisa stok setelah ini", "Float after this")}: {rp(fundBal - fromStock)}</small>
+                <small className="muted">{tl("Saldo setelah ini", "Balance after this")}: {rp(fundBal + Number(cash) - fromStock)}</small>
               </div>
             )}
           </>

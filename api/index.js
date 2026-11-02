@@ -45,6 +45,7 @@ const Product = registerModel("Product", new mongoose.Schema({
 const Tx = registerModel("Tx", new mongoose.Schema({
   type: { type: String, enum: ["income", "expense"], required: true },
   description: String,
+  cashIn: { type: Number, default: 0 },   // uang tunai yang masuk ke saldo dari transaksi ini
   items: [{
     product: mongoose.Schema.Types.ObjectId,
     name: String,
@@ -93,11 +94,12 @@ const Setting = registerModel("Setting", new mongoose.Schema({
   closedAt: Date,
   // ===== MANAJEMEN KEMBALIAN =====
   change: {
-    initial: { type: Number, default: 0 },    // modal kembalian awal hari
-    balance: { type: Number, default: 0 },    // sisa stok kembalian
-    added: { type: Number, default: 0 },      // total tambahan hari ini
-    otherUsed: { type: Number, default: 0 },  // total kembalian yang diambil dari sumber lain
-    since: Date,                              // kapan modal terakhir diatur
+    initial: { type: Number, default: 0 },
+    balance: { type: Number, default: 0 },
+    added: { type: Number, default: 0 },
+    otherUsed: { type: Number, default: 0 },
+    sales: { type: Number, default: 0 },   // ← baru: total penjualan tunai sejak modal diatur
+    since: Date,
   },
 }, { timestamps: true }));
 
@@ -155,13 +157,16 @@ const getFund = async () => {
     balance: c.balance || 0,
     added: c.added || 0,
     otherUsed: c.otherUsed || 0,
+    sales: c.sales || 0,
     since: c.since || null,
   };
 };
+
 const upsertSetting = (update) =>
   Setting.findOneAndUpdate({ key: "shop" }, update, { upsert: true, new: true });
 
 // Atur ulang (awal hari)
+
 const resetFund = (amount) =>
   upsertSetting({
     $set: {
@@ -169,6 +174,7 @@ const resetFund = (amount) =>
       "change.balance": amount,
       "change.added": 0,
       "change.otherUsed": 0,
+      "change.sales": 0,
       "change.since": new Date(),
     },
   });
@@ -176,9 +182,12 @@ const resetFund = (amount) =>
   // Tambah stok kembalian
   const addFund = (amount) =>
     upsertSetting({ $inc: { "change.balance": amount, "change.added": amount } });
+  
   // Pergerakan karena transaksi
-  const moveFund = ({ balance = 0, other = 0 }) =>
-    upsertSetting({ $inc: { "change.balance": balance, "change.otherUsed": other } });
+  const moveFund = ({ balance = 0, other = 0, sales = 0 }) =>
+    upsertSetting({
+      $inc: { "change.balance": balance, "change.otherUsed": other, "change.sales": sales },
+    });
 
   // Bagi kembalian: stok dulu, kekurangan dari sumber lain
   const splitChange = (change, available) => {
@@ -491,7 +500,10 @@ app.post("/api/transactions", async (req, res) => {
     const paid = method === "qris" ? total : Number(cashReceived);
     if (!(paid >= total)) return bad(res, "Uang diterima kurang dari total");
     // ===== Sumber kembalian: stok dulu, kekurangan dari sumber lain =====
-    const src = splitChange(paid - total, (await getFund()).balance);
+    const cashIn = method === "cash" ? paid : 0;          // uang tunai masuk laci
+    const fund = await getFund();
+    // kembalian diambil dari saldo SEBELUM uang pembeli ini masuk
+    const src = splitChange(paid - total, fund.balance);
 
     const stockLines = lines.filter((l) => l.product);
     if (stockLines.length) {
@@ -514,10 +526,13 @@ app.post("/api/transactions", async (req, res) => {
       cashReceived: paid,
       change: paid - total,
       changeSource: src,
+      cashIn,
       note,
     });
 
-    if (src.stock || src.other) await moveFund({ balance: -src.stock, other: src.other });
+    if (cashIn || src.stock || src.other) {
+      await moveFund({ balance: cashIn - src.stock, other: src.other, sales: cashIn ? total : 0 });
+    }
 
     // ===== LOG AKTIVITAS =====
     const shortId = String(tx._id).slice(-5).toUpperCase();
@@ -700,22 +715,37 @@ app.put("/api/transactions/:id", async (req, res) => {
     if (!(t.cashReceived >= t.total)) t.cashReceived = t.total;
     t.change = t.cashReceived - t.total;
     // ===== sesuaikan stok kembalian =====
+        // ===== sesuaikan saldo kembalian =====
     const fund = await getFund();
     const oldSrc = { stock: t.changeSource?.stock || 0, other: t.changeSource?.other || 0 };
-    const legacy = oldSrc.stock + oldSrc.other !== Math.max(0, oldChange); // transaksi sebelum fitur ini
+    const oldCashIn = t.cashIn || 0;
+    const legacy = oldSrc.stock + oldSrc.other !== Math.max(0, oldChange); // transaksi sebelum fitur kembalian
     if (fundApplies(t, fund) && !legacy) {
-      const newSrc = splitChange(t.method === "cash" ? t.change : 0, fund.balance + oldSrc.stock);
+      const effectOf = (cashIn, change, src) => ({
+        balance: cashIn - src.stock,
+        other: src.other,
+        sales: cashIn > 0 ? cashIn - change : 0,
+      });
+      const oldEff = effectOf(oldCashIn, oldChange, oldSrc);
+      const before = fund.balance - oldEff.balance;            // saldo sebelum transaksi ini
+      // transaksi lama (cashIn = 0) tetap tidak menambah saldo, supaya tidak berubah diam-diam
+      const newCashIn = oldCashIn > 0 && t.method === "cash" ? t.cashReceived : 0;
+      const newSrc = splitChange(t.method === "cash" ? t.change : 0, before);
+      const newEff = effectOf(newCashIn, t.change, newSrc);
+
       t.set("changeSource.stock", newSrc.stock);
       t.set("changeSource.other", newSrc.other);
+      t.cashIn = newCashIn;
       fundDelta = {
-        balance: oldSrc.stock - newSrc.stock,
-        other: newSrc.other - oldSrc.other,
+        balance: newEff.balance - oldEff.balance,
+        other: newEff.other - oldEff.other,
+        sales: newEff.sales - oldEff.sales,
       };
     }
   }
 
   const saved = await t.save();
-  if (fundDelta && (fundDelta.balance || fundDelta.other)) await moveFund(fundDelta);
+  if (fundDelta && (fundDelta.balance || fundDelta.other || fundDelta.sales)) await moveFund(fundDelta);
   const shortId = String(saved._id).slice(-5).toUpperCase();
   const label = income
     ? `Edit transaksi · ID ${shortId}`
@@ -769,11 +799,19 @@ app.delete("/api/transactions/:id", async (req, res) => {
 
   await t.deleteOne();
 
-  // kembalikan stok kembalian yang terpakai transaksi ini
-  if (t.type === "income" && (t.changeSource?.stock || t.changeSource?.other)) {
+  // balikkan efek transaksi ini ke saldo
+  if (t.type === "income") {
     const fund = await getFund();
     if (fundApplies(t, fund)) {
-      await moveFund({ balance: t.changeSource.stock || 0, other: -(t.changeSource.other || 0) });
+      const cashIn = t.cashIn || 0;
+      const eff = {
+        balance: cashIn - (t.changeSource?.stock || 0),
+        other: t.changeSource?.other || 0,
+        sales: cashIn > 0 ? cashIn - (t.change || 0) : 0,
+      };
+      if (eff.balance || eff.other || eff.sales) {
+        await moveFund({ balance: -eff.balance, other: -eff.other, sales: -eff.sales });
+      }
     }
   }
 
