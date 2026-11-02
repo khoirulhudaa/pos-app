@@ -268,25 +268,10 @@
 .bk-nm { font-size: 13.5px; font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .alarm-ic { width: 76px; height: 76px; border-radius: 50%; background: var(--ty); color: var(--warnt); display: grid; place-items: center; margin: 4px auto 0; box-shadow: 0 0 0 10px rgba(251, 176, 45, .2); animation: ring 1s ease-in-out infinite; }
 @keyframes ring { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(-14deg); } 40% { transform: rotate(14deg); } 60% { transform: rotate(-8deg); } 80% { transform: rotate(8deg); } }
-/* ===== Popup alarm booking ===== */
-.alarm-modal { text-align: center; padding-top: 26px; max-width: 420px; }
-.alarm-modal h3 { margin: 14px 0 2px; font-size: 20px; }
-.alarm-list { display: flex; flex-direction: column; gap: 10px; max-height: 42vh; overflow-y: auto; margin: 14px 0 8px; text-align: left; }
-.alarm-card { padding: 12px; border-radius: 18px; background: var(--surface2); border-left: 5px solid #f59e0b; }
-.alarm-card.late { border-left-color: var(--err); background: #fff7f7; }
-.alarm-top { display: flex; align-items: center; gap: 12px; }
-.alarm-date { width: 48px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; padding: 6px 0; border-radius: 12px; background: #fef3c7; color: #b45309; line-height: 1.1; }
-.alarm-card.late .alarm-date { background: #fde8e8; color: var(--err); }
-.alarm-date b { font-size: 20px; font-weight: 800; }
-.alarm-date span { font-size: 10.5px; font-weight: 700; text-transform: uppercase; }
-.alarm-info { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.alarm-name { font-size: 15.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.alarm-info small { display: inline-flex; align-items: center; gap: 5px; }
-.alarm-late { font-style: normal; font-weight: 800; font-size: 10.5px; padding: 1px 8px; border-radius: 20px; background: var(--err); color: #fff; }
-.alarm-order { margin: 10px 0 0; padding: 8px 12px; border-radius: 12px; background: var(--surface); font-size: 13.5px; line-height: 1.4; white-space: pre-wrap; }
-.alarm-acts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
-.alarm-acts .btn { margin-top: 0; padding: 11px 8px; font-size: 13px; }
-.alarm-close { display: block; width: 100%; margin-top: 6px; padding: 10px; font-size: 13px; font-weight: 700; color: var(--muted); }
+.alarm-list { display: flex; flex-direction: column; gap: 10px; max-height: 45vh; overflow-y: auto; margin: 10px 0; text-align: left; }
+.alarm-item { padding: 12px; border-radius: 14px; background: var(--surface2); }
+.alarm-item b { display: block; }
+.alarm-item .btn { padding: 10px; font-size: 13px; }
 
 /* ===== Kebijakan Privasi ===== */
 .pp { max-width: 720px; padding: 20px 18px; }
