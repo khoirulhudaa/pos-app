@@ -135,7 +135,7 @@
 .sel-btn {
   flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   min-height: 40px; padding: 0 14px; margin: 0;
-  border: 0; border-radius: 999px;
+  border: 0; border-radius: 16px;
   background: #fff; color: #334155;
   font-size: 13px; font-weight: 600; white-space: nowrap;
   box-shadow: 0 1px 3px rgba(15, 23, 42, .08);
@@ -151,7 +151,7 @@
 .sel-btn.soft-danger:active { background: #ffe3e3; }
 
 /* Hapus (saat mode pilih): merah solid tapi halus */
-.sel-btn.solid-danger { background: #e5484d; color: #fff; box-shadow: 0 4px 12px rgba(229, 72, 77, .28); }
+.sel-btn.solid-danger { background: #e5484d; color: #fff;}
 .sel-btn.solid-danger:disabled { box-shadow: none; }
 
 .sel-count {
@@ -195,4 +195,4 @@
   border: 1.5px solid #cbd5e1; border-radius: 50%; background: #fff;
   transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
 }
-.refund-opt input:checked { border-color: #0a66c2; background: #0a66c2; box-shadow: inset 0 0 0 4px #fff; }
+.refund-opt input:checked { border-color: #0a66c2; background: #0a66c2; box-shadow: inset 0 0 0 4px #fff; } 

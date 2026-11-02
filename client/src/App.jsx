@@ -2389,7 +2389,6 @@ function Riwayat({ txs, onEdit, onDelete, openDetail, onRemoved }) {
             targetDate && (
               <button type="button" className="sel-btn soft-danger" onClick={() => setConfirm("date")}>
                 <Ic n="trash" s={15} /> {tl("Hapus tanggal ini", "Delete this date")}
-                <span className="sel-count">{list.length}</span>
               </button>
             )
           }
