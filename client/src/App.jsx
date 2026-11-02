@@ -2328,7 +2328,7 @@ function Booking({ bookings, setBookings, go }) {
           <Ic n="plus" s={18} /> {tl("Catat booking", "Add booking")}
         </button>
 
-        {list.map((b) => {
+        {/* {list.map((b) => {
           const due = new Date(b.dueAt).getTime();
           const late = !b.done && due < now;
           const soon = !b.done && !late && due - now < 3600000;
@@ -2360,6 +2360,90 @@ function Booking({ bookings, setBookings, go }) {
                 <button onClick={() => toggleDone(b)}><Ic n="check" s={15} /> {b.done ? tl("Batal selesai", "Undo") : tl("Selesai", "Done")}</button>
                 <button onClick={() => openEdit(b)}><Ic n="edit" s={15} /></button>
                 <button className="d" onClick={() => setDel(b)}><Ic n="trash" s={15} /></button>
+              </div>
+            </div>
+          );
+        })} */}
+
+        {list.map((b) => {
+          const due = new Date(b.dueAt);
+          const dueTs = due.getTime();
+          const late = !b.done && dueTs < now;
+          const soon = !b.done && !late && dueTs - now < 3600000;
+
+          const day = due.getDate();
+          const mon = due.toLocaleString(locale, { month: "short" });
+          const time = due.toLocaleString(locale, { hour: "2-digit", minute: "2-digit" });
+
+          return (
+            <div
+              key={b._id}
+              className={`bk2 ${late ? "late" : soon ? "soon" : ""} ${b.done ? "done" : ""}`}
+            >
+              {/* Date block */}
+              <div className="bk2-date">
+                <b>{day}</b>
+                <span>{mon}</span>
+                <em>{time}</em>
+              </div>
+
+              {/* Content */}
+              <div className="bk2-main">
+                <div className="bk2-top">
+                  <b className="bk2-name">{b.customer}</b>
+                  {late && <span className="bk-tag late">{tl("Terlewat", "Overdue")}</span>}
+                  {soon && <span className="bk-tag soon">{tl("Segera", "Soon")}</span>}
+                  {b.done && <span className="bk-tag ok">{tl("Selesai", "Done")}</span>}
+                </div>
+
+                {b.order && <p className="bk2-order">{b.order}</p>}
+
+                <div className="bk2-meta">
+                  <span>
+                    <Ic n="bell" s={12} /> {remindLabel(b.remindBefore, tl)}
+                  </span>
+                  {b.phone && <span>{b.phone}</span>}
+                </div>
+
+                {b.note && <small className="bk2-note">{b.note}</small>}
+              </div>
+
+              {/* Actions */}
+              <div className="bk2-acts">
+                {b.phone && (
+                  <a
+                    className="bk2-btn wa"
+                    href={waLink(
+                      b.phone,
+                      tl(
+                        `Halo ${b.customer}, mengingatkan pesanan Anda untuk ${due.toLocaleString(locale, {
+                          day: "numeric",
+                          month: "short",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}.`,
+                        `Hi ${b.customer}, a reminder about your order.`
+                      )
+                    )}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <Ic n="send" s={15} /> WA
+                  </a>
+                )}
+
+                <button className="bk2-btn ok" onClick={() => toggleDone(b)}>
+                  <Ic n="check" s={15} />
+                  {b.done ? tl("Batal", "Undo") : tl("Selesai", "Done")}
+                </button>
+
+                <button className="bk2-btn icon" onClick={() => openEdit(b)}>
+                  <Ic n="edit" s={15} />
+                </button>
+
+                <button className="bk2-btn del icon" onClick={() => setDel(b)}>
+                  <Ic n="trash" s={15} />
+                </button>
               </div>
             </div>
           );
