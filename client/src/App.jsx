@@ -2201,12 +2201,12 @@ function Penjual({ suppliers, products, setSuppliers, go }) {
                       <Ic n="send" s={15} /> WhatsApp
                     </a>
                     <a className="sp-act" href={`tel:+${waNumber(s.phone)}`}>
-                      <Ic n="phone" s={15} /> {tl("Telepon", "Call")}
+                      <Ic n="phone" s={15} />
                     </a>
                   </>
                 )}
-                <button onClick={() => openEdit(s)}><Ic n="edit" s={15} /> {tl("Edit", "Edit")}</button>
-                <button className="d" onClick={() => setDel(s)}><Ic n="trash" s={15} /> {tl("Hapus", "Delete")}</button>
+                <button onClick={() => openEdit(s)}><Ic n="edit" s={15} /></button>
+                <button className="d" onClick={() => setDel(s)}><Ic n="trash" s={15} /> </button>
               </div>
             </div>
           );
