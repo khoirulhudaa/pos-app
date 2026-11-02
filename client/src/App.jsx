@@ -534,38 +534,6 @@ function TxRow({ t, children, onClick }) {
 
 // ---------- Daftar stok menipis (ramping) ----------
 const LOW_LIMIT = 5;
-function LowStock({ low, go }) {
-  const { t } = useT();
-  const [open, setOpen] = useState(false);
-  if (!low.length) return null;
-  const sorted = [...low].sort((a, b) => a.stock - b.stock);
-  const shown = open ? sorted : sorted.slice(0, 3);
-  return (
-    <div className="card low-card">
-      <div className="low-h">
-        <span className="low-ic"><Ic n="alert" s={14} /></span>
-        <b>{t("lowStock")}</b>
-        <span className="low-badge">{low.length}</span>
-        <button className="link" onClick={() => go("produk")}>{t("manage")}</button>
-      </div>
-      {shown.map((p) => (
-        <div className="low-row" key={p._id}>
-          {/* <CatIcon c={p.category} s={16} /> */}
-          <span className="low-name" style={{marginLeft: 0.5}}>{p.name}</span>
-          {/* <span className="low-bar"><i style={{ width: `${Math.min(100, (p.stock / LOW_LIMIT) * 100)}%` }} /></span> */}
-          <span className={"low-chip" + (p.stock < 1 ? " zero" : "")}>
-            {p.stock < 1 ? t("outOfStock") : t("left", { n: p.stock })}
-          </span>
-        </div>
-      ))}
-      {sorted.length > 3 && (
-        <button className="low-more" onClick={() => setOpen((v) => !v)}>
-          {open ? t("showLess") : t("more", { n: sorted.length - 3 })}
-        </button>
-      )}
-    </div>
-  );
-}
 
 // ---------- Beranda ----------
 function Beranda({ txs, products, go, closeDay, openDay, closed, askLogout, openDetail, settings = {}, setSettings, fund, openFund }) {
