@@ -1790,7 +1790,7 @@ function Produk({ products, txs = [], reload, closeDay, openDay, closed, patchPr
 
     {view === "top" && (
       <>
-          <div className="seg" style={{ marginBottom: 8, marginTop: 8 }}>
+          <div className="seg" style={{ marginBottom: 8, marginTop: 10 }}>
             <button className={rank === "best" ? "on" : ""} onClick={() => setRank("best")}>{tl("Terlaris", "Best")}</button>
             <button className={rank === "worst" ? "on" : ""} onClick={() => setRank("worst")}>{tl("Kurang laris", "Slowest")}</button>
           </div>
@@ -1811,7 +1811,7 @@ function Produk({ products, txs = [], reload, closeDay, openDay, closed, patchPr
                     </small>
                   </div>
                 </div>
-                <div style={{ height: 6, borderRadius: 6, background: "#e5e7eb", overflow: "hidden", mtarginTop: 6 }}>
+                <div style={{ height: 6, borderRadius: 6, background: "#e5e7eb", overflow: "hidden", marginTop: 6 }}>
                   <div style={{ width: `${(totalOf(p) / maxSold) * 100}%`, height: "100%",
                     background: rank === "best" ? "linear-gradient(90deg,#fbb02d,#f59e0b)" : "linear-gradient(90deg,#94a3b8,#64748b)" }} />
                 </div>
