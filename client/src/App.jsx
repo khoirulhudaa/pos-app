@@ -1853,8 +1853,8 @@ function Produk({ products, txs = [], reload, closeDay, openDay, closed, patchPr
               <label>{tl("Harga tanpa seduh (opsional)", "Price without brewing (optional)")}</label>
               <input type="number" inputMode="numeric" placeholder="0" value={f.priceRaw} onChange={set("priceRaw")} />
               <small className="muted" style={{ display: "block", marginTop: 4 }}>
-                {tl("Untuk pembeli yang hanya beli produknya, tanpa diseduh. Boleh lebih murah.",
-                    "For customers who buy the product only, not brewed. Can be cheaper.")}
+                {tl("Untuk pembeli yang hanya beli produknya",
+                    "For customers who buy the product only")}
               </small>
             </>
           )}
