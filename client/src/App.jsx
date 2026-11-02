@@ -276,7 +276,7 @@ function ResetHistoryModal({ onClose, onDone }) {
           <div className="row-actions-2" style={{ marginTop: 5 }}>
             <button type="button" className="btn ghost" onClick={onClose}>{t("cancel")}</button>
             <button className="btn gold" style={{ background: "var(--err)" }} disabled={busy || !pw}>
-              {busy ? "..." : tl("Reset", "Reset")}
+              {busy ? ".." : tl("Reset", "Reset")}
             </button>
           </div>
         </form>
@@ -807,7 +807,7 @@ function Beranda({ txs, products, bookings=[], suppliers = [], go, closeDay, ope
             img="/riwayat.png"
             icon="list"
             title={t("noTx")}
-            desc={tl("Transaksi hari ini akan muncul di sini.", "Today's transactions will show up here.")}
+            desc={tl("Transaksi hari ini akan muncul di sini", "Today's transactions will show up here")}
             // actionText={closed ? undefined : tl("Buka Kasir", "Open Cashier")}
             onAction={() => go("kasir")}
           />
@@ -903,8 +903,8 @@ function ChangeFundModal({ fund, onClose, onSaved }) {
         </div>
         <small className="muted" style={{ display: "block", marginTop: 8 }}>
           {mode === "add"
-            ? tl("Menambah ke sisa stok kembalian yang sekarang.", "Adds to the current float.")
-            : tl("Mengganti sisa stok dengan nominal ini & mengosongkan hitungan 'sumber lain'.", "Replaces the current float and clears the 'other source' counter.")}
+            ? tl("Menambah ke sisa stok kembalian yang sekarang", "Adds to the current float")
+            : tl("Mengganti sisa stok dengan nominal ini & mengosongkan hitungan 'sumber lain'", "Replaces the current float and clears the 'other source' counter")}
         </small>
 
         <button className="btn gold" disabled={busy}>{tl("Simpan", "Save")}</button>
@@ -942,7 +942,7 @@ function OpenDayModal({ fund, onClose, onConfirm }) {
           autoFocus
         />
         <small className="muted" style={{ display: "block", marginTop: 6 }}>
-          {tl("Terisi otomatis dengan sisa kemarin. Kosongkan untuk tidak mengubah.", "Prefilled with yesterday's remaining. Leave empty to keep it unchanged.")}
+          {tl("Terisi otomatis dengan sisa kemarin. Kosongkan untuk tidak mengubah", "Prefilled with yesterday's remaining. Leave empty to keep it unchanged")}
         </small>
         <div className="row-actions-2" style={{ marginTop: 16 }}>
           <button type="button" className="btn ghost" onClick={onClose}>{t("cancel")}</button>
@@ -1004,7 +1004,7 @@ function Setting({ settings, setSettings, go, onReset, txs = [] }) {
     e.target.value = ""; // reset input
 
     setUploading(true);
-    const toastId = toast.loading(lang === "en" ? "Reading PDF..." : "Membaca PDF...");
+    const toastId = toast.loading(lang === "en" ? "Reading PDF.." : "Membaca PDF..");
 
     try {
       const text = await extractTextFromPdf(file);
@@ -1119,7 +1119,7 @@ function Setting({ settings, setSettings, go, onReset, txs = [] }) {
         <div className="card" style={{ marginTop: 16 }}>
           <h3 style={{ marginBottom: 8 }}>{lang === "en" ? "Bookings" : "Booking"}</h3>
           <small className="muted" style={{ display: "block", marginBottom: 12 }}>
-            {lang === "en" ? "Customer orders & reminders." : "Catatan pesanan pelanggan & pengingat."}
+            {lang === "en" ? "Customer orders & reminders" : "Catatan pesanan pelanggan & pengingat"}
           </small>
           <button
             className="btn ghost"
@@ -1133,7 +1133,7 @@ function Setting({ settings, setSettings, go, onReset, txs = [] }) {
         <div className="card" style={{ marginTop: 16 }}>
           <h3 style={{ marginBottom: 8 }}>{lang === "en" ? "Suppliers" : "Kontak Penjual"}</h3>
           <small className="muted" style={{ display: "block", marginBottom: 12 }}>
-            {lang === "en" ? "Save supplier contacts for restocking." : "Simpan kontak penjual bahan baku untuk belanja stok."}
+            {lang === "en" ? "Save supplier contacts for restocking" : "Simpan kontak penjual bahan baku untuk belanja stok"}
           </small>
           <button className="btn ghost" style={{ width: "100%", background: "transparent", border: "1.5px solid var(--border, #cbd5e1)", color: "inherit", fontWeight: 600, fontSize: 14 }} onClick={() => go("suppliers")}>
             {lang === "en" ? "Manage suppliers" : "Kelola kontak penjual"}
@@ -1170,8 +1170,8 @@ function Setting({ settings, setSettings, go, onReset, txs = [] }) {
           <h3 style={{ marginBottom: 8 }}>{lang === "en" ? "Daily Recap" : "Rekap Harian"}</h3>
           <small className="muted" style={{ display: "block", marginBottom: 12 }}>
             {lang === "en"
-              ? "Download one day's sales & expenses as PDF. You can later upload the same PDF to restore data."
-              : "Unduh penjualan & pengeluaran satu hari sebagai PDF. Nanti bisa di-upload lagi untuk memulihkan data."}
+              ? "Download one day's sales & expenses as PDF. You can later upload the same PDF to restore data"
+              : "Unduh penjualan & pengeluaran satu hari sebagai PDF. Nanti bisa di-upload lagi untuk memulihkan data"}
           </small>
 
           <input
@@ -1222,8 +1222,8 @@ function Setting({ settings, setSettings, go, onReset, txs = [] }) {
           >
             <small className="muted" style={{ display: "block", marginBottom: 8 }}>
               {lang === "en"
-                ? "Upload a previously downloaded Recap PDF to restore the transactions of that day."
-                : "Upload PDF Rekap yang sudah pernah diunduh untuk memulihkan transaksi hari tersebut."}
+                ? "Upload a previously downloaded Recap PDF to restore the transactions of that day"
+                : "Upload PDF Rekap yang sudah pernah diunduh untuk memulihkan transaksi hari tersebut"}
             </small>
 
             <input
@@ -1251,8 +1251,8 @@ function Setting({ settings, setSettings, go, onReset, txs = [] }) {
               <Ic n="upload" s={18} />{" "}
               {uploading
                 ? lang === "en"
-                  ? "Restoring..."
-                  : "Memulihkan..."
+                  ? "Restoring.."
+                  : "Memulihkan.."
                 : lang === "en"
                 ? "Upload PDF"
                 : "Upload PDF"}
@@ -1263,7 +1263,7 @@ function Setting({ settings, setSettings, go, onReset, txs = [] }) {
         <div className="card" style={{ marginTop: 16 }}>
           <h3 style={{ marginBottom: 8 }}>{lang === "en" ? "Privacy Policy" : "Kebijakan Privasi"}</h3>
           <small className="muted" style={{ display: "block", marginBottom: 12 }}>
-            {lang === "en" ? "How your data is handled." : "Bagaimana data Anda dikelola."}
+            {lang === "en" ? "How your data is handled" : "Bagaimana data Anda dikelola"}
           </small>
           <button
             className="btn ghost"
@@ -1311,8 +1311,8 @@ function Setting({ settings, setSettings, go, onReset, txs = [] }) {
           <h3 style={{ marginBottom: 8 }}>{lang === "en" ? "Transaction History" : "Riwayat Transaksi"}</h3>
           <small className="muted" style={{ display: "block", marginBottom: 12 }}>
             {lang === "en"
-              ? "Delete all transaction history. Requires the reset password."
-              : "Hapus seluruh riwayat transaksi. Butuh password reset."}
+              ? "Delete all transaction history. Requires the reset password"
+              : "Hapus seluruh riwayat transaksi. Butuh password reset"}
           </small>
           <button
             className="btn ghost"
@@ -1989,7 +1989,7 @@ function Produk({ products, txs = [], reload, suppliers = [], go, patchProduct, 
     <>
     <div className="search" style={{ marginBottom: 10 }}>
       <Ic n="search" s={18} />
-      <input placeholder={tl("Cari produk...", "Search products...")} value={q} onChange={(e) => setQ(e.target.value)} />
+      <input placeholder={tl("Cari produk..", "Search products..")} value={q} onChange={(e) => setQ(e.target.value)} />
     </div>
    <div className="row-actions">
       <button className="btn ghost" style={{ backgroundColor: "white" }} onClick={() => setShow(true)}>
@@ -2044,7 +2044,7 @@ function Produk({ products, txs = [], reload, suppliers = [], go, patchProduct, 
             ))}
             {!list.length && (
               <EmptyState img="/produk.png" icon="box" title={tl("Belum ada penjualan", "No sales yet")}
-                desc={tl("Peringkat muncul setelah ada transaksi.", "Ranking appears after sales are made.")} />
+                desc={tl("Peringkat muncul setelah ada transaksi", "Ranking appears after sales are made")} />
             )}
           </div>
       </>
@@ -2105,7 +2105,7 @@ function Produk({ products, txs = [], reload, suppliers = [], go, patchProduct, 
             img="/produk.png"
             icon="box"
             title={q ? tl("Produk tidak ditemukan", "No products found") : t("noProductsShort")}
-            desc={q ? tl("Coba kata kunci lain.", "Try another keyword.") : tl("Tambahkan produk pertama untuk mulai berjualan.", "Add your first product to start selling.")}
+            desc={q ? tl("Coba kata kunci lain", "Try another keyword") : tl("Tambahkan produk pertama untuk mulai berjualan", "Add your first product to start selling")}
           />
         )}
       </>
@@ -2369,7 +2369,7 @@ function Booking({ bookings, setBookings, go }) {
           <EmptyState
             icon="clock"
             title={tab === "active" ? tl("Belum ada booking", "No bookings yet") : tl("Belum ada yang selesai", "Nothing completed yet")}
-            desc={tab === "active" ? tl("Catat pesanan dari pelanggan supaya tidak lupa.", "Note customer orders so you never forget.") : ""}
+            desc={tab === "active" ? tl("Catat pesanan dari pelanggan supaya tidak lupa", "Note customer orders so you never forget") : ""}
           />
         )}
       </div>
@@ -2525,7 +2525,7 @@ function Penjual({ suppliers, products, setSuppliers, go }) {
       <div className="page pull">
         <div className="search" style={{ marginBottom: 10 }}>
           <Ic n="search" s={18} />
-          <input placeholder={tl("Cari penjual...", "Search suppliers...")} value={q} onChange={(e) => setQ(e.target.value)} />
+          <input placeholder={tl("Cari penjual..", "Search suppliers..")} value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
         <button className="btn ghost" style={{ marginTop: 0, marginBottom: 12, backgroundColor: "white" }} onClick={() => setShow(true)}>
           <Ic n="plus" s={18} /> {tl("Tambah penjual", "Add supplier")}
@@ -2568,7 +2568,7 @@ function Penjual({ suppliers, products, setSuppliers, go }) {
           <EmptyState
             icon="users"
             title={q ? tl("Penjual tidak ditemukan", "No suppliers found") : tl("Belum ada kontak penjual", "No suppliers yet")}
-            desc={q ? tl("Coba kata kunci lain.", "Try another keyword.") : tl("Simpan kontak penjual supaya mudah dihubungi saat stok habis.", "Save supplier contacts so you can reach them when stock runs out.")}
+            desc={q ? tl("Coba kata kunci lain", "Try another keyword") : tl("Simpan kontak penjual supaya mudah dihubungi saat stok habis", "Save supplier contacts so you can reach them when stock runs out")}
           />
         )}
       </div>
@@ -3073,8 +3073,8 @@ function Riwayat({ txs, onEdit, onDelete, openDetail, onRemoved }) {
           title={range === "date" ? t("noTxDate") : t("noTx")}
           desc={
             range === "date"
-              ? tl("Coba pilih tanggal lain.", "Try picking another date.")
-              : tl("Penjualan dan belanja akan tercatat di sini.", "Sales and expenses will be recorded here.")
+              ? tl("Coba pilih tanggal lain", "Try picking another date")
+              : tl("Penjualan dan belanja akan tercatat di sini", "Sales and expenses will be recorded here")
           }
         />
       )}
@@ -3090,8 +3090,8 @@ function Riwayat({ txs, onEdit, onDelete, openDetail, onRemoved }) {
             confirm === "sel"
               ? tl("Transaksi yang dipilih dihapus permanen", "Selected transactions are deleted permanently")
               : tl(
-                  `${list.length} transaksi dihapus permanen.` + (hasPerm ? " Termasuk pengeluaran permanen, yang berhenti dihitung di hari-hari berikutnya." : ""),
-                  `${list.length} transactions are deleted permanently.` + (hasPerm ? " This includes permanent expenses, which stop counting on later days." : "")
+                  `${list.length} transaksi dihapus permanen.` + (hasPerm ? " Termasuk pengeluaran permanen, yang berhenti dihitung di hari-hari berikutnya" : ""),
+                  `${list.length} transactions are deleted permanently.` + (hasPerm ? " This includes permanent expenses, which stop counting on later days" : "")
                 )
           }
           okText={t("yesDelete")}
@@ -3312,12 +3312,12 @@ function PrivacyPage({ go, back = "setting" }) {
       h: tl("1. Data yang kami kelola", "1. Data we handle"),
       p: [
         tl(
-          "Aplikasi ini adalah alat kasir internal. Data yang Anda masukkan disimpan di server kami: produk dan stok, transaksi penjualan dan pengeluaran, pengaturan uang kembalian, kontak penjual, catatan booking pelanggan (nama, nomor HP, isi pesanan, waktu ambil), serta log aktivitas.",
-          "This app is an internal point-of-sale tool. Data you enter is stored on our server: products and stock, sales and expense transactions, change float settings, supplier contacts, customer booking notes (name, phone, order, pickup time), and the activity log."
+          "Aplikasi ini adalah alat kasir internal. Data yang Anda masukkan disimpan di server kami: produk dan stok, transaksi penjualan dan pengeluaran, pengaturan uang kembalian, kontak penjual, catatan booking pelanggan (nama, nomor HP, isi pesanan, waktu ambil), serta log aktivitas",
+          "This app is an internal point-of-sale tool. Data you enter is stored on our server: products and stock, sales and expense transactions, change float settings, supplier contacts, customer booking notes (name, phone, order, pickup time), and the activity log"
         ),
         tl(
-          "Kami tidak meminta data pelanggan akhir selain yang Anda catat sendiri di fitur Booking dan kontak penjual.",
-          "We do not collect end-customer data other than what you record yourself in Bookings and supplier contacts."
+          "Kami tidak meminta data pelanggan akhir selain yang Anda catat sendiri di fitur Booking dan kontak penjual",
+          "We do not collect end-customer data other than what you record yourself in Bookings and supplier contacts"
         ),
       ],
     },
@@ -3325,8 +3325,8 @@ function PrivacyPage({ go, back = "setting" }) {
       h: tl("2. Login dan log aktivitas", "2. Login and activity log"),
       p: [
         tl(
-          "Akses memakai kata sandi akun. Setiap login, logout, dan perubahan data penting (produk, transaksi, kembalian, reset) dicatat di log aktivitas beserta waktu dan nama akun, agar pemilik dapat menelusuri perubahan.",
-          "Access uses an account password. Each login, logout, and important data change (products, transactions, change float, reset) is recorded in the activity log with time and account name so the owner can audit changes."
+          "Akses memakai kata sandi akun. Setiap login, logout, dan perubahan data penting (produk, transaksi, kembalian, reset) dicatat di log aktivitas beserta waktu dan nama akun, agar pemilik dapat menelusuri perubahan",
+          "Access uses an account password. Each login, logout, and important data change (products, transactions, change float, reset) is recorded in the activity log with time and account name so the owner can audit changes"
         ),
       ],
     },
@@ -3334,8 +3334,8 @@ function PrivacyPage({ go, back = "setting" }) {
       h: tl("3. Penyimpanan di perangkat", "3. Storage on your device"),
       p: [
         tl(
-          "Aplikasi menyimpan di perangkat Anda (localStorage): kata sandi sesi login, preferensi tampilan dan bahasa, serta penanda alarm booking yang sudah berbunyi. Anda dapat menghapusnya dengan keluar (logout) atau membersihkan data situs di browser.",
-          "The app stores on your device (localStorage): the login session password, display and language preferences, and markers for booking alarms already fired. You can remove them by logging out or clearing site data in your browser."
+          "Aplikasi menyimpan di perangkat Anda (localStorage): kata sandi sesi login, preferensi tampilan dan bahasa, serta penanda alarm booking yang sudah berbunyi. Anda dapat menghapusnya dengan keluar (logout) atau membersihkan data situs di browser",
+          "The app stores on your device (localStorage): the login session password, display and language preferences, and markers for booking alarms already fired. You can remove them by logging out or clearing site data in your browser"
         ),
       ],
     },
@@ -3343,8 +3343,8 @@ function PrivacyPage({ go, back = "setting" }) {
       h: tl("4. Notifikasi dan alarm", "4. Notifications and alarms"),
       p: [
         tl(
-          "Jika Anda mengizinkan, aplikasi menampilkan notifikasi pengingat booking. Izin ini dapat dicabut kapan saja dari pengaturan browser. Alarm berjalan di perangkat Anda, bukan lewat layanan pihak ketiga.",
-          "If you allow it, the app shows booking reminder notifications. You can revoke this permission any time in browser settings. Alarms run on your device, not through a third-party service."
+          "Jika Anda mengizinkan, aplikasi menampilkan notifikasi pengingat booking. Izin ini dapat dicabut kapan saja dari pengaturan browser. Alarm berjalan di perangkat Anda, bukan lewat layanan pihak ketiga",
+          "If you allow it, the app shows booking reminder notifications. You can revoke this permission any time in browser settings. Alarms run on your device, not through a third-party service"
         ),
       ],
     },
@@ -3352,8 +3352,8 @@ function PrivacyPage({ go, back = "setting" }) {
       h: tl("5. WhatsApp dan telepon", "5. WhatsApp and phone"),
       p: [
         tl(
-          "Tombol WhatsApp dan telepon membuka aplikasi tersebut di perangkat Anda dengan nomor dan pesan yang sudah terisi. Pesan baru terkirim setelah Anda menekan kirim sendiri. Penggunaan WhatsApp tunduk pada kebijakan WhatsApp.",
-          "WhatsApp and call buttons open those apps on your device with the number and message prefilled. Nothing is sent until you press send yourself. WhatsApp use is subject to WhatsApp's own policy."
+          "Tombol WhatsApp dan telepon membuka aplikasi tersebut di perangkat Anda dengan nomor dan pesan yang sudah terisi. Pesan baru terkirim setelah Anda menekan kirim sendiri. Penggunaan WhatsApp tunduk pada kebijakan WhatsApp",
+          "WhatsApp and call buttons open those apps on your device with the number and message prefilled. Nothing is sent until you press send yourself. WhatsApp use is subject to WhatsApp's own policy"
         ),
       ],
     },
@@ -3361,8 +3361,8 @@ function PrivacyPage({ go, back = "setting" }) {
       h: tl("6. Berbagi data", "6. Sharing"),
       p: [
         tl(
-          "Kami tidak menjual atau membagikan data Anda untuk iklan. Data hanya diproses oleh penyedia infrastruktur (hosting dan basis data) yang kami gunakan untuk menjalankan aplikasi, atau jika diwajibkan oleh hukum.",
-          "We do not sell or share your data for advertising. Data is processed only by the infrastructure providers (hosting and database) we use to run the app, or where required by law."
+          "Kami tidak menjual atau membagikan data Anda untuk iklan. Data hanya diproses oleh penyedia infrastruktur (hosting dan basis data) yang kami gunakan untuk menjalankan aplikasi, atau jika diwajibkan oleh hukum",
+          "We do not sell or share your data for advertising. Data is processed only by the infrastructure providers (hosting and database) we use to run the app, or where required by law"
         ),
       ],
     },
@@ -3370,8 +3370,8 @@ function PrivacyPage({ go, back = "setting" }) {
       h: tl("7. Rekap PDF dan struk", "7. PDF recaps and receipts"),
       p: [
         tl(
-          "Rekap harian dan struk dibuat di perangkat Anda dan diunduh sebagai berkas PDF. Berkas rekap memuat data transaksi sehingga dapat dipakai memulihkan data; simpan dengan aman dan jangan dibagikan ke pihak yang tidak berwenang.",
-          "Daily recaps and receipts are generated on your device and downloaded as PDF files. Recap files contain transaction data used for restore; store them safely and do not share them with unauthorized people."
+          "Rekap harian dan struk dibuat di perangkat Anda dan diunduh sebagai berkas PDF. Berkas rekap memuat data transaksi sehingga dapat dipakai memulihkan data; simpan dengan aman dan jangan dibagikan ke pihak yang tidak berwenang",
+          "Daily recaps and receipts are generated on your device and downloaded as PDF files. Recap files contain transaction data used for restore; store them safely and do not share them with unauthorized people"
         ),
       ],
     },
@@ -3379,8 +3379,8 @@ function PrivacyPage({ go, back = "setting" }) {
       h: tl("8. Penyimpanan dan penghapusan", "8. Retention and deletion"),
       p: [
         tl(
-          "Data disimpan selama akun dan toko Anda aktif. Pemilik dapat menghapus transaksi, produk, penjual, dan booking dari aplikasi, atau mereset seluruh riwayat transaksi dengan kata sandi reset. Untuk penghapusan seluruh data, hubungi kami.",
-          "Data is kept while your account and shop are active. The owner can delete transactions, products, suppliers, and bookings in the app, or reset all transaction history with the reset password. To delete all data, contact us."
+          "Data disimpan selama akun dan toko Anda aktif. Pemilik dapat menghapus transaksi, produk, penjual, dan booking dari aplikasi, atau mereset seluruh riwayat transaksi dengan kata sandi reset. Untuk penghapusan seluruh data, hubungi kami",
+          "Data is kept while your account and shop are active. The owner can delete transactions, products, suppliers, and bookings in the app, or reset all transaction history with the reset password. To delete all data, contact us"
         ),
       ],
     },
@@ -3388,8 +3388,8 @@ function PrivacyPage({ go, back = "setting" }) {
       h: tl("9. Keamanan", "9. Security"),
       p: [
         tl(
-          "Kami berupaya melindungi data dengan koneksi terenkripsi (HTTPS) dan pembatasan akses lewat kata sandi. Tidak ada sistem yang sepenuhnya aman. Jaga kerahasiaan kata sandi dan jangan membagikannya kepada orang yang tidak berhak.",
-          "We try to protect data with encrypted connections (HTTPS) and password-restricted access. No system is fully secure. Keep your password confidential and do not share it with unauthorized people."
+          "Kami berupaya melindungi data dengan koneksi terenkripsi (HTTPS) dan pembatasan akses lewat kata sandi. Tidak ada sistem yang sepenuhnya aman. Jaga kerahasiaan kata sandi dan jangan membagikannya kepada orang yang tidak berhak",
+          "We try to protect data with encrypted connections (HTTPS) and password-restricted access. No system is fully secure. Keep your password confidential and do not share it with unauthorized people"
         ),
       ],
     },
@@ -3397,8 +3397,8 @@ function PrivacyPage({ go, back = "setting" }) {
       h: tl("10. Hak Anda", "10. Your rights"),
       p: [
         tl(
-          "Anda berhak meminta akses, perbaikan, atau penghapusan data pribadi Anda sesuai peraturan yang berlaku, termasuk UU Pelindungan Data Pribadi (UU No. 27 Tahun 2022). Jika Anda mencatat data pelanggan, Anda bertanggung jawab memberi tahu mereka dan menggunakannya secara wajar.",
-          "You may request access, correction, or deletion of your personal data under applicable law, including Indonesia's Personal Data Protection Law (Law No. 27 of 2022). If you record customer data, you are responsible for informing them and using it reasonably."
+          "Anda berhak meminta akses, perbaikan, atau penghapusan data pribadi Anda sesuai peraturan yang berlaku, termasuk UU Pelindungan Data Pribadi (UU No. 27 Tahun 2022). Jika Anda mencatat data pelanggan, Anda bertanggung jawab memberi tahu mereka dan menggunakannya secara wajar",
+          "You may request access, correction, or deletion of your personal data under applicable law, including Indonesia's Personal Data Protection Law (Law No. 27 of 2022). If you record customer data, you are responsible for informing them and using it reasonably"
         ),
       ],
     },
@@ -3406,8 +3406,8 @@ function PrivacyPage({ go, back = "setting" }) {
       h: tl("11. Perubahan kebijakan", "11. Changes to this policy"),
       p: [
         tl(
-          "Kebijakan ini dapat diperbarui. Tanggal pembaruan terakhir tertera di bagian atas halaman ini.",
-          "This policy may be updated. The last update date appears at the top of this page."
+          "Kebijakan ini dapat diperbarui. Tanggal pembaruan terakhir tertera di bagian atas halaman ini",
+          "This policy may be updated. The last update date appears at the top of this page"
         ),
       ],
     },
@@ -3415,8 +3415,8 @@ function PrivacyPage({ go, back = "setting" }) {
       h: tl("12. Kontak", "12. Contact"),
       p: [
         tl(
-          "Pertanyaan tentang privasi dapat dikirim ke: [isi email / nomor WhatsApp pengelola di sini].",
-          "Privacy questions can be sent to: [put the operator's email / WhatsApp number here]."
+          "Pertanyaan tentang privasi dapat dikirim ke: [isi email / nomor WhatsApp pengelola di sini]",
+          "Privacy questions can be sent to: [put the operator's email / WhatsApp number here]"
         ),
       ],
     },
@@ -3433,8 +3433,8 @@ function PrivacyPage({ go, back = "setting" }) {
         <div className="card pp">
           <p className="small muted">
             {tl(
-              "Kasir Memayu menghargai privasi Anda. Halaman ini menjelaskan data apa yang dikelola aplikasi dan bagaimana data itu digunakan.",
-              "Kasir Memayu respects your privacy. This page explains what data the app handles and how it is used."
+              "Kasir Memayu menghargai privasi Anda. Halaman ini menjelaskan data apa yang dikelola aplikasi dan bagaimana data itu digunakan",
+              "Kasir Memayu respects your privacy. This page explains what data the app handles and how it is used"
             )}
           </p>
           {sections.map((s) => (
