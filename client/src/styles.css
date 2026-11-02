@@ -363,6 +363,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); backgro
 .stats4 div { background: var(--surface2); border-radius: 13px; padding: 9px 4px; text-align: center; }
 .stats4 small { display: block; color: var(--muted); font-size: 11px; } .stats4 b { font-size: 16px; }
 .stats4 .hl { background: var(--blue); color: #fff; } .stats4 .hl small { color: #cfe0f5; }
+.stats4 .hl.low { background: var(--err); color: #fff; }
+.stats4 .hl.low small { color: #ffe3e4; }
 .pc-a { display: flex; gap: 8px; margin-top: 8px; }
 .pc-a button { flex: 1; display: flex; gap: 6px; align-items: center; justify-content: center; padding: 10px; border-radius: 13px; background: var(--tb); color: var(--accent); font-weight: 700; font-size: 13px; }
 .pc-a .d { background: var(--tr); color: var(--err); }

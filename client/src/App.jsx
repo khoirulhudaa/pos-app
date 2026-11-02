@@ -1930,7 +1930,7 @@ function Produk({ products, txs = [], reload, closeDay, openDay, closed, patchPr
                     <div className="stats4">
                       <div><small>{t("stockStart")}</small><b>{p.stockInitial}</b></div>
                       <div><small>{t("sold")}</small><b>{p.sold}</b></div>
-                      <div className="hl"><small>{t("now")}</small><b>{p.stock}</b></div>
+                      <div className={"hl" + (p.stock < LOW_LIMIT ? " low" : "")}><small>{t("now")}</small><b>{p.stock}</b></div>
                       <div><small>{t("stockEnd")}</small><b>{p.stockEnd ?? "-"}</b></div>
                     </div>
                     <small className="muted" style={{ display: "block", margin: "6px 0 2px" }}>
