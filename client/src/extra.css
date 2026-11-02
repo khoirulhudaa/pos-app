@@ -272,3 +272,12 @@
 .alarm-item { padding: 12px; border-radius: 14px; background: var(--surface2); }
 .alarm-item b { display: block; }
 .alarm-item .btn { padding: 10px; font-size: 13px; }
+
+/* ===== Kebijakan Privasi ===== */
+.pp { max-width: 720px; padding: 20px 18px; }
+.pp section { margin-top: 18px; }
+.pp h3 { font-size: 15px; margin-bottom: 6px; }
+.pp p { font-size: 14px; line-height: 1.6; color: var(--text); margin-bottom: 8px; }
+.pp p.muted { color: var(--muted); }
+.login-pp { display: block; margin: 18px auto 0; font-size: 12.5px; font-weight: 600; color: #fff; text-decoration: underline; opacity: .9; }
+.pp-overlay { position: fixed; inset: 0; z-index: 130; background: var(--bg); overflow-y: auto; padding-bottom: 40px; }

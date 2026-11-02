@@ -291,6 +291,7 @@ function Login({ onOk }) {
   const [err, setErr] = useState("");
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [showInstall, setShowInstall] = useState(false);
+  const [showPp, setShowPp] = useState(false);
 
   useEffect(() => {
     const handler = (e) => {
@@ -363,7 +364,17 @@ function Login({ onOk }) {
             </button>
           </div>
         )}
+
+        <button type="button" className="login-pp" onClick={() => setShowPp(true)}>
+          {t("privacyLink") === "privacyLink" ? "Kebijakan Privasi" : t("privacyLink")}
+        </button>
       </div>
+
+      {showPp && (
+        <div className="pp-overlay">
+          <PrivacyPage go={() => setShowPp(false)} />
+        </div>
+      )}
     </div>
   );
 }
@@ -1247,6 +1258,20 @@ function Setting({ settings, setSettings, go, onReset, txs = [] }) {
                 : "Upload PDF"}
             </button>
           </div>
+        </div>
+
+        <div className="card" style={{ marginTop: 16 }}>
+          <h3 style={{ marginBottom: 8 }}>{lang === "en" ? "Privacy Policy" : "Kebijakan Privasi"}</h3>
+          <small className="muted" style={{ display: "block", marginBottom: 12 }}>
+            {lang === "en" ? "How your data is handled." : "Bagaimana data Anda dikelola."}
+          </small>
+          <button
+            className="btn ghost"
+            style={{ width: "100%", background: "transparent", border: "1.5px solid var(--border, #cbd5e1)", color: "inherit", fontWeight: 600, fontSize: 14 }}
+            onClick={() => go("privacy")}
+          >
+            {lang === "en" ? "Read privacy policy" : "Baca kebijakan privasi"}
+          </button>
         </div>
 
         <div className="card" style={{ marginTop: 16 }}>
@@ -3276,6 +3301,154 @@ function PcBlock({ lang }) {
   );
 }
 
+// ---------- Kebijakan Privasi ----------
+function PrivacyPage({ go, back = "setting" }) {
+  const { lang } = useT();
+  const tl = (id, en) => (lang === "en" ? en : id);
+  const updated = "2 November 2026";
+
+  const sections = [
+    {
+      h: tl("1. Data yang kami kelola", "1. Data we handle"),
+      p: [
+        tl(
+          "Aplikasi ini adalah alat kasir internal. Data yang Anda masukkan disimpan di server kami: produk dan stok, transaksi penjualan dan pengeluaran, pengaturan uang kembalian, kontak penjual, catatan booking pelanggan (nama, nomor HP, isi pesanan, waktu ambil), serta log aktivitas.",
+          "This app is an internal point-of-sale tool. Data you enter is stored on our server: products and stock, sales and expense transactions, change float settings, supplier contacts, customer booking notes (name, phone, order, pickup time), and the activity log."
+        ),
+        tl(
+          "Kami tidak meminta data pelanggan akhir selain yang Anda catat sendiri di fitur Booking dan kontak penjual.",
+          "We do not collect end-customer data other than what you record yourself in Bookings and supplier contacts."
+        ),
+      ],
+    },
+    {
+      h: tl("2. Login dan log aktivitas", "2. Login and activity log"),
+      p: [
+        tl(
+          "Akses memakai kata sandi akun. Setiap login, logout, dan perubahan data penting (produk, transaksi, kembalian, reset) dicatat di log aktivitas beserta waktu dan nama akun, agar pemilik dapat menelusuri perubahan.",
+          "Access uses an account password. Each login, logout, and important data change (products, transactions, change float, reset) is recorded in the activity log with time and account name so the owner can audit changes."
+        ),
+      ],
+    },
+    {
+      h: tl("3. Penyimpanan di perangkat", "3. Storage on your device"),
+      p: [
+        tl(
+          "Aplikasi menyimpan di perangkat Anda (localStorage): kata sandi sesi login, preferensi tampilan dan bahasa, serta penanda alarm booking yang sudah berbunyi. Anda dapat menghapusnya dengan keluar (logout) atau membersihkan data situs di browser.",
+          "The app stores on your device (localStorage): the login session password, display and language preferences, and markers for booking alarms already fired. You can remove them by logging out or clearing site data in your browser."
+        ),
+      ],
+    },
+    {
+      h: tl("4. Notifikasi dan alarm", "4. Notifications and alarms"),
+      p: [
+        tl(
+          "Jika Anda mengizinkan, aplikasi menampilkan notifikasi pengingat booking. Izin ini dapat dicabut kapan saja dari pengaturan browser. Alarm berjalan di perangkat Anda, bukan lewat layanan pihak ketiga.",
+          "If you allow it, the app shows booking reminder notifications. You can revoke this permission any time in browser settings. Alarms run on your device, not through a third-party service."
+        ),
+      ],
+    },
+    {
+      h: tl("5. WhatsApp dan telepon", "5. WhatsApp and phone"),
+      p: [
+        tl(
+          "Tombol WhatsApp dan telepon membuka aplikasi tersebut di perangkat Anda dengan nomor dan pesan yang sudah terisi. Pesan baru terkirim setelah Anda menekan kirim sendiri. Penggunaan WhatsApp tunduk pada kebijakan WhatsApp.",
+          "WhatsApp and call buttons open those apps on your device with the number and message prefilled. Nothing is sent until you press send yourself. WhatsApp use is subject to WhatsApp's own policy."
+        ),
+      ],
+    },
+    {
+      h: tl("6. Berbagi data", "6. Sharing"),
+      p: [
+        tl(
+          "Kami tidak menjual atau membagikan data Anda untuk iklan. Data hanya diproses oleh penyedia infrastruktur (hosting dan basis data) yang kami gunakan untuk menjalankan aplikasi, atau jika diwajibkan oleh hukum.",
+          "We do not sell or share your data for advertising. Data is processed only by the infrastructure providers (hosting and database) we use to run the app, or where required by law."
+        ),
+      ],
+    },
+    {
+      h: tl("7. Rekap PDF dan struk", "7. PDF recaps and receipts"),
+      p: [
+        tl(
+          "Rekap harian dan struk dibuat di perangkat Anda dan diunduh sebagai berkas PDF. Berkas rekap memuat data transaksi sehingga dapat dipakai memulihkan data; simpan dengan aman dan jangan dibagikan ke pihak yang tidak berwenang.",
+          "Daily recaps and receipts are generated on your device and downloaded as PDF files. Recap files contain transaction data used for restore; store them safely and do not share them with unauthorized people."
+        ),
+      ],
+    },
+    {
+      h: tl("8. Penyimpanan dan penghapusan", "8. Retention and deletion"),
+      p: [
+        tl(
+          "Data disimpan selama akun dan toko Anda aktif. Pemilik dapat menghapus transaksi, produk, penjual, dan booking dari aplikasi, atau mereset seluruh riwayat transaksi dengan kata sandi reset. Untuk penghapusan seluruh data, hubungi kami.",
+          "Data is kept while your account and shop are active. The owner can delete transactions, products, suppliers, and bookings in the app, or reset all transaction history with the reset password. To delete all data, contact us."
+        ),
+      ],
+    },
+    {
+      h: tl("9. Keamanan", "9. Security"),
+      p: [
+        tl(
+          "Kami berupaya melindungi data dengan koneksi terenkripsi (HTTPS) dan pembatasan akses lewat kata sandi. Tidak ada sistem yang sepenuhnya aman. Jaga kerahasiaan kata sandi dan jangan membagikannya kepada orang yang tidak berhak.",
+          "We try to protect data with encrypted connections (HTTPS) and password-restricted access. No system is fully secure. Keep your password confidential and do not share it with unauthorized people."
+        ),
+      ],
+    },
+    {
+      h: tl("10. Hak Anda", "10. Your rights"),
+      p: [
+        tl(
+          "Anda berhak meminta akses, perbaikan, atau penghapusan data pribadi Anda sesuai peraturan yang berlaku, termasuk UU Pelindungan Data Pribadi (UU No. 27 Tahun 2022). Jika Anda mencatat data pelanggan, Anda bertanggung jawab memberi tahu mereka dan menggunakannya secara wajar.",
+          "You may request access, correction, or deletion of your personal data under applicable law, including Indonesia's Personal Data Protection Law (Law No. 27 of 2022). If you record customer data, you are responsible for informing them and using it reasonably."
+        ),
+      ],
+    },
+    {
+      h: tl("11. Perubahan kebijakan", "11. Changes to this policy"),
+      p: [
+        tl(
+          "Kebijakan ini dapat diperbarui. Tanggal pembaruan terakhir tertera di bagian atas halaman ini.",
+          "This policy may be updated. The last update date appears at the top of this page."
+        ),
+      ],
+    },
+    {
+      h: tl("12. Kontak", "12. Contact"),
+      p: [
+        tl(
+          "Pertanyaan tentang privasi dapat dikirim ke: [isi email / nomor WhatsApp pengelola di sini].",
+          "Privacy questions can be sent to: [put the operator's email / WhatsApp number here]."
+        ),
+      ],
+    },
+  ];
+
+  return (
+    <>
+      <Top
+        title={tl("Kebijakan Privasi", "Privacy Policy")}
+        sub={tl(`Diperbarui ${updated}`, `Updated ${updated}`)}
+        right={<button className="icon-btn dark" onClick={() => go(back)}><Ic n="x" /></button>}
+      />
+      <div className="page pull">
+        <div className="card pp">
+          <p className="small muted">
+            {tl(
+              "Kasir Memayu menghargai privasi Anda. Halaman ini menjelaskan data apa yang dikelola aplikasi dan bagaimana data itu digunakan.",
+              "Kasir Memayu respects your privacy. This page explains what data the app handles and how it is used."
+            )}
+          </p>
+          {sections.map((s) => (
+            <section key={s.h}>
+              <h3>{s.h}</h3>
+              {s.p.map((t, i) => <p key={i}>{t}</p>)}
+            </section>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+}
+
 export default function App() {
   const [authed, setAuthed] = useState(!!localStorage.getItem("pos_pass"));
   const [suppliers, setSuppliers] = useState([]);
@@ -3507,6 +3680,8 @@ export default function App() {
           <Setting settings={settings} setSettings={setSettings} go={setTab} txs={txs} onReset={() => { touch(); setTxs([]); reload(); }} />
         ) : tab === "logs" ? (
           <ActivityLogPage go={setTab} />
+        ) : tab === "privacy" ? (
+          <PrivacyPage go={setTab} back="setting" />
         ) : tab === "booking" ? (
             <Booking bookings={bookings} setBookings={setBookings} go={setTab} />
         ) : tab === "detail" ? (
