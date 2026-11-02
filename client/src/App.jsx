@@ -645,7 +645,7 @@ function SupplierReco({ product, suppliers = [], go, inline = false }) {
 }
 
 // ---------- Beranda ----------
-function Beranda({ txs, products, bookings, suppliers = [], go, closeDay, openDay, closed, askLogout, openDetail, settings = {}, setSettings, fund, openFund }) {
+function Beranda({ txs, products, bookings=[], suppliers = [], go, closeDay, openDay, closed, askLogout, openDetail, settings = {}, setSettings, fund, openFund }) {
   const { t, locale, lang } = useT();
   const tl = (id, en) => (lang === "en" ? en : id);
   const { hideLaba = false, hidePengeluaran = false, hideTransaksi = false } = settings;
@@ -2366,11 +2366,12 @@ function Booking({ bookings, setBookings, go }) {
 }
 
 // Kartu ringkasan booking di Beranda
-function BookingCard({ bookings, go }) {
+function BookingCard({ bookings=[], go }) {
   const { locale, lang } = useT();
   const tl = (id, en) => (lang === "en" ? en : id);
-  const next = bookings.filter((b) => !b.done).slice(0, 3);
-  const total = bookings.filter((b) => !b.done).length;
+  const active = (Array.isArray(bookings) ? bookings : []).filter((b) => !b.done);
+  const next = active.slice(0, 3);
+  const total = active.length;
   return (
     <div className="card bk-card">
       <div className="cf-h">
