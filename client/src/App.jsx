@@ -1790,7 +1790,7 @@ function Produk({ products, txs = [], reload, closeDay, openDay, closed, patchPr
 
     {view === "top" && (
       <>
-          <div className="seg" style={{ marginBottom: 8, marginTop: 14 }}>
+          <div className="seg" style={{ marginBottom: 8, marginTop: 16 }}>
             <button className={rank === "best" ? "on" : ""} onClick={() => setRank("best")}>{tl("Terlaris", "Best")}</button>
             <button className={rank === "worst" ? "on" : ""} onClick={() => setRank("worst")}>{tl("Kurang laris", "Slowest")}</button>
           </div>
