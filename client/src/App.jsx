@@ -2372,7 +2372,6 @@ function Riwayat({ txs, onEdit, onDelete, openDetail, onRemoved }) {
       <div className="sum3">
         <div className="card"><small>{t("income")}</small><b className="ok">{rp(inc)}</b></div>
         <div className="card"><small>{t("expense")}</small><b className="err">{rp(exp)}</b></div>
-        <div className="card"><small>{t("profit")}</small><b>{rp(inc - exp)}</b></div>
       </div>
 
       {/* Bilah pilih & hapus massal */}
