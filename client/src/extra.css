@@ -268,10 +268,25 @@
 .bk-nm { font-size: 13.5px; font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .alarm-ic { width: 76px; height: 76px; border-radius: 50%; background: var(--ty); color: var(--warnt); display: grid; place-items: center; margin: 4px auto 0; box-shadow: 0 0 0 10px rgba(251, 176, 45, .2); animation: ring 1s ease-in-out infinite; }
 @keyframes ring { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(-14deg); } 40% { transform: rotate(14deg); } 60% { transform: rotate(-8deg); } 80% { transform: rotate(8deg); } }
-.alarm-list { display: flex; flex-direction: column; gap: 10px; max-height: 45vh; overflow-y: auto; margin: 10px 0; text-align: left; }
-.alarm-item { padding: 12px; border-radius: 14px; background: var(--surface2); }
-.alarm-item b { display: block; }
-.alarm-item .btn { padding: 10px; font-size: 13px; }
+/* ===== Popup alarm booking ===== */
+.alarm-modal { text-align: center; padding-top: 26px; max-width: 420px; }
+.alarm-modal h3 { margin: 14px 0 2px; font-size: 20px; }
+.alarm-list { display: flex; flex-direction: column; gap: 10px; max-height: 42vh; overflow-y: auto; margin: 14px 0 8px; text-align: left; }
+.alarm-card { padding: 12px; border-radius: 18px; background: var(--surface2); border-left: 5px solid #f59e0b; }
+.alarm-card.late { border-left-color: var(--err); background: #fff7f7; }
+.alarm-top { display: flex; align-items: center; gap: 12px; }
+.alarm-date { width: 48px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; padding: 6px 0; border-radius: 12px; background: #fef3c7; color: #b45309; line-height: 1.1; }
+.alarm-card.late .alarm-date { background: #fde8e8; color: var(--err); }
+.alarm-date b { font-size: 20px; font-weight: 800; }
+.alarm-date span { font-size: 10.5px; font-weight: 700; text-transform: uppercase; }
+.alarm-info { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.alarm-name { font-size: 15.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.alarm-info small { display: inline-flex; align-items: center; gap: 5px; }
+.alarm-late { font-style: normal; font-weight: 800; font-size: 10.5px; padding: 1px 8px; border-radius: 20px; background: var(--err); color: #fff; }
+.alarm-order { margin: 10px 0 0; padding: 8px 12px; border-radius: 12px; background: var(--surface); font-size: 13.5px; line-height: 1.4; white-space: pre-wrap; }
+.alarm-acts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+.alarm-acts .btn { margin-top: 0; padding: 11px 8px; font-size: 13px; }
+.alarm-close { display: block; width: 100%; margin-top: 6px; padding: 10px; font-size: 13px; font-weight: 700; color: var(--muted); }
 
 /* ===== Kebijakan Privasi ===== */
 .pp { max-width: 720px; padding: 20px 18px; }
@@ -281,3 +296,33 @@
 .pp p.muted { color: var(--muted); }
 .login-pp { display: block; margin: 18px auto 0; font-size: 12.5px; font-weight: 600; color: #fff; text-decoration: underline; opacity: .9; }
 .pp-overlay { position: fixed; inset: 0; z-index: 130; background: var(--bg); overflow-y: auto; padding-bottom: 40px; }
+
+/* ===== Kartu booking ===== */
+.bk2 { display: grid; grid-template-columns: 58px 1fr; gap: 12px; padding: 14px; margin-bottom: 12px; background: var(--surface); border: 1px solid var(--line); border-left: 5px solid var(--blue2); border-radius: 20px; box-shadow: var(--shadow); }
+.bk2.soon { border-left-color: #f59e0b; background: #fffaf0; }
+.bk2.late { border-left-color: var(--err); background: #fff7f7; }
+.bk2.done { border-left-color: var(--ok); opacity: .75; }
+
+.bk2-date { display: flex; flex-direction: column; align-items: center; justify-content: center; align-self: start; padding: 8px 0; border-radius: 14px; background: var(--tb); color: var(--accent); line-height: 1.1; }
+.bk2.soon .bk2-date { background: #fef3c7; color: #b45309; }
+.bk2.late .bk2-date { background: #fde8e8; color: var(--err); }
+.bk2.done .bk2-date { background: var(--tg); color: var(--ok); }
+.bk2-date b { font-size: 22px; font-weight: 800; }
+.bk2-date span { font-size: 11px; font-weight: 700; text-transform: uppercase; }
+.bk2-date em { margin-top: 4px; font-style: normal; font-size: 11px; font-weight: 800; padding: 2px 6px; border-radius: 8px; background: rgba(255, 255, 255, .75); }
+
+.bk2-main { min-width: 0; }
+.bk2-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.bk2-name { font-size: 15.5px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bk-tag.ok { background: var(--tg); color: var(--ok); }
+.bk2-order { margin: 8px 0 0; padding: 8px 12px; border-radius: 12px; background: var(--surface2); font-size: 13.5px; line-height: 1.4; white-space: pre-wrap; }
+.bk2-meta { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; font-size: 12px; color: var(--muted); }
+.bk2-meta span { display: inline-flex; align-items: center; gap: 5px; }
+.bk2-note { display: block; margin-top: 4px; }
+
+.bk2-acts { grid-column: 1 / -1; display: flex; gap: 8px; padding-top: 12px; border-top: 1px dashed var(--line); }
+.bk2-btn { flex: 1; height: 40px; display: grid; place-items: center; border-radius: 13px; background: var(--tb); color: var(--accent); text-decoration: none; }
+.bk2-btn:active { transform: scale(.96); }
+.bk2-btn.wa { background: var(--tg); color: var(--ok); }
+.bk2-btn.ok { background: #e0eeff; color: var(--accent); }
+.bk2-btn.del { background: var(--tr); color: var(--err); }

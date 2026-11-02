@@ -2217,6 +2217,7 @@ const ls = (k) => { try { return JSON.parse(localStorage.getItem(k)) || {}; } ca
 const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
 
 // Popup alarm
+// Popup alarm
 function AlarmModal({ items, onDone, onSnooze, onClose }) {
   const { locale, lang } = useT();
   const tl = (id, en) => (lang === "en" ? en : id);
@@ -2227,25 +2228,54 @@ function AlarmModal({ items, onDone, onSnooze, onClose }) {
   }, []);
   return (
     <div className="modal-wrap center-m" style={{ zIndex: 120 }}>
-      <div className="modal success">
+      <div className="modal alarm-modal">
         <div className="alarm-ic"><Ic n="bell" s={32} /></div>
         <h3>{tl("Pengingat Booking", "Booking Reminder")}</h3>
+        <p className="muted small">
+          {items.length > 1
+            ? tl(`${items.length} booking perlu perhatian`, `${items.length} bookings need attention`)
+            : tl("Ada booking yang segera tiba", "A booking is coming up")}
+        </p>
+
         <div className="alarm-list">
-          {items.map((b) => (
-            <div className="alarm-item" key={b._id}>
-              <b>{b.customer}</b>
-              <small className="muted">
-                {new Date(b.dueAt).toLocaleString(locale, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
-              </small>
-              {b.order && <p className="small">{b.order}</p>}
-              <div className="row-actions-2" style={{ marginTop: 8 }}>
-                <button className="btn ghost" onClick={() => onSnooze(b)}>{tl("Tunda 10 mnt", "Snooze 10 min")}</button>
-                <button className="btn gold" onClick={() => onDone(b)}>{tl("Selesai", "Done")}</button>
+          {items.map((b) => {
+            const d = new Date(b.dueAt);
+            const ok = !isNaN(d);
+            const late = ok && d.getTime() < Date.now();
+            return (
+              <div className={"alarm-card" + (late ? " late" : "")} key={b._id}>
+                <div className="alarm-top">
+                  <div className="alarm-date">
+                    <b>{ok ? d.getDate() : "-"}</b>
+                    <span>{ok ? d.toLocaleString(locale, { month: "short" }) : ""}</span>
+                  </div>
+                  <div className="alarm-info">
+                    <b className="alarm-name">{b.customer || "-"}</b>
+                    <small className="muted">
+                      <Ic n="clock" s={11} />{" "}
+                      {ok ? d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }) : "-"}
+                      {late && <em className="alarm-late">{tl("Terlewat", "Overdue")}</em>}
+                    </small>
+                  </div>
+                </div>
+
+                {b.order && <p className="alarm-order">{b.order}</p>}
+                {b.note && <small className="muted" style={{ display: "block", marginTop: 6 }}>{b.note}</small>}
+
+                <div className="alarm-acts">
+                  <button className="btn ghost" onClick={() => onSnooze(b)}>
+                    <Ic n="clock" s={15} /> {tl("Tunda 10 mnt", "Snooze 10 min")}
+                  </button>
+                  <button className="btn gold" onClick={() => onDone(b)}>
+                    <Ic n="check" s={15} /> {tl("Selesai", "Done")}
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
-        <button className="btn ghost" onClick={onClose}>{tl("Tutup", "Close")}</button>
+
+        <button className="alarm-close" onClick={onClose}>{tl("Tutup", "Close")}</button>
       </div>
     </div>
   );
@@ -2329,37 +2359,57 @@ function Booking({ bookings, setBookings, go }) {
         </button>
 
         {list.map((b) => {
-          const due = new Date(b.dueAt).getTime();
-          const late = !b.done && due < now;
-          const soon = !b.done && !late && due - now < 3600000;
+          const d = new Date(b.dueAt);
+          const ok = !isNaN(d);
+          const due = ok ? d.getTime() : 0;
+          const late = !b.done && ok && due < now;
+          const soon = !b.done && !late && ok && due - now < 3600000;
+          const state = b.done ? "done" : late ? "late" : soon ? "soon" : "";
           return (
-            <div className={"card bk" + (late ? " late" : soon ? " soon" : "")} key={b._id}>
-              <div className="bk-h">
-                <span className="cf-ic"><Ic n="clock" s={16} /></span>
-                <div className="grow">
-                  <b>{b.customer}</b><br />
-                  <small className="muted">
-                    {new Date(b.dueAt).toLocaleString(locale, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
-                  </small>
-                </div>
-                {late && <span className="bk-tag late">{tl("Terlewat", "Overdue")}</span>}
-                {soon && <span className="bk-tag soon">{tl("Segera", "Soon")}</span>}
+            <div className={"bk2 " + state} key={b._id}>
+              <div className="bk2-date">
+                <b>{ok ? d.getDate() : "-"}</b>
+                <span>{ok ? d.toLocaleString(locale, { month: "short" }) : ""}</span>
+                <em>{ok ? d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }) : ""}</em>
               </div>
-              {b.order && <p className="bk-order">{b.order}</p>}
-              <small className="muted" style={{ display: "block", marginTop: 4 }}>
-                <Ic n="bell" s={11} /> {remindLabel(b.remindBefore, tl)}
-                {b.phone && ` · ${b.phone}`}
-              </small>
-              {b.note && <small className="muted" style={{ display: "block", marginTop: 4 }}>{b.note}</small>}
-              <div className="pc-a">
+
+              <div className="bk2-main">
+                <div className="bk2-top">
+                  <b className="bk2-name">{b.customer || "-"}</b>
+                  {late && <span className="bk-tag late">{tl("Terlewat", "Overdue")}</span>}
+                  {soon && <span className="bk-tag soon">{tl("Segera", "Soon")}</span>}
+                  {b.done && <span className="bk-tag ok">{tl("Selesai", "Done")}</span>}
+                </div>
+
+                {b.order && <p className="bk2-order">{b.order}</p>}
+
+                <div className="bk2-meta">
+                  <span><Ic n="bell" s={12} /> {remindLabel(b.remindBefore, tl)}</span>
+                  {b.phone && <span><Ic n="phone" s={12} /> {b.phone}</span>}
+                </div>
+                {b.note && <small className="muted bk2-note">{b.note}</small>}
+              </div>
+
+              <div className="bk2-acts">
                 {b.phone && (
-                  <a className="sp-act" href={waLink(b.phone, tl(`Halo ${b.customer}, mengingatkan pesanan Anda untuk ${new Date(b.dueAt).toLocaleString(locale, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}.`, `Hi ${b.customer}, a reminder about your order.`))} target="_blank" rel="noreferrer">
-                    <Ic n="send" s={15} /> WA
+                  <a
+                    className="bk2-btn wa"
+                    href={waLink(b.phone, tl(
+                      `Halo ${b.customer}, mengingatkan pesanan Anda untuk ${ok ? d.toLocaleString(locale, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : ""}.`,
+                      `Hi ${b.customer}, a reminder about your order.`
+                    ))}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label="WhatsApp"
+                  >
+                    <Ic n="send" s={15} />
                   </a>
                 )}
-                <button onClick={() => toggleDone(b)}><Ic n="check" s={15} /> {b.done ? tl("Batal selesai", "Undo") : tl("Selesai", "Done")}</button>
-                <button onClick={() => openEdit(b)}><Ic n="edit" s={15} /></button>
-                <button className="d" onClick={() => setDel(b)}><Ic n="trash" s={15} /></button>
+                <button className="bk2-btn ok" onClick={() => toggleDone(b)} aria-label={b.done ? tl("Batal selesai", "Undo") : tl("Selesai", "Done")}>
+                  <Ic n="check" s={15} />
+                </button>
+                <button className="bk2-btn" onClick={() => openEdit(b)} aria-label="Edit"><Ic n="edit" s={15} /></button>
+                <button className="bk2-btn del" onClick={() => setDel(b)} aria-label={tl("Hapus", "Delete")}><Ic n="trash" s={15} /></button>
               </div>
             </div>
           );
