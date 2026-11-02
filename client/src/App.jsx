@@ -1576,7 +1576,7 @@ function Kasir({ products, reload, patchTx, closed, openDay, fund, hideFund, col
             </div>
             <div className={"change " + (cash !== "" && change < 0 ? "bad" : "")}>
               <span>{cash !== "" && change < 0 ? t("short") : t("change")}</span>
-              <b>{cash === "" ? "-" : rp(Math.abs(change))}</b>
+              <b>{cash === "" ? "0" : rp(Math.abs(change))}</b>
             </div>
             {cash !== "" && needChange > 0 && (
               <div className={"cf-split" + (fromOther > 0 ? " warn" : "")}>
