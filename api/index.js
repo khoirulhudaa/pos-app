@@ -92,7 +92,8 @@ const Supplier = registerModel("Supplier", new mongoose.Schema({
   name: { type: String, required: true, trim: true },
   phone: { type: String, default: "", trim: true },
   note: { type: String, default: "" },
-  products: [{ type: mongoose.Schema.Types.ObjectId }], // produk yang dijual penjual ini
+  products: [{ type: mongoose.Schema.Types.ObjectId }],
+  customProducts: [{ type: String, trim: true }], // barang bebas (bukan produk di kasir)
 }, { timestamps: true }));
 
 const Setting = registerModel("Setting", new mongoose.Schema({
@@ -438,6 +439,12 @@ const cleanSupplier = (b = {}) => ({
   phone: String(b.phone || "").trim(),
   note: String(b.note || "").trim(),
   products: (Array.isArray(b.products) ? b.products : []).filter((id) => mongoose.isValidObjectId(id)),
+  customProducts: [...new Set(
+    (Array.isArray(b.customProducts) ? b.customProducts : [])
+      .map((x) => String(x || "").trim())
+      .filter(Boolean)
+      .slice(0, 50)
+  )],
 });
 
 app.get("/api/suppliers", async (_, res) => res.json(await Supplier.find().sort({ name: 1 })));

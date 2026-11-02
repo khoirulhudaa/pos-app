@@ -2110,7 +2110,8 @@ function Produk({ products, txs = [], reload, suppliers = [], patchProduct, remo
 function Penjual({ suppliers, products, setSuppliers, go }) {
   const { lang } = useT();
   const tl = (id, en) => (lang === "en" ? en : id);
-  const blank = { name: "", phone: "", note: "", products: [] };
+  const blank = { name: "", phone: "", note: "", products: [], customProducts: [] };
+  const [custom, setCustom] = useState(""); // isian barang kustom
   const [f, setF] = useState(blank);
   const [editId, setEditId] = useState(null);
   const [show, setShow] = useState(false);
@@ -2118,20 +2119,38 @@ function Penjual({ suppliers, products, setSuppliers, go }) {
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const close = () => { setShow(false); setEditId(null); setF(blank); };
+  const close = () => { setShow(false); setEditId(null); setF(blank); setCustom(""); };
   const openEdit = (s) => {
     setEditId(s._id);
-    setF({ name: s.name, phone: s.phone || "", note: s.note || "", products: s.products || [] });
+    setF({ name: s.name, phone: s.phone || "", note: s.note || "", products: s.products || [], customProducts: s.customProducts || [] });
+    setCustom("");
     setShow(true);
   };
   const toggleProd = (id) =>
     setF((p) => ({ ...p, products: p.products.includes(id) ? p.products.filter((x) => x !== id) : [...p.products, id] }));
 
+  const addCustom = () => {
+    const v = custom.trim();
+    if (!v) return;
+    setF((p) =>
+      p.customProducts.some((x) => x.toLowerCase() === v.toLowerCase())
+        ? p
+        : { ...p, customProducts: [...p.customProducts, v] }
+    );
+    setCustom("");
+  };
+
+  const removeCustom = (v) => setF((p) => ({ ...p, customProducts: p.customProducts.filter((x) => x !== v) }));
+
   const submit = async (e) => {
     e.preventDefault();
     setBusy(true);
     try {
-      const saved = await (editId ? req(`/suppliers/${editId}`, "PUT", f) : req("/suppliers", "POST", f));
+      const pending = custom.trim();
+      const payload = pending && !f.customProducts.some((x) => x.toLowerCase() === pending.toLowerCase())
+        ? { ...f, customProducts: [...f.customProducts, pending] }
+        : f;
+      const saved = await (editId ? req(`/suppliers/${editId}`, "PUT", payload) : req("/suppliers", "POST", payload));
       setSuppliers((l) => {
         const i = l.findIndex((x) => x._id === saved._id);
         const n = i < 0 ? [...l, saved] : l.map((x) => (x._id === saved._id ? saved : x));
@@ -2156,8 +2175,9 @@ function Penjual({ suppliers, products, setSuppliers, go }) {
   };
 
   const shown = suppliers.filter((s) =>
-    `${s.name} ${s.phone}`.toLowerCase().includes(q.trim().toLowerCase())
+    `${s.name} ${s.phone} ${(s.customProducts || []).join(" ")}`.toLowerCase().includes(q.trim().toLowerCase())
   );
+  
   const nameOf = (id) => products.find((p) => p._id === id)?.name;
 
   return (
@@ -2177,7 +2197,7 @@ function Penjual({ suppliers, products, setSuppliers, go }) {
         </button>
 
         {shown.map((s) => {
-          const names = (s.products || []).map(nameOf).filter(Boolean);
+          const names = [...(s.products || []).map(nameOf).filter(Boolean), ...(s.customProducts || [])];
           return (
             <div className="card sp" key={s._id}>
               <div className="sp-h">
@@ -2240,6 +2260,31 @@ function Penjual({ suppliers, products, setSuppliers, go }) {
               ))}
               {!products.length && <small className="muted">{tl("Belum ada produk", "No products yet")}</small>}
             </div>
+
+            <label>{tl("Barang lain (kustom)", "Other items (custom)")}</label>
+              <div className="sp-add">
+                <input
+                  placeholder={tl("mis. Gula, Galon, Plastik", "e.g. Sugar, Water jug")}
+                  value={custom}
+                  onChange={(e) => setCustom(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustom(); } }}
+                />
+                <button type="button" className="btn gold" onClick={addCustom} disabled={!custom.trim()}>
+                  <Ic n="plus" s={16} />
+                </button>
+              </div>
+              {f.customProducts.length > 0 && (
+                <div className="sp-prods" style={{ marginTop: 6 }}>
+                  {f.customProducts.map((n) => (
+                    <span key={n} className="chip sp-x">
+                      {n}
+                      <button type="button" onClick={() => removeCustom(n)} aria-label={tl("Hapus", "Remove")}>
+                        <Ic n="x" s={12} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
 
             <label>{tl("Catatan", "Note")}</label>
             <input placeholder={tl("Opsional (alamat, jam buka, dll)", "Optional (address, hours, etc.)")} value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} />
