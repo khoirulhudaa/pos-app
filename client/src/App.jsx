@@ -753,7 +753,7 @@ function Beranda({ txs, products, bookings=[], suppliers = [], go, closeDay, ope
         </div>
 
         <ChangeFundCard fund={fund} money={fundMoney} onManage={openFund} />
-        <BookingCard bookings={bookings} go={go} />
+        {!settings.hideBooking && <BookingCard bookings={bookings} go={go} />}
 
         {closed && (
           <div className="card warn">
@@ -1106,6 +1106,20 @@ function Setting({ settings, setSettings, go, onReset, txs = [] }) {
         </div>
 
         <div className="card" style={{ marginTop: 16 }}>
+          <h3 style={{ marginBottom: 8 }}>{lang === "en" ? "Bookings" : "Booking"}</h3>
+          <small className="muted" style={{ display: "block", marginBottom: 12 }}>
+            {lang === "en" ? "Customer orders & reminders." : "Catatan pesanan pelanggan & pengingat."}
+          </small>
+          <button
+            className="btn ghost"
+            style={{ width: "100%", background: "transparent", border: "1.5px solid var(--border, #cbd5e1)", color: "inherit", fontWeight: 600, fontSize: 14 }}
+            onClick={() => go("booking")}
+          >
+            {lang === "en" ? "Open bookings" : "Buka halaman booking"}
+          </button>
+        </div>
+
+        <div className="card" style={{ marginTop: 16 }}>
           <h3 style={{ marginBottom: 8 }}>{lang === "en" ? "Suppliers" : "Kontak Penjual"}</h3>
           <small className="muted" style={{ display: "block", marginBottom: 12 }}>
             {lang === "en" ? "Save supplier contacts for restocking." : "Simpan kontak penjual bahan baku untuk belanja stok."}
@@ -1241,6 +1255,11 @@ function Setting({ settings, setSettings, go, onReset, txs = [] }) {
           <label className="switch-row">
             <span>{lang === "en" ? "Hide chart" : "Sembunyikan grafik"}</span>
             <input type="checkbox" checked={!!settings.hideChart} onChange={(e) => update("hideChart", e.target.checked)} />
+          </label>
+
+          <label className="switch-row">
+            <span>{lang === "en" ? "Hide bookings" : "Sembunyikan booking"}</span>
+            <input type="checkbox" checked={!!settings.hideBooking} onChange={(e) => update("hideBooking", e.target.checked)} />
           </label>
 
           <label>{t("maxTx")}</label>
@@ -3219,6 +3238,7 @@ const DEFAULT_SETTINGS = {
   hideNominal: false,
   hidePengeluaran: false,
   hideLaba: false,
+  hideBooking: false,
   hideTransaksi: false,
   hideKembalian: false,
   hideChart: false,
