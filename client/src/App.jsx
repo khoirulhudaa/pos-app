@@ -65,6 +65,8 @@ const P = {
   down: "M23 18l-9.5-9.5-5 5L1 6 M17 18h6v-6",
   monitor: "M20 3H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2z M8 21h8 M12 17v4 M3 3l18 18",
   view1: "M4 5h16v14H4z",
+  bell: "M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9 M13.73 21a2 2 0 0 1-3.46 0",
+  clock: "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M12 6v6l4 2",
   view2: "M4 5h7v14H4z M13 5h7v14h-7z",
   phone: "M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z",
   users: "M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M23 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75",
@@ -579,15 +581,19 @@ const waNumber = (p) => {
 const waLink = (phone, text) => `https://wa.me/${waNumber(phone)}?text=${encodeURIComponent(text)}`;
 
 // Rekomendasi penjual untuk satu produk yang stoknya menipis
+// Rekomendasi penjual untuk satu produk yang stoknya menipis
 function SupplierReco({ product, suppliers = [], go, inline = false }) {
   const { lang } = useT();
   const tl = (id, en) => (lang === "en" ? en : id);
   const list = suppliers.filter((s) => (s.products || []).includes(product._id));
+
   const msg = (s) =>
     tl(
       `Halo ${s.name}, stok ${product.name} saya tinggal ${product.stock}. Apakah tersedia untuk dipesan?`,
       `Hi ${s.name}, my stock of ${product.name} is down to ${product.stock}. Is it available to order?`
     );
+
+  // Belum ada penjual untuk produk ini
   if (!list.length) {
     return (
       <button type="button" className="reco-add" onClick={() => go("suppliers")}>
@@ -596,9 +602,33 @@ function SupplierReco({ product, suppliers = [], go, inline = false }) {
       </button>
     );
   }
+
+  const first = list[0];
+  const rest = list.length - 1;
+
+  // Mode sebaris (di samping badge stok, Beranda)
+  if (inline) {
+    return first.phone ? (
+      <div className="reco inline">
+        <a className="reco-chip" href={waLink(first.phone, msg(first))} target="_blank" rel="noreferrer">
+          <Ic n="send" s={12} /> <span className="reco-nm">{first.name}</span>
+          {rest > 0 && <em className="reco-more">+{rest}</em>}
+        </a>
+      </div>
+    ) : (
+      <div className="reco inline">
+        <span className="reco-chip off">
+          <span className="reco-nm">{first.name}</span>
+          {rest > 0 && <em className="reco-more">+{rest}</em>}
+        </span>
+      </div>
+    );
+  }
+
+  // Mode penuh (kartu Produk)
   return (
-    <div className={"reco" + (inline ? " inline" : "")}>
-      {!inline && <small className="muted">{tl("Hubungi penjual:", "Contact supplier:")}</small>}
+    <div className="reco">
+      <small className="muted">{tl("Hubungi penjual:", "Contact supplier:")}</small>
       <div className="reco-list">
         {list.map((s) =>
           s.phone ? (
@@ -723,6 +753,7 @@ function Beranda({ txs, products, suppliers = [], go, closeDay, openDay, closed,
         </div>
 
         <ChangeFundCard fund={fund} money={fundMoney} onManage={openFund} />
+        <BookingCard bookings={bookings} go={go} />
 
         {closed && (
           <div className="card warn">
@@ -2114,6 +2145,257 @@ function Produk({ products, txs = [], reload, suppliers = [], go, patchProduct, 
   );
 }
 
+// ---------- Booking & alarm ----------
+const toLocalInput = (d) => {
+  const x = new Date(d);
+  return `${toKey(x)}T${String(x.getHours()).padStart(2, "0")}:${String(x.getMinutes()).padStart(2, "0")}`;
+};
+const REMIND_OPTS = [0, 15, 30, 60, 120, 1440];
+const remindLabel = (m, tl) =>
+  m === 0 ? tl("Tepat waktu", "On time")
+  : m < 60 ? tl(`${m} menit sebelum`, `${m} min before`)
+  : m < 1440 ? tl(`${m / 60} jam sebelum`, `${m / 60} h before`)
+  : tl("1 hari sebelum", "1 day before");
+
+let _ac;
+const beep = () => {
+  try {
+    _ac ||= new (window.AudioContext || window.webkitAudioContext)();
+    if (_ac.state === "suspended") _ac.resume();
+    const o = _ac.createOscillator(), g = _ac.createGain();
+    o.type = "square"; o.frequency.value = 880; g.gain.value = 0.15;
+    o.connect(g); g.connect(_ac.destination);
+    o.start(); o.stop(_ac.currentTime + 0.25);
+  } catch {}
+};
+
+const ls = (k) => { try { return JSON.parse(localStorage.getItem(k)) || {}; } catch { return {}; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+
+// Popup alarm
+function AlarmModal({ items, onDone, onSnooze, onClose }) {
+  const { locale, lang } = useT();
+  const tl = (id, en) => (lang === "en" ? en : id);
+  useEffect(() => {
+    beep();
+    const id = setInterval(() => { beep(); navigator.vibrate?.([300, 150, 300]); }, 1500);
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <div className="modal-wrap center-m" style={{ zIndex: 120 }}>
+      <div className="modal success">
+        <div className="alarm-ic"><Ic n="bell" s={32} /></div>
+        <h3>{tl("Pengingat Booking", "Booking Reminder")}</h3>
+        <div className="alarm-list">
+          {items.map((b) => (
+            <div className="alarm-item" key={b._id}>
+              <b>{b.customer}</b>
+              <small className="muted">
+                {new Date(b.dueAt).toLocaleString(locale, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+              </small>
+              {b.order && <p className="small">{b.order}</p>}
+              <div className="row-actions-2" style={{ marginTop: 8 }}>
+                <button className="btn ghost" onClick={() => onSnooze(b)}>{tl("Tunda 10 mnt", "Snooze 10 min")}</button>
+                <button className="btn gold" onClick={() => onDone(b)}>{tl("Selesai", "Done")}</button>
+              </div>
+            </div>
+          ))}
+        </div>
+        <button className="btn ghost" onClick={onClose}>{tl("Tutup", "Close")}</button>
+      </div>
+    </div>
+  );
+}
+
+// Halaman Booking (CRUD)
+function Booking({ bookings, setBookings, go }) {
+  const { locale, lang } = useT();
+  const tl = (id, en) => (lang === "en" ? en : id);
+  const blank = { customer: "", phone: "", order: "", dueAt: "", remindBefore: 30, note: "" };
+  const [f, setF] = useState(blank);
+  const [editId, setEditId] = useState(null);
+  const [show, setShow] = useState(false);
+  const [del, setDel] = useState(null);
+  const [tab, setTab] = useState("active");
+  const [busy, setBusy] = useState(false);
+
+  const close = () => { setShow(false); setEditId(null); setF(blank); };
+  const openNew = () => {
+    const d = new Date(Date.now() + 3600000); d.setMinutes(0, 0, 0);
+    setF({ ...blank, dueAt: toLocalInput(d) });
+    setShow(true);
+  };
+  const openEdit = (b) => {
+    setEditId(b._id);
+    setF({ customer: b.customer, phone: b.phone || "", order: b.order || "", dueAt: toLocalInput(b.dueAt), remindBefore: b.remindBefore ?? 30, note: b.note || "" });
+    setShow(true);
+  };
+  const upsertB = (saved) =>
+    setBookings((l) => {
+      const i = l.findIndex((x) => x._id === saved._id);
+      const n = i < 0 ? [...l, saved] : l.map((x) => (x._id === saved._id ? saved : x));
+      return n.sort((a, b) => new Date(a.dueAt) - new Date(b.dueAt));
+    });
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const body = { ...f, dueAt: new Date(f.dueAt).toISOString() };
+      const saved = await (editId ? req(`/bookings/${editId}`, "PUT", { ...body, done: bookings.find((x) => x._id === editId)?.done }) : req("/bookings", "POST", body));
+      upsertB(saved);
+      toast.success(editId ? tl("Booking diperbarui", "Booking updated") : tl("Booking dicatat", "Booking saved"));
+      close();
+      if ("Notification" in window && Notification.permission === "default") Notification.requestPermission();
+    } catch (x) { toast.error(x.message); }
+    setBusy(false);
+  };
+
+  const toggleDone = async (b) => {
+    try {
+      upsertB(await req(`/bookings/${b._id}`, "PUT", { ...b, done: !b.done }));
+    } catch (x) { toast.error(x.message); }
+  };
+  const doDelete = async (b) => {
+    try {
+      await req(`/bookings/${b._id}`, "DELETE");
+      setBookings((l) => l.filter((x) => x._id !== b._id));
+      toast.success(tl("Booking dihapus", "Booking deleted"));
+    } catch (x) { toast.error(x.message); }
+  };
+
+  const now = Date.now();
+  const list = bookings.filter((b) => (tab === "active" ? !b.done : b.done));
+  if (tab === "done") list.sort((a, b) => new Date(b.dueAt) - new Date(a.dueAt));
+
+  return (
+    <>
+      <Top
+        title={tl("Booking", "Bookings")}
+        sub={tl("Catatan pesanan & pengingat", "Order notes & reminders")}
+        right={<button className="icon-btn dark" onClick={() => go("home")}><Ic n="x" /></button>}
+      />
+      <div className="page pull">
+        <div className="seg" style={{ marginTop: 0 }}>
+          <button className={tab === "active" ? "on" : ""} onClick={() => setTab("active")}>{tl("Aktif", "Active")}</button>
+          <button className={tab === "done" ? "on" : ""} onClick={() => setTab("done")}>{tl("Selesai", "Done")}</button>
+        </div>
+        <button className="btn ghost" style={{ marginTop: 0, marginBottom: 12, backgroundColor: "white" }} onClick={openNew}>
+          <Ic n="plus" s={18} /> {tl("Catat booking", "Add booking")}
+        </button>
+
+        {list.map((b) => {
+          const due = new Date(b.dueAt).getTime();
+          const late = !b.done && due < now;
+          const soon = !b.done && !late && due - now < 3600000;
+          return (
+            <div className={"card bk" + (late ? " late" : soon ? " soon" : "")} key={b._id}>
+              <div className="bk-h">
+                <span className="cf-ic"><Ic n="clock" s={16} /></span>
+                <div className="grow">
+                  <b>{b.customer}</b><br />
+                  <small className="muted">
+                    {new Date(b.dueAt).toLocaleString(locale, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                  </small>
+                </div>
+                {late && <span className="bk-tag late">{tl("Terlewat", "Overdue")}</span>}
+                {soon && <span className="bk-tag soon">{tl("Segera", "Soon")}</span>}
+              </div>
+              {b.order && <p className="bk-order">{b.order}</p>}
+              <small className="muted" style={{ display: "block", marginTop: 4 }}>
+                <Ic n="bell" s={11} /> {remindLabel(b.remindBefore, tl)}
+                {b.phone && ` · ${b.phone}`}
+              </small>
+              {b.note && <small className="muted" style={{ display: "block", marginTop: 4 }}>{b.note}</small>}
+              <div className="pc-a">
+                {b.phone && (
+                  <a className="sp-act" href={waLink(b.phone, tl(`Halo ${b.customer}, mengingatkan pesanan Anda untuk ${new Date(b.dueAt).toLocaleString(locale, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}.`, `Hi ${b.customer}, a reminder about your order.`))} target="_blank" rel="noreferrer">
+                    <Ic n="send" s={15} /> WA
+                  </a>
+                )}
+                <button onClick={() => toggleDone(b)}><Ic n="check" s={15} /> {b.done ? tl("Batal selesai", "Undo") : tl("Selesai", "Done")}</button>
+                <button onClick={() => openEdit(b)}><Ic n="edit" s={15} /></button>
+                <button className="d" onClick={() => setDel(b)}><Ic n="trash" s={15} /></button>
+              </div>
+            </div>
+          );
+        })}
+
+        {!list.length && (
+          <EmptyState
+            icon="clock"
+            title={tab === "active" ? tl("Belum ada booking", "No bookings yet") : tl("Belum ada yang selesai", "Nothing completed yet")}
+            desc={tab === "active" ? tl("Catat pesanan dari pelanggan supaya tidak lupa.", "Note customer orders so you never forget.") : ""}
+          />
+        )}
+      </div>
+
+      {show && (
+        <Modal title={editId ? tl("Edit Booking", "Edit Booking") : tl("Catat Booking", "New Booking")} onClose={close}>
+          <form onSubmit={submit}>
+            <label>{tl("Nama pelanggan", "Customer name")}</label>
+            <input value={f.customer} onChange={(e) => setF({ ...f, customer: e.target.value })} required autoFocus />
+            <label>{tl("Nomor HP (opsional)", "Phone (optional)")}</label>
+            <input type="tel" inputMode="tel" placeholder="08xxxxxxxxxx" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
+            <label>{tl("Pesanan", "Order")}</label>
+            <textarea rows={3} placeholder={tl("mis. 20 es teh, 10 nasi kotak", "e.g. 20 iced tea")} value={f.order} onChange={(e) => setF({ ...f, order: e.target.value })} />
+            <label>{tl("Diambil / diantar pada", "Pickup / delivery time")}</label>
+            <input type="datetime-local" value={f.dueAt} onChange={(e) => setF({ ...f, dueAt: e.target.value })} required />
+            <label>{tl("Ingatkan", "Remind me")}</label>
+            <select value={f.remindBefore} onChange={(e) => setF({ ...f, remindBefore: Number(e.target.value) })}>
+              {REMIND_OPTS.map((m) => <option key={m} value={m}>{remindLabel(m, tl)}</option>)}
+            </select>
+            <label>{tl("Catatan", "Note")}</label>
+            <input placeholder={tl("Opsional (DP, alamat, dll)", "Optional (deposit, address)")} value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} />
+            <button className="btn gold" disabled={busy}>{editId ? tl("Simpan perubahan", "Save changes") : tl("Simpan booking", "Save booking")}</button>
+          </form>
+        </Modal>
+      )}
+
+      {del && (
+        <ConfirmModal
+          title={tl(`Hapus booking ${del.customer}?`, `Delete booking for ${del.customer}?`)}
+          okText={tl("Ya, hapus", "Yes, delete")}
+          cancelText={tl("Batal", "Cancel")}
+          onOk={() => doDelete(del)}
+          onClose={() => setDel(null)}
+        />
+      )}
+    </>
+  );
+}
+
+// Kartu ringkasan booking di Beranda
+function BookingCard({ bookings, go }) {
+  const { locale, lang } = useT();
+  const tl = (id, en) => (lang === "en" ? en : id);
+  const next = bookings.filter((b) => !b.done).slice(0, 3);
+  const total = bookings.filter((b) => !b.done).length;
+  return (
+    <div className="card bk-card">
+      <div className="cf-h">
+        <span className="cf-ic"><Ic n="clock" s={16} /></span>
+        <b>{tl("Booking", "Bookings")}{total > 0 && <span className="low-badge" style={{ display: "inline-grid", marginLeft: 8 }}>{total}</span>}</b>
+        <button type="button" className="cf-add" onClick={() => go("booking")} aria-label={tl("Kelola booking", "Manage bookings")}>
+          <Ic n="plus" s={16} />
+        </button>
+      </div>
+      {next.length === 0 ? (
+        <small className="muted" style={{ display: "block", marginTop: 8 }}>{tl("Tidak ada booking aktif", "No active bookings")}</small>
+      ) : (
+        next.map((b) => (
+          <div className="bk-row" key={b._id} onClick={() => go("booking")}>
+            <span className="bk-nm">{b.customer}</span>
+            <small className={new Date(b.dueAt) < Date.now() ? "err" : "muted"}>
+              {new Date(b.dueAt).toLocaleString(locale, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+            </small>
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
 // ---------- Kontak Penjual (CRUD) ----------
 function Penjual({ suppliers, products, setSuppliers, go }) {
   const { lang } = useT();
@@ -2985,6 +3267,8 @@ export default function App() {
   const [editTx, setEditTx] = useState(null);
   const [closed, setClosed] = useState(false);
   const [fund, setFund] = useState(null);
+  const [bookings, setBookings] = useState([]);
+  const [ringing, setRinging] = useState([]); // id booking yang sedang berbunyi
   const [showFund, setShowFund] = useState(false);
   const [showOpen, setShowOpen] = useState(false);
   const [confirmBox, setConfirmBox] = useState(null);
@@ -3031,12 +3315,14 @@ export default function App() {
         req("/products"),
         req("/transactions"),
         req("/status").catch((e) => { if (e.status === 401) throw e; return null; }),
+        req("/bookings").catch((e) => { if (e.status === 401) throw e; return null; }),
         req("/change-fund").catch((e) => { if (e.status === 401) throw e; return null; }),
         req("/suppliers").catch((e) => { if (e.status === 401) throw e; return null; }),
       ]);
       if (s) setClosed(!!s.closed);
       if (startedAt < lastChange.current) return; // data lama, sudah ada perubahan yang lebih baru
       if (fd) setFund(fd);
+      if (Array.isArray(bk)) setBookings(bk);
       if (Array.isArray(sp)) setSuppliers(sp);
       setProducts(Array.isArray(p) ? p.filter((x) => x && x.name) : []);
       setTxs(Array.isArray(tr) ? tr : []);
@@ -3114,6 +3400,64 @@ export default function App() {
 
   if (isPc) return <PcBlock lang={lang} />;
 
+ // Buka kunci audio pada sentuhan pertama (aturan autoplay browser)
+  useEffect(() => {
+    const unlock = () => { beep(); window.removeEventListener("pointerdown", unlock); };
+    window.addEventListener("pointerdown", unlock);
+    return () => window.removeEventListener("pointerdown", unlock);
+  }, []);
+
+  // Pemeriksa alarm booking (tiap 15 detik)
+  useEffect(() => {
+    if (!authed) return;
+    const check = () => {
+      const now = Date.now();
+      const fired = ls("pos_alarmed");
+      const snooze = ls("pos_snooze");
+      const due = [];
+      bookings.forEach((b) => {
+        if (b.done) return;
+        const t = new Date(b.dueAt).getTime();
+        const key = `${b._id}:${t}:${b.remindBefore}`;
+        if (fired[key]) return;
+        if (snooze[b._id] > now) return;
+        if (now >= t - b.remindBefore * 60000 && now - t < 12 * 3600000) due.push({ b, key });
+      });
+      if (!due.length) return;
+      due.forEach(({ key }) => { fired[key] = true; });
+      lsSet("pos_alarmed", fired);
+      setRinging((r) => [...new Set([...r, ...due.map((d) => d.b._id)])]);
+      if ("Notification" in window && Notification.permission === "granted") {
+        due.forEach(({ b }) => {
+          const title = `Booking: ${b.customer}`;
+          const opts = { body: b.order || "", tag: b._id, icon: "/icon-192.png", requireInteraction: true };
+          navigator.serviceWorker?.getRegistration().then((reg) => (reg ? reg.showNotification(title, opts) : new Notification(title, opts))).catch(() => {});
+        });
+      }
+    };
+    check();
+    const id = setInterval(check, 15000);
+    return () => clearInterval(id);
+  }, [authed, bookings]);
+
+  const ringItems = bookings.filter((b) => ringing.includes(b._id) && !b.done);
+  const ringDone = async (b) => {
+    try {
+      const saved = await req(`/bookings/${b._id}`, "PUT", { ...b, done: true });
+      setBookings((l) => l.map((x) => (x._id === saved._id ? saved : x)));
+    } catch (e) { toast.error(e.message); }
+    setRinging((r) => r.filter((x) => x !== b._id));
+  };
+  const ringSnooze = (b) => {
+    const fired = ls("pos_alarmed");
+    delete fired[`${b._id}:${new Date(b.dueAt).getTime()}:${b.remindBefore}`];
+    lsSet("pos_alarmed", fired);
+    const snooze = ls("pos_snooze");
+    snooze[b._id] = Date.now() + 10 * 60000;
+    lsSet("pos_snooze", snooze);
+    setRinging((r) => r.filter((x) => x !== b._id));
+  }; 
+
   if (!authed) return <LangCtx.Provider value={ctx}><Login onOk={() => setAuthed(true)} /></LangCtx.Provider>;
 
   const titles = {
@@ -3142,6 +3486,8 @@ export default function App() {
           <Setting settings={settings} setSettings={setSettings} go={setTab} txs={txs} onReset={() => { touch(); setTxs([]); reload(); }} />
         ) : tab === "logs" ? (
           <ActivityLogPage go={setTab} />
+        ) : tab === "booking" ? (
+            <Booking bookings={bookings} setBookings={setBookings} go={setTab} />
         ) : tab === "detail" ? (
           <Detail tx={detailTx} back={() => setTab(backTab)} onEdit={setEditTx} onDelete={deleteTx} />
         ) : tab === "suppliers" ? (
@@ -3216,6 +3562,15 @@ export default function App() {
             {...confirmBox}
             cancelText={t("cancel")}
             onClose={() => setConfirmBox(null)}
+          />
+        )}
+
+        {ringItems.length > 0 && (
+          <AlarmModal
+            items={ringItems}
+            onDone={ringDone}
+            onSnooze={ringSnooze}
+            onClose={() => setRinging([])}
           />
         )}
 

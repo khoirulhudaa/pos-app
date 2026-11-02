@@ -96,6 +96,16 @@ const Supplier = registerModel("Supplier", new mongoose.Schema({
   customProducts: [{ type: String, trim: true }], // barang bebas (bukan produk di kasir)
 }, { timestamps: true }));
 
+const Booking = registerModel("Booking", new mongoose.Schema({
+  customer: { type: String, required: true, trim: true },
+  phone: { type: String, default: "", trim: true },
+  order: { type: String, default: "" },          // isi pesanan (teks bebas)
+  dueAt: { type: Date, required: true },         // kapan diambil / diantar
+  remindBefore: { type: Number, default: 30 },   // menit sebelum dueAt
+  note: { type: String, default: "" },
+  done: { type: Boolean, default: false },
+}, { timestamps: true }));
+
 const Setting = registerModel("Setting", new mongoose.Schema({
   key: { type: String, unique: true },
   closed: { type: Boolean, default: false },
@@ -465,6 +475,40 @@ app.put("/api/suppliers/:id", async (req, res) => {
 
 app.delete("/api/suppliers/:id", async (req, res) => {
   await Supplier.findByIdAndDelete(req.params.id);
+  res.json({ ok: true });
+});
+
+// ---- Booking ----
+const cleanBooking = (b = {}) => ({
+  customer: String(b.customer || "").trim(),
+  phone: String(b.phone || "").trim(),
+  order: String(b.order || "").trim(),
+  dueAt: new Date(b.dueAt),
+  remindBefore: Math.max(0, Math.min(10080, Math.floor(Number(b.remindBefore) || 0))),
+  note: String(b.note || "").trim(),
+  done: !!b.done,
+});
+
+app.get("/api/bookings", async (_, res) => res.json(await Booking.find().sort({ dueAt: 1 }).limit(500)));
+
+app.post("/api/bookings", async (req, res) => {
+  const d = cleanBooking(req.body);
+  if (!d.customer) return bad(res, "Nama pelanggan wajib diisi");
+  if (isNaN(d.dueAt)) return bad(res, "Waktu booking tidak valid");
+  res.json(await Booking.create(d));
+});
+
+app.put("/api/bookings/:id", async (req, res) => {
+  const d = cleanBooking(req.body);
+  if (!d.customer) return bad(res, "Nama pelanggan wajib diisi");
+  if (isNaN(d.dueAt)) return bad(res, "Waktu booking tidak valid");
+  const saved = await Booking.findByIdAndUpdate(req.params.id, d, { new: true });
+  if (!saved) return res.status(404).json({ message: "Booking tidak ditemukan" });
+  res.json(saved);
+});
+
+app.delete("/api/bookings/:id", async (req, res) => {
+  await Booking.findByIdAndDelete(req.params.id);
   res.json({ ok: true });
 });
 
