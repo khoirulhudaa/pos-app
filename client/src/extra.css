@@ -228,3 +228,23 @@
 .sp-add .btn { width: 48px; height: 48px; margin: 0; padding: 0; flex-shrink: 0; }
 .chip.sp-x { display: inline-flex; align-items: center; gap: 4px; margin-top: 0; padding-right: 6px; }
 .chip.sp-x button { display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: rgba(10, 102, 194, .15); color: var(--accent); }
+
+/* ===== Daftar stok menipis di Beranda ===== */
+.warn .low-item { padding: 10px 0; border-top: 1px dashed rgba(178, 107, 0, .35); }
+.warn .warn-h + .low-item { border-top: 0; padding-top: 4px; }
+.warn .low-item:last-child { padding-bottom: 0; }
+.low-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.low-nm { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 14px; font-weight: 700; }
+.low-qty { flex-shrink: 0; font-size: 11.5px; font-weight: 800; color: var(--err); background: #fff; padding: 3px 10px; border-radius: 20px; border: 1px solid rgba(229, 72, 77, .25); }
+.low-qty.zero { background: var(--err); color: #fff; border-color: transparent; }
+.warn .low-item .reco { margin: 6px 0 0; padding: 0; }
+.warn .low-item .reco-none { margin: 4px 0 0; padding: 0; }
+.reco-add { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 20px; border: 1.5px dashed rgba(10, 102, 194, .5); background: rgba(255, 255, 255, .7); color: var(--accent); font-size: 12px; font-weight: 700; }
+.reco-add:active { background: rgba(10, 102, 194, .08); transform: scale(.98); }
+.warn .low-item > .reco-add { margin-top: 6px; }
+
+.low-right { display: flex; align-items: center; justify-content: flex-end; gap: 6px; flex-wrap: wrap; flex-shrink: 0; max-width: 60%; }
+.reco.inline { margin: 0; padding: 0; }
+.reco.inline .reco-list { margin-top: 0; flex-wrap: nowrap; }
+.low-right .reco-add,
+.low-right .reco-chip { padding: 3px 10px; font-size: 11.5px; line-height: 1.3; white-space: nowrap; }

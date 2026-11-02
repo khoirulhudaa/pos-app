@@ -579,7 +579,7 @@ const waNumber = (p) => {
 const waLink = (phone, text) => `https://wa.me/${waNumber(phone)}?text=${encodeURIComponent(text)}`;
 
 // Rekomendasi penjual untuk satu produk yang stoknya menipis
-function SupplierReco({ product, suppliers = [], go }) {
+function SupplierReco({ product, suppliers = [], go, inline = false }) {
   const { lang } = useT();
   const tl = (id, en) => (lang === "en" ? en : id);
   const list = suppliers.filter((s) => (s.products || []).includes(product._id));
@@ -590,14 +590,15 @@ function SupplierReco({ product, suppliers = [], go }) {
     );
   if (!list.length) {
     return (
-      <button type="button" className="reco-none" onClick={() => go("suppliers")}>
-        <Ic n="users" s={13} /> {tl("Belum ada penjual untuk produk ini · Tambah", "No supplier for this product · Add one")}
+      <button type="button" className="reco-add" onClick={() => go("suppliers")}>
+        <Ic n="plus" s={13} />
+        <span>{tl("Tambah penjual", "Add supplier")}</span>
       </button>
     );
   }
   return (
-    <div className="reco">
-      <small className="muted">{tl("Hubungi penjual:", "Contact supplier:")}</small>
+    <div className={"reco" + (inline ? " inline" : "")}>
+      {!inline && <small className="muted">{tl("Hubungi penjual:", "Contact supplier:")}</small>}
       <div className="reco-list">
         {list.map((s) =>
           s.phone ? (
@@ -733,12 +734,19 @@ function Beranda({ txs, products, suppliers = [], go, closeDay, openDay, closed,
         {low.length > 0 && (
           <div className="card warn">
             <div className="warn-h"><Ic n="alert" s={18} /> {t("stockLow")}</div>
-            {low.slice(0, 5).map((p) => (
-              <div key={p._id}>
-                <div className="li"><span><CatIcon c={p.category} s={18} /> {p.name}</span><b className="err">{t("remaining")} {p.stock}</b></div>
-                <SupplierReco product={p} suppliers={suppliers} go={go} />
-              </div>
-            ))}
+             {low.slice(0, 5).map((p) => (
+                <div className="low-item" key={p._id}>
+                  <div className="low-top">
+                    <span className="low-nm"><CatIcon c={p.category} s={18} /> {p.name}</span>
+                    <div className="low-right">
+                      <b className={"low-qty" + (p.stock < 1 ? " zero" : "")}>
+                        {p.stock < 1 ? t("outOfStock") : `${t("remaining")} ${p.stock}`}
+                      </b>
+                      <SupplierReco product={p} suppliers={suppliers} go={go} inline />
+                    </div>
+                  </div>
+                </div>
+              ))}
           </div>
         )}
 
