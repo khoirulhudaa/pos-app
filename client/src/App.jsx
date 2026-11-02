@@ -2428,14 +2428,20 @@ function BookingCard({ bookings=[], go }) {
       {next.length === 0 ? (
         <small className="muted" style={{ display: "block", marginTop: 8 }}>{tl("Tidak ada booking aktif", "No active bookings")}</small>
       ) : (
-        next.map((b) => (
-          <div className="bk-row" key={b._id} onClick={() => go("booking")}>
-            <span className="bk-nm">{b.customer}</span>
-            <small className={new Date(b.dueAt) < Date.now() ? "err" : "muted"}>
-              {new Date(b.dueAt).toLocaleString(locale, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
-            </small>
-          </div>
-        ))
+        next.map((b) => {
+          const d = new Date(b.dueAt);
+          const ok = !isNaN(d);
+          return (
+            <div className="bk-row" key={b._id} onClick={() => go("booking")}>
+              <span className="bk-nm">{b.customer || "-"}</span>
+              <small className={ok && d < Date.now() ? "err" : "muted"}>
+                {ok
+                  ? d.toLocaleString(locale, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
+                  : "-"}
+              </small>
+            </div>
+          );
+        })
       )}
     </div>
   );
