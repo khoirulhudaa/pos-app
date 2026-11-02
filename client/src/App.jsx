@@ -196,6 +196,7 @@ function ConfirmModal({ icon = "trash", title, desc, okText, cancelText, onOk, o
     <div className="modal-wrap center-m" onClick={onClose}>
       <div className="modal success" onClick={(e) => e.stopPropagation()}>
         <div className="logout-ic"><Ic n={icon} s={30} /></div>
+        <div style={{ height: 8 }} />
         <h3>{title}</h3>
         {desc && <p className="muted small">{desc}</p>}
         {refund && <RefundPicker value={mode} onChange={setMode} />}
