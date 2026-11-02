@@ -230,6 +230,7 @@ const PASSWORD_LABEL = {
 app.use("/api", async (req, res, next) => {
   res.set("Cache-Control", "no-store, no-cache, must-revalidate");
   res.set("Pragma", "no-cache");
+  res.set("X-Fund-Logic", "v2-cashin");
   res.set("X-Packaging-Schema", String(!!Tx.schema.path("packaging.plastic")));
 
   const pass = req.headers["x-pass"] || "";
@@ -530,6 +531,7 @@ app.post("/api/transactions", async (req, res) => {
       note,
     });
 
+    console.log("[FUND]", { method, paid, total, cashIn, src, saldoSebelum: fund.balance });
     if (cashIn || src.stock || src.other) {
       await moveFund({ balance: cashIn - src.stock, other: src.other, sales: cashIn ? total : 0 });
     }
@@ -780,22 +782,6 @@ app.delete("/api/transactions/:id", async (req, res) => {
         },
      })));
   }
-
-  // if (t.items.length) {
-  //   await Product.bulkWrite(
-  //     t.items.map((i) => ({
-  //       updateOne: {
-  //         filter: { _id: i.product },
-  //         update: {
-  //           $inc: {
-  //             stock: sign * i.qty,
-  //             sold: t.type === "income" ? -i.qty : 0,
-  //           },
-  //         },
-  //       },
-  //     }))
-  //   );
-  // }
 
   await t.deleteOne();
 
