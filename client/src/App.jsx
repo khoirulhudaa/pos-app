@@ -2052,6 +2052,17 @@ function Pengeluaran({ products, reload, patchTx, closed, openDay, go }) {
   const [unitCost, setUnitCost] = useState(0); // harga per satuan, jadi patokan nominal
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
 
+  const [kind, setKind] = useState("belanja"); // belanja | non
+  const isShop = kind === "belanja";
+  const switchKind = (k) => {
+    setKind(k);
+    if (k === "non") {
+      // bersihkan isian khusus belanja
+      setF((p) => ({ ...p, product: "", qty: "", unit: "pcs" }));
+      setUnitCost(0);
+    }
+  };
+
     const onAmount = (e) => {
     const v = e.target.value;
     const q = Number(f.qty) > 0 ? Number(f.qty) : 1;
@@ -2070,14 +2081,14 @@ function Pengeluaran({ products, reload, patchTx, closed, openDay, go }) {
   const submit = async (e) => {
     e.preventDefault();
     try {
-      const items = f.product && f.qty ? [{ product: f.product, qty: Number(f.qty), unit: f.unit }] : [];
+      const items = isShop && f.product && f.qty ? [{ product: f.product, qty: Number(f.qty), unit: f.unit }] : [];
       const saved = await req("/transactions", "POST", {
         type: "expense",
         description: f.description.trim(),
         amount: Number(f.amount),
         items,
-        buyQty: Number(f.qty) > 0 ? Number(f.qty) : undefined,
-        buyUnit: f.unit,
+        buyQty: isShop && Number(f.qty) > 0 ? Number(f.qty) : undefined,
+        buyUnit: isShop ? f.unit : undefined,
         permanent: f.permanent,
         note: f.note,
         method: f.method,
@@ -2097,12 +2108,21 @@ function Pengeluaran({ products, reload, patchTx, closed, openDay, go }) {
 
   return (
     <form className="card" onSubmit={submit}>
+      <div className="seg" style={{ marginTop: 0 }}>
+        <button type="button" className={isShop ? "on" : ""} onClick={() => switchKind("belanja")}>
+          {tl("Belanja", "Shopping")}
+        </button>
+        <button type="button" className={!isShop ? "on" : ""} onClick={() => switchKind("non")}>
+          {tl("Non-belanja", "Non-shopping")}
+        </button>
+      </div>
+
       <label>{t("description")}</label>
       <input placeholder={t("descPh")} value={f.description} onChange={set("description")} required />
 
       <label>{t("amount")}</label>
       <input type="number" inputMode="numeric" placeholder="0" value={f.amount} onChange={onAmount} required />
-      {unitCost > 0 && Number(f.qty) > 0 && (
+      {isShop && unitCost > 0 && Number(f.qty) > 0 && (
         <small className="muted" style={{ display: "block", marginTop: 4 }}>
           {lang === "en"
             ? `Follows quantity (${rp(Math.round(unitCost))} / unit)`
@@ -2117,30 +2137,33 @@ function Pengeluaran({ products, reload, patchTx, closed, openDay, go }) {
         <option value="ewallet">{t("ewallet")}</option>
       </select>
 
-      <label>{t("addStockOpt")}</label>
-      <select value={f.product} onChange={set("product")}>
-        <option value="">{t("noAddStock")}</option>
-        {products.map((p) => (
-          <option key={p._id} value={p._id}>{p.name}</option>
-        ))}
-      </select>
-
-      {/* Jumlah & satuan selalu tampil; jumlah hanya wajib kalau produk dipilih (menambah stok) */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        <div>
-          <label>{qtyLabel(f.product)}</label>
-          <input type="number" inputMode="numeric" min="1" value={f.qty} onChange={onQty} required={!!f.product} />
-        </div>
-        <div>
-          <label>{lang === "en" ? "Unit" : "Satuan"}</label>
-          <select value={f.unit} onChange={set("unit")}>
-            {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+      {isShop && (
+        <>
+          <label>{t("addStockOpt")}</label>
+          <select value={f.product} onChange={set("product")}>
+            <option value="">{t("noAddStock")}</option>
+            {products.map((p) => (
+              <option key={p._id} value={p._id}>{p.name}</option>
+            ))}
           </select>
-        </div>
-      </div>
 
-      <label>{t("note")}</label>
-      <input placeholder={t("optionalPh")} value={f.note} onChange={set("note")} />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div>
+              <label>{qtyLabel(f.product)}</label>
+              <input type="number" inputMode="numeric" min="1" value={f.qty} onChange={onQty} required={!!f.product} />
+            </div>
+            <div>
+              <label>{lang === "en" ? "Unit" : "Satuan"}</label>
+              <select value={f.unit} onChange={set("unit")}>
+                {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <label>{t("note")}</label>
+          <input placeholder={t("optionalPh")} value={f.note} onChange={set("note")} />
+        </>
+      )}
 
       <label className="switch-row" style={{ marginTop: 10 }}>
         <span>{tl("Pengeluaran permanen", "Permanent expense")}</span>
