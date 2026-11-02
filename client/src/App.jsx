@@ -1421,14 +1421,18 @@ function Kasir({ products, reload, patchTx, closed, openDay, fund, hideFund, col
             </button>
           </div>
         </div>
-        <button type="button" className="btn ghost extra-btn" onClick={() => setShowExtra(true)}>
+        {/* <button type="button" className="btn ghost extra-btn" onClick={() => setShowExtra(true)}>
           <Ic n="plus" s={16} /> {tl("Item kustom (sedotan, cup, dll)", "Custom item (straw, cup, etc.)")}
-        </button>
+        </button> */}
         {fund && (
           <small className="muted cf-mini">
           </small>
         )}
         <div className={"products cols-" + cols}>
+          <button type="button" className="prod extra-card" onClick={() => setShowExtra(true)}>
+            <Ic n="plus" s={22} />
+            <span>{tl("Item kustom", "Custom item")}</span>
+          </button>
           {shown.map((p) => {
             const qty = cart[p._id] || 0;
             const level = p.stock < 1 ? "empty" : p.stock < 5 ? "low" : "good";
