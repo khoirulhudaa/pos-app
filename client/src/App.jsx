@@ -1669,6 +1669,37 @@ function ExtraItemModal({ onClose, onAdd }) {
   );
 }
 
+// Bilah pilih & hapus massal (dipakai Riwayat & Produk)
+function SelBar({ selecting, count, allPicked, onStart, onToggleAll, onDelete, onCancel, extra }) {
+  const { lang } = useT();
+  const tl = (id, en) => (lang === "en" ? en : id);
+  return (
+    <div className={"sel-bar" + (selecting ? " active" : "")}>
+      {!selecting ? (
+        <>
+          <button type="button" className="sel-btn" onClick={onStart}>
+            <Ic n="check" s={15} /> {tl("Pilih", "Select")}
+          </button>
+          {extra}
+        </>
+      ) : (
+        <>
+          <button type="button" className="sel-btn" onClick={onToggleAll}>
+            {allPicked ? tl("Batal semua", "Unselect all") : tl("Pilih semua", "Select all")}
+          </button>
+          <button type="button" className="sel-btn solid-danger" disabled={!count} onClick={onDelete}>
+            <Ic n="trash" s={15} /> {tl("Hapus", "Delete")}
+            {count > 0 && <span className="sel-count">{count}</span>}
+          </button>
+          <button type="button" className="sel-btn icon" onClick={onCancel} aria-label={tl("Batal", "Cancel")}>
+            <Ic n="x" s={16} />
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ---------- Produk ----------
 function Produk({ products, txs = [], reload, closeDay, openDay, closed, patchProduct, removeProduct }) {
   const { t, lang } = useT();
@@ -1844,23 +1875,15 @@ function Produk({ products, txs = [], reload, closeDay, openDay, closed, patchPr
     {view === "list" && (
       <>
         {shown.length > 0 && (
-          <div className="sel-bar">
-            {!selecting ? (
-              <button className="btn ghost" onClick={() => setSelecting(true)}>
-                <Ic n="check" s={16} /> {tl("Pilih", "Select")}
-              </button>
-            ) : (
-              <>
-                <button className="btn ghost" onClick={() => setSel(allPicked ? [] : allIds)}>
-                  {allPicked ? tl("Batal semua", "Unselect all") : tl("Pilih semua", "Select all")}
-                </button>
-                <button className="btn gold" style={{ background: "var(--err)" }} disabled={!sel.length} onClick={() => setConfirmMany(true)}>
-                  <Ic n="trash" s={16} /> {tl("Hapus", "Delete")} ({sel.length})
-                </button>
-                <button className="btn ghost" onClick={stopSelect}>{t("cancel")}</button>
-              </>
-            )}
-          </div>
+          <SelBar
+            selecting={selecting}
+            count={sel.length}
+            allPicked={allPicked}
+            onStart={() => setSelecting(true)}
+            onToggleAll={() => setSel(allPicked ? [] : allIds)}
+            onDelete={() => setConfirmMany(true)}
+            onCancel={stopSelect}
+          />
         )}
 
         <div className="plist">
@@ -2354,31 +2377,23 @@ function Riwayat({ txs, onEdit, onDelete, openDetail, onRemoved }) {
 
       {/* Bilah pilih & hapus massal */}
       {list.length > 0 && (
-        <div className="sel-bar">
-          {!selecting ? (
-            <>
-              <button className="btn ghost" onClick={() => setSelecting(true)}>
-                <Ic n="check" s={16} /> {tl("Pilih", "Select")}
+        <SelBar
+          selecting={selecting}
+          count={sel.length}
+          allPicked={allPicked}
+          onStart={() => setSelecting(true)}
+          onToggleAll={() => setSel(allPicked ? [] : allIds)}
+          onDelete={() => setConfirm("sel")}
+          onCancel={stopSelect}
+          extra={
+            targetDate && (
+              <button type="button" className="sel-btn soft-danger" onClick={() => setConfirm("date")}>
+                <Ic n="trash" s={15} /> {tl("Hapus tanggal ini", "Delete this date")}
+                <span className="sel-count">{list.length}</span>
               </button>
-              {targetDate && (
-                <button className="btn ghost danger" onClick={() => setConfirm("date")}>
-                  <Ic n="trash" s={16} /> {tl("Hapus tanggal ini", "Delete this date")} ({list.length})
-                </button>
-              )}
-            </>
-          ) : (
-            <>
-              <button className="btn ghost" onClick={() => setSel(allPicked ? [] : allIds)}>
-                {allPicked ? tl("Batal semua", "Unselect all") : tl("Pilih semua", "Select all")}
-              </button>
-              <button className="btn gold" style={{ background: "var(--err)" }} disabled={!sel.length}
-                onClick={() => setConfirm("sel")}>
-                <Ic n="trash" s={16} /> {tl("Hapus", "Delete")} ({sel.length})
-              </button>
-              <button className="btn ghost" onClick={stopSelect}>{t("cancel")}</button>
-            </>
-          )}
-        </div>
+            )
+          }
+        />
       )}
 
       {list.map((x) => {
