@@ -2220,13 +2220,10 @@ function Penjual({ suppliers, products, setSuppliers, go }) {
                     <a className="sp-act" href={waLink(s.phone, tl(`Halo ${s.name}, saya mau pesan bahan.`, `Hi ${s.name}, I'd like to order supplies.`))} target="_blank" rel="noreferrer">
                       <Ic n="send" s={15} /> WhatsApp
                     </a>
-                    <a className="sp-act" href={`tel:+${waNumber(s.phone)}`}>
-                      <Ic n="phone" s={15} />
-                    </a>
                   </>
                 )}
-                <button onClick={() => openEdit(s)}><Ic n="edit" s={15} /></button>
-                <button className="d" onClick={() => setDel(s)}><Ic n="trash" s={15} /> </button>
+                <button onClick={() => openEdit(s)}><Ic n="edit" s={15} /> {tl("Edit", "Edit")}</button>
+                <button className="d" onClick={() => setDel(s)}><Ic n="trash" s={15} /> {tl("Hapus", "Delete")}</button>
               </div>
             </div>
           );
