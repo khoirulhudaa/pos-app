@@ -645,7 +645,7 @@ function SupplierReco({ product, suppliers = [], go, inline = false }) {
 }
 
 // ---------- Beranda ----------
-function Beranda({ txs, products, suppliers = [], go, closeDay, openDay, closed, askLogout, openDetail, settings = {}, setSettings, fund, openFund }) {
+function Beranda({ txs, products, bookings, suppliers = [], go, closeDay, openDay, closed, askLogout, openDetail, settings = {}, setSettings, fund, openFund }) {
   const { t, locale, lang } = useT();
   const tl = (id, en) => (lang === "en" ? en : id);
   const { hideLaba = false, hidePengeluaran = false, hideTransaksi = false } = settings;
@@ -3481,7 +3481,7 @@ export default function App() {
     <LangCtx.Provider value={ctx}>
       <div className="app">
         {tab === "home" ? (
-          <Beranda txs={txs} products={products} suppliers={suppliers} go={setTab} closeDay={closeDay} openDay={openDay} closed={closed} askLogout={() => setShowLogout(true)} openDetail={openDetail} settings={settings} setSettings={setSettings} fund={fund} openFund={() => setShowFund(true)} />
+          <Beranda txs={txs} products={products} bookings={bookings} suppliers={suppliers} go={setTab} closeDay={closeDay} openDay={openDay} closed={closed} askLogout={() => setShowLogout(true)} openDetail={openDetail} settings={settings} setSettings={setSettings} fund={fund} openFund={() => setShowFund(true)} />
         ) : tab === "setting" ? (
           <Setting settings={settings} setSettings={setSettings} go={setTab} txs={txs} onReset={() => { touch(); setTxs([]); reload(); }} />
         ) : tab === "logs" ? (
