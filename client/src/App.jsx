@@ -166,9 +166,9 @@ function RefundPicker({ value, onChange }) {
   const { lang } = useT();
   const tl = (id, en) => (lang === "en" ? en : id);
   const opts = [
-    ["stock", tl("Refund produk", "Refund products"), tl("Stok produk dikembalikan", "Product stock is restored")],
-    ["full", tl("Refund produk + uang", "Refund products + money"), tl("Stok dikembalikan & saldo kembalian disesuaikan", "Stock restored & change float adjusted")],
-    ["none", tl("Hapus data saja", "Delete data only"), tl("Stok dan saldo tidak berubah", "Stock and float stay unchanged")],
+    ["stock", tl("Refund produk", "Refund products"), ""],
+    ["full", tl("Refund produk + uang", "Refund products + money"), ""],
+    ["none", tl("Hapus data saja", "Delete data only"), ""],
   ];
   return (
     <div className="refund-list">
@@ -2000,7 +2000,7 @@ function Produk({ products, txs = [], reload, closeDay, openDay, closed, patchPr
       {confirmMany && (
         <ConfirmModal
           title={tl(`Hapus ${sel.length} produk?`, `Delete ${sel.length} products?`)}
-          desc={tl("Produk yang dipilih dihapus permanen. Riwayat transaksi tetap aman.", "Selected products are deleted permanently. Transaction history is kept.")}
+          desc={tl("Riwayat transaksi tetap aman", "Transaction history is kept")}
           okText={t("yesDelete")}
           cancelText={t("cancel")}
           onOk={doDeleteMany}
@@ -2434,11 +2434,11 @@ function Riwayat({ txs, onEdit, onDelete, openDetail, onRemoved }) {
           title={
             confirm === "sel"
               ? tl(`Hapus ${sel.length} transaksi?`, `Delete ${sel.length} transactions?`)
-              : tl(`Hapus semua transaksi ${targetLabel}?`, `Delete all transactions on ${targetLabel}?`)
+              : tl(`${targetLabel}?`, `${targetLabel}`)
           }
           desc={
             confirm === "sel"
-              ? tl("Transaksi yang dipilih dihapus permanen.", "Selected transactions are deleted permanently.")
+              ? tl("Transaksi yang dipilih dihapus permanen", "Selected transactions are deleted permanently")
               : tl(
                   `${list.length} transaksi dihapus permanen.` + (hasPerm ? " Termasuk pengeluaran permanen, yang berhenti dihitung di hari-hari berikutnya." : ""),
                   `${list.length} transactions are deleted permanently.` + (hasPerm ? " This includes permanent expenses, which stop counting on later days." : "")
