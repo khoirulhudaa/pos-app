@@ -29,7 +29,7 @@ const dict = {
     menuHistory: "Riwayat",
     menuClose: "Tutup",
     menuOpen: "Buka",
-    shopClosedDesc: 'Transaksi baru dikunci. Tekan "Buka" untuk mulai berjualan lagi.',
+    shopClosedDesc: 'Tekan "Buka" untuk mulai berjualan lagi.',
     lowStock: "Stok menipis",
     left: "sisa {n}",
     outOfStock: "Habis",
