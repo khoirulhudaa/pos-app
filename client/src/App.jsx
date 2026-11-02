@@ -3312,7 +3312,7 @@ export default function App() {
   const reload = async () => {
     const startedAt = Date.now();
     try {
-      const [p, tr, s, fd, sp] = await Promise.all([
+      const [p, tr, s, fd, sp, bk] = await Promise.all([
         req("/products"),
         req("/transactions"),
         req("/status").catch((e) => { if (e.status === 401) throw e; return null; }),
