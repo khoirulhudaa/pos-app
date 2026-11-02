@@ -3515,9 +3515,9 @@ export default function App() {
         req("/products"),
         req("/transactions"),
         req("/status").catch((e) => { if (e.status === 401) throw e; return null; }),
-        req("/bookings").catch((e) => { if (e.status === 401) throw e; return null; }),
         req("/change-fund").catch((e) => { if (e.status === 401) throw e; return null; }),
         req("/suppliers").catch((e) => { if (e.status === 401) throw e; return null; }),
+        req("/bookings").catch((e) => { if (e.status === 401) throw e; return null; }),
       ]);
       if (s) setClosed(!!s.closed);
       if (startedAt < lastChange.current) return; // data lama, sudah ada perubahan yang lebih baru
@@ -3598,8 +3598,6 @@ export default function App() {
     }
   };
 
-  if (isPc) return <PcBlock lang={lang} />;
-
  // Buka kunci audio pada sentuhan pertama (aturan autoplay browser)
   useEffect(() => {
     const unlock = () => { beep(); window.removeEventListener("pointerdown", unlock); };
@@ -3657,6 +3655,8 @@ export default function App() {
     lsSet("pos_snooze", snooze);
     setRinging((r) => r.filter((x) => x !== b._id));
   }; 
+
+  if (isPc) return <PcBlock lang={lang} />;
 
   if (!authed) return <LangCtx.Provider value={ctx}><Login onOk={() => setAuthed(true)} /></LangCtx.Provider>;
 
