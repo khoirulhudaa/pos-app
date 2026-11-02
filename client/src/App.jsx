@@ -63,6 +63,7 @@ const P = {
   cart: "M9 22a1 1 0 1 0 0-2 1 1 0 0 0 0 2z M20 22a1 1 0 1 0 0-2 1 1 0 0 0 0 2z M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6",
   list: "M8 6h13 M8 12h13 M8 18h13 M3 6h.01 M3 12h.01 M3 18h.01",
   down: "M23 18l-9.5-9.5-5 5L1 6 M17 18h6v-6",
+  monitor: "M20 3H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2z M8 21h8 M12 17v4 M3 3l18 18",
   view1: "M4 5h16v14H4z",
   view2: "M4 5h7v14H4z M13 5h7v14h-7z",
   upload: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M17 8l-5-5-5 5 M12 3v12",
@@ -2678,6 +2679,34 @@ const DEFAULT_SETTINGS = {
   filterKategori: "all",
 };
 
+// Deteksi PC: layar lebar + mouse (HP & tablet sentuh tidak ikut terblokir)
+const PC_QUERY = "(min-width: 1100px) and (hover: hover) and (pointer: fine)";
+function useIsPc() {
+  const [pc, setPc] = useState(() => window.matchMedia(PC_QUERY).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(PC_QUERY);
+    const on = (e) => setPc(e.matches);
+    setPc(mq.matches);
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+  return pc;
+}
+
+function PcBlock({ lang }) {
+  return (
+    <div className="pc-block">
+      <div className="pc-ic"><Ic n="monitor" s={44} /></div>
+      <h1>{lang === "en" ? "Not compatible with PC" : "Tidak compatible untuk PC"}</h1>
+      <p>
+        {lang === "en"
+          ? "Please open this app on your phone or tablet"
+          : "Silakan buka aplikasi ini di HP atau tablet"}
+      </p>
+    </div>
+  );
+}
+
 export default function App() {
   const [authed, setAuthed] = useState(!!localStorage.getItem("pos_pass"));
   const [tab, setTab] = useState("home");
@@ -2692,7 +2721,8 @@ export default function App() {
   const [showFund, setShowFund] = useState(false);
   const [showOpen, setShowOpen] = useState(false);
   const [confirmBox, setConfirmBox] = useState(null);
-
+  const isPc = useIsPc();
+  
   const [settings, setSettings] = useState(() => {
     try {
       return { ...DEFAULT_SETTINGS, ...(JSON.parse(localStorage.getItem("pos_settings")) || {}) };
@@ -2812,6 +2842,8 @@ export default function App() {
       toast.error(e.message);
     }
   };
+
+  if (isPc) return <PcBlock lang={lang} />;
 
   if (!authed) return <LangCtx.Provider value={ctx}><Login onOk={() => setAuthed(true)} /></LangCtx.Provider>;
 
