@@ -2328,43 +2328,6 @@ function Booking({ bookings, setBookings, go }) {
           <Ic n="plus" s={18} /> {tl("Catat booking", "Add booking")}
         </button>
 
-        {/* {list.map((b) => {
-          const due = new Date(b.dueAt).getTime();
-          const late = !b.done && due < now;
-          const soon = !b.done && !late && due - now < 3600000;
-          return (
-            <div className={"card bk" + (late ? " late" : soon ? " soon" : "")} key={b._id}>
-              <div className="bk-h">
-                <span className="cf-ic"><Ic n="clock" s={16} /></span>
-                <div className="grow">
-                  <b>{b.customer}</b><br />
-                  <small className="muted">
-                    {new Date(b.dueAt).toLocaleString(locale, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
-                  </small>
-                </div>
-                {late && <span className="bk-tag late">{tl("Terlewat", "Overdue")}</span>}
-                {soon && <span className="bk-tag soon">{tl("Segera", "Soon")}</span>}
-              </div>
-              {b.order && <p className="bk-order">{b.order}</p>}
-              <small className="muted" style={{ display: "block", marginTop: 4 }}>
-                <Ic n="bell" s={11} /> {remindLabel(b.remindBefore, tl)}
-                {b.phone && ` · ${b.phone}`}
-              </small>
-              {b.note && <small className="muted" style={{ display: "block", marginTop: 4 }}>{b.note}</small>}
-              <div className="pc-a">
-                {b.phone && (
-                  <a className="sp-act" href={waLink(b.phone, tl(`Halo ${b.customer}, mengingatkan pesanan Anda untuk ${new Date(b.dueAt).toLocaleString(locale, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}.`, `Hi ${b.customer}, a reminder about your order.`))} target="_blank" rel="noreferrer">
-                    <Ic n="send" s={15} /> WA
-                  </a>
-                )}
-                <button onClick={() => toggleDone(b)}><Ic n="check" s={15} /> {b.done ? tl("Batal selesai", "Undo") : tl("Selesai", "Done")}</button>
-                <button onClick={() => openEdit(b)}><Ic n="edit" s={15} /></button>
-                <button className="d" onClick={() => setDel(b)}><Ic n="trash" s={15} /></button>
-              </div>
-            </div>
-          );
-        })} */}
-
         {list.map((b) => {
           const due = new Date(b.dueAt);
           const dueTs = due.getTime();
@@ -2493,8 +2456,8 @@ function Booking({ bookings, setBookings, go }) {
             <select value={f.remindBefore} onChange={(e) => setF({ ...f, remindBefore: Number(e.target.value) })}>
               {REMIND_OPTS.map((m) => <option key={m} value={m}>{remindLabel(m, tl)}</option>)}
             </select>
-            <label>{tl("Catatan", "Note")}</label>
-            <input placeholder={tl("Opsional (DP, alamat, dll)", "Optional (deposit, address)")} value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} />
+            {/* <label>{tl("Catatan", "Note")}</label>
+            <input placeholder={tl("Opsional (DP, alamat, dll)", "Optional (deposit, address)")} value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} /> */}
             <button className="btn gold" disabled={busy}>{editId ? tl("Simpan perubahan", "Save changes") : tl("Simpan booking", "Save booking")}</button>
           </form>
         </Modal>
