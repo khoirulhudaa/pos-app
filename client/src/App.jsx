@@ -2374,45 +2374,61 @@ function Booking({ bookings, setBookings, go }) {
           const day = due.getDate();
           const mon = due.toLocaleString(locale, { month: "short" });
           const time = due.toLocaleString(locale, { hour: "2-digit", minute: "2-digit" });
+          const weekday = due.toLocaleString(locale, { weekday: "short" });
 
           return (
             <div
               key={b._id}
-              className={`bk2 ${late ? "late" : soon ? "soon" : ""} ${b.done ? "done" : ""}`}
+              className={`bk-card-v2 ${late ? "is-late" : soon ? "is-soon" : ""} ${b.done ? "is-done" : ""}`}
             >
-              {/* Date block */}
-              <div className="bk2-date">
-                <b>{day}</b>
-                <span>{mon}</span>
-                <em>{time}</em>
+              {/* Header: tanggal + status */}
+              <div className="bk-v2-head">
+                <div className="bk-v2-date">
+                  <span className="bk-v2-day">{day}</span>
+                  <div className="bk-v2-date-meta">
+                    <span className="bk-v2-mon">{mon}</span>
+                    <span className="bk-v2-time">{weekday} · {time}</span>
+                  </div>
+                </div>
+
+                <div className="bk-v2-status">
+                  {late && <span className="bk-pill late">{tl("Terlewat", "Overdue")}</span>}
+                  {soon && <span className="bk-pill soon">{tl("Segera", "Soon")}</span>}
+                  {b.done && <span className="bk-pill done">{tl("Selesai", "Done")}</span>}
+                </div>
               </div>
 
-              {/* Content */}
-              <div className="bk2-main">
-                <div className="bk2-top">
-                  <b className="bk2-name">{b.customer}</b>
-                  {late && <span className="bk-tag late">{tl("Terlewat", "Overdue")}</span>}
-                  {soon && <span className="bk-tag soon">{tl("Segera", "Soon")}</span>}
-                  {b.done && <span className="bk-tag ok">{tl("Selesai", "Done")}</span>}
-                </div>
+              {/* Body */}
+              <div className="bk-v2-body">
+                <h4 className="bk-v2-name">{b.customer}</h4>
 
-                {b.order && <p className="bk2-order">{b.order}</p>}
+                {b.order && (
+                  <p className="bk-v2-order">{b.order}</p>
+                )}
 
-                <div className="bk2-meta">
-                  <span>
-                    <Ic n="bell" s={12} /> {remindLabel(b.remindBefore, tl)}
+                <div className="bk-v2-meta">
+                  <span className="bk-v2-meta-item remind">
+                    <Ic n="bell" s={12} />
+                    {remindLabel(b.remindBefore, tl)}
                   </span>
-                  {b.phone && <span>{b.phone}</span>}
+
+                  {b.phone && (
+                    <span className="bk-v2-meta-item phone">
+                      {b.phone}
+                    </span>
+                  )}
                 </div>
 
-                {b.note && <small className="bk2-note">{b.note}</small>}
+                {b.note && (
+                  <p className="bk-v2-note">{b.note}</p>
+                )}
               </div>
 
               {/* Actions */}
-              <div className="bk2-acts">
+              <div className="bk-v2-actions">
                 {b.phone && (
                   <a
-                    className="bk2-btn wa"
+                    className="bk-v2-btn wa"
                     href={waLink(
                       b.phone,
                       tl(
@@ -2428,20 +2444,21 @@ function Booking({ bookings, setBookings, go }) {
                     target="_blank"
                     rel="noreferrer"
                   >
-                    <Ic n="send" s={15} /> WA
+                    <Ic n="send" s={15} />
+                    WA
                   </a>
                 )}
 
-                <button className="bk2-btn ok" onClick={() => toggleDone(b)}>
+                <button className="bk-v2-btn primary" onClick={() => toggleDone(b)}>
                   <Ic n="check" s={15} />
                   {b.done ? tl("Batal", "Undo") : tl("Selesai", "Done")}
                 </button>
 
-                <button className="bk2-btn icon" onClick={() => openEdit(b)}>
+                <button className="bk-v2-btn icon" onClick={() => openEdit(b)} aria-label="Edit">
                   <Ic n="edit" s={15} />
                 </button>
 
-                <button className="bk2-btn del icon" onClick={() => setDel(b)}>
+                <button className="bk-v2-btn icon danger" onClick={() => setDel(b)} aria-label="Hapus">
                   <Ic n="trash" s={15} />
                 </button>
               </div>
