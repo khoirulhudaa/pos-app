@@ -210,7 +210,7 @@
 /* ===== Kontak penjual ===== */
 .reco { margin: 0 0 8px; padding: 6px 0 2px; }
 .reco-list { display: flex; flex-wrap: wrap; gap: 6px; }
-.reco-chip { display: inline-flex; align-items: center; gap: 5px; padding: 5px 11px; border-radius: 20px; background: #e7f8ef; color: #12a150; font-size: 12px; font-weight: 700; text-decoration: none; border: 1px solid rgba(18, 161, 80, .25); }
+.reco-chip { display: inline-flex; align-items: center; gap: 5px; padding: 5px 11px; border-radius: 10px; background: #e7f8ef; color: #12a150; font-size: 12px; font-weight: 700; text-decoration: none; border: 1px solid rgba(18, 161, 80, .25); }
 .reco-chip.off { background: #f1f5f9; color: #64748b; border-color: transparent; }
 .reco-none { display: inline-flex; align-items: center; gap: 5px; margin: 0 0 8px; padding: 4px 0; font-size: 11.5px; font-weight: 700; color: #b45309; }
 .sp-h { display: flex; align-items: center; gap: 12px; }
@@ -237,7 +237,7 @@
 .low-nm { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 14px; font-weight: 700; }
 .low-qty { flex-shrink: 0; font-size: 11.5px; font-weight: 800; color: var(--err); background: #fff; padding: 3px 10px; border-radius: 10px; border: 1px solid rgba(229, 72, 77, .25); }
 .low-qty.zero { background: var(--err); color: #fff; border-color: transparent; }
-.warn .low-item .reco { margin: 6px 0 0; padding: 0; }
+.warn .low-item .reco { margin: 0px 0 0; padding: 0; }
 .warn .low-item .reco-none { margin: 4px 0 0; padding: 0; }
 .low-right { display: flex; align-items: center; justify-content: flex-end; gap: 6px; flex-wrap: nowrap; min-width: 0; flex-shrink: 1; }
 .low-right .low-qty,
