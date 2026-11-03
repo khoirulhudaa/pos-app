@@ -2422,9 +2422,9 @@ function Booking({ bookings, setBookings, go }) {
                   )}
                 </div>
 
-                {b.note && (
+                {/* {b.note && (
                   <p className="bk-v2-note">{b.note}</p>
-                )}
+                )} */}
               </div>
 
               {/* Actions */}
