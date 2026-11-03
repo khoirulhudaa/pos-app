@@ -2372,9 +2372,12 @@ function Booking({ bookings, setBookings, go }) {
           const soon = !b.done && !late && dueTs - now < 3600000;
 
           const day = due.getDate();
-          const mon = due.toLocaleString(locale, { month: "short" });
-          const time = due.toLocaleString(locale, { hour: "2-digit", minute: "2-digit" });
-          const weekday = due.toLocaleString(locale, { weekday: "short" });
+          const weekday = due.toLocaleString(locale, { weekday: "long" }); // Senin, Selasa...
+          const mon = due.toLocaleString(locale, { month: "long" });       // November...
+          const time = due.toLocaleString(locale, {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
 
           return (
             <div
@@ -2386,8 +2389,8 @@ function Booking({ bookings, setBookings, go }) {
                 <div className="bk-v2-date">
                   <span className="bk-v2-day">{day}</span>
                   <div className="bk-v2-date-meta">
-                    <span className="bk-v2-mon">{mon}</span>
-                    <span className="bk-v2-time">{weekday} · {time}</span>
+                    <span className="bk-v2-mon">{mon}</span> - {""}
+                    <span className="bk-v2-time">{time}</span>
                   </div>
                 </div>
 

@@ -299,7 +299,6 @@
   gap: 10px;
   margin-bottom: 10px;
 }
-
 .bk-v2-date {
   display: flex;
   align-items: center;
@@ -319,26 +318,29 @@
   flex-shrink: 0;
 }
 
-/* ===== Meta badges ===== */
-.bk-v2-meta {
+.bk-v2-date-badges {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 4px;
+  gap: 5px;
 }
 
-.bk-v2-meta-item {
+.bk-date-badge {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  height: 26px;
-  padding: 0 10px;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1;
+  height: 24px;
+  padding: 0 9px;
+  border-radius: 7px;
   background: #f3f4f6;
+  font-size: 11.5px;
+  font-weight: 600;
   color: #4b5563;
+  text-transform: capitalize;
+  line-height: 1;
+}
+
+.bk-date-badge.time {
+  background: #eff6ff;
+  color: #1d4ed8;
 }
 
 /* Pengingat (Tepat waktu, 30 menit, dll) */
