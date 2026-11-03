@@ -2476,6 +2476,14 @@ function Booking({ bookings, setBookings, go }) {
   );
 }
 
+const orderQty = (order = "") => {
+  const text = String(order || "").trim();
+  if (!text) return 0;
+  const nums = text.match(/\d+/g);
+  if (nums) return nums.reduce((s, n) => s + Number(n), 0);
+  return text.split(/[,\n]/).filter((x) => x.trim()).length;
+};
+
 // Kartu ringkasan booking di Beranda
 function BookingCard({ bookings=[], go }) {
   const { locale, lang } = useT();
@@ -2498,9 +2506,13 @@ function BookingCard({ bookings=[], go }) {
         next.map((b) => {
           const d = new Date(b.dueAt);
           const ok = !isNaN(d);
+          const qty = orderQty(b.order);
           return (
             <div className="bk-row" key={b._id} onClick={() => go("booking")}>
-              <span className="bk-nm">{b.customer || "-"}</span>
+              <div className="bk-left">
+                {qty > 0 && <span className="bk-qty">{qty}x</span>}
+                <span className="bk-nm">{b.customer || "-"}</span>
+              </div>
               <small className={ok && d < Date.now() ? "err" : "muted"}>
                 {ok
                   ? d.toLocaleString(locale, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })

@@ -503,3 +503,20 @@
   background: #22c55e;   /* hijau */
   color: #ffffff;
 }
+
+/* Badge jumlah item di kartu booking Beranda */
+.bk-left { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; }
+.bk-qty {
+  flex-shrink: 0;
+  min-width: max-content;
+  height: 20px;
+  padding: 0 0px;
+  border-radius: 8px;
+  display: inline-grid;
+  place-items: center;
+  font-size: 11.5px;
+  font-weight: 800;
+  line-height: 1;
+  background: #fef3c7ce;
+  color: #f38531;
+}
