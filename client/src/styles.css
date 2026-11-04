@@ -90,7 +90,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); backgro
 .sec-h { display: flex; justify-content: space-between; align-items: center; margin: 10px 2px 12px; }
 .sec-h h3 { font-size: 17px; letter-spacing: -.01em; } .link { color: var(--accent); font-weight: 700; font-size: 13px; }
 .warn { background: var(--ty); border-color: rgba(251, 176, 45, .45); }
-.warn-h { display: flex; gap: 6px; align-items: center; font-weight: 700; color: var(--warnt); margin-bottom: 6px; }
+.warn-h { display: flex; gap: 6px; align-items: center; font-weight: 700; color: var(--warnt); margin-bottom: 6px; font-size: 13.5px; } .warn-h small { font-weight: 400; color: var(--muted); }
 .li { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; }
 
 /* ================= Tombol ================= */
