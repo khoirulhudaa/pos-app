@@ -208,7 +208,7 @@
 
 /* ===== Kontak penjual ===== */
 .reco { margin: 0 0 8px; padding: 6px 0 2px; }
-.reco-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.reco-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
 .reco-chip { display: inline-flex; align-items: center; gap: 5px; padding: 5px 5px; border-radius: 8px; background: #e7f8ef; color: #12a150; font-size: 10px; font-weight: 700; text-decoration: none; border: 1px solid rgba(18, 161, 80, .25); }
 .reco-chip.off { background: #f1f5f9; color: #64748b; border-color: transparent; }
 .reco-none { display: inline-flex; align-items: center; gap: 5px; margin: 0 0 8px; padding: 4px 0; font-size: 11.5px; font-weight: 700; color: #b45309; }
