@@ -528,7 +528,7 @@
 
 .profile-hero { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 24px 16px; }
 .profile-avatar { width: 88px; height: 88px; border-radius: 50%; background: #eaf2ff; display: grid; place-items: center; overflow: hidden; box-shadow: 0 0 0 6px rgba(10, 102, 194, .1); }
-.profile-avatar img { width: 85%; position: relative; top: 10px; }
+.profile-avatar img { width: 82%; position: relative; top: 10px; }
 .profile-name { margin: 14px 0 4px; font-size: 20px; font-weight: 800; text-transform: capitalize; }
 .profile-role { font-size: 12px; font-weight: 700; color: #0a66c2; background: #eaf2ff; padding: 4px 12px; border-radius: 20px; }
 
