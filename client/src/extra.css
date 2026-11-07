@@ -520,3 +520,18 @@
   background: #fef3c7ce;
   color: #f38531;
 }
+
+/* ===== Profil ===== */
+.hero-profile { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; padding: 0; margin: 0; background: none; border: 0; color: inherit; text-align: left; cursor: pointer; }
+.hero-profile .grow { min-width: 0; }
+.hero-profile:active { opacity: .8; }
+
+.profile-hero { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 24px 16px; }
+.profile-avatar { width: 88px; height: 88px; border-radius: 50%; background: #eaf2ff; display: grid; place-items: center; overflow: hidden; box-shadow: 0 0 0 6px rgba(10, 102, 194, .1); }
+.profile-avatar img { width: 80%; position: relative; top: 4px; }
+.profile-name { margin: 14px 0 4px; font-size: 20px; font-weight: 800; text-transform: capitalize; }
+.profile-role { font-size: 12px; font-weight: 700; color: #0a66c2; background: #eaf2ff; padding: 4px 12px; border-radius: 20px; }
+
+.profile-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 0; background: none; border: 0; border-top: 1px dashed rgba(100, 116, 139, .25); font-size: 14px; font-weight: 600; color: inherit; text-align: left; cursor: pointer; }
+.profile-row:first-child { border-top: 0; }
+.profile-row:active { opacity: .7; }

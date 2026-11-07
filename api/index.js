@@ -293,6 +293,11 @@ app.post("/api/login", async (req, res) => {
   res.json({ ok: true, account: label });
 });
 
+// ---- Info akun yang sedang login ----
+app.get("/api/me", (req, res) => {
+  res.json({ account: req.authLabel }); // contoh: "Akun 1 - huda"
+});
+
 app.get("/api/logs", async (req, res) => {
   const limit = Math.min(200, Math.max(1, Number(req.query.limit) || 100));
   const logs = await ActivityLog.find()

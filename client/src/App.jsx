@@ -706,13 +706,15 @@ function Beranda({ txs, products, bookings=[], suppliers = [], go, closeDay, ope
     <>
       <div className="hero">
         <div className="hero-row">
-          <div className="avatar">
-            <img src="/avatar2.png" alt="avatar-img" style={{width: '80%', position: 'relative', top: 4}} />
-          </div>
-          <div className="grow">
-            <small>{greet},</small>
-            <b>{t("owner")}</b>
-          </div>
+          <button type="button" className="hero-profile" onClick={() => go("profile")} aria-label={tl("Buka profil", "Open profile")}>
+            <div className="avatar">
+              <img src="/avatar2.png" alt="avatar-img" style={{ width: "80%", position: "relative", top: 4 }} />
+            </div>
+            <div className="grow">
+              <small>{greet},</small>
+              <b>{t("owner")}</b>
+            </div>
+          </button>
           <div style={{ display: "flex", gap: 8 }}>
             <button
               style={{ borderRadius: "9999px", position: "relative" }}
@@ -3386,6 +3388,69 @@ function PcBlock({ lang }) {
   );
 }
 
+// ---------- Profil ----------
+function Profile({ go, askLogout }) {
+  const { t, lang } = useT();
+  const tl = (id, en) => (lang === "en" ? en : id);
+  const [account, setAccount] = useState("");
+
+  useEffect(() => {
+    let alive = true;
+    req("/me")
+      .then((d) => alive && setAccount(d.account || ""))
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
+  // "Akun 1 - huda" -> role "Akun 1", nama "huda"
+  const parts = account.split(" - ");
+  const role = parts.length > 1 ? parts[0] : tl("Akun", "Account");
+  const name = parts.length > 1 ? parts.slice(1).join(" - ") : account || t("owner");
+
+  const items = [
+    { icon: "settings", label: t("settings"), fn: () => go("setting") },
+    { icon: "list", label: t("activityLog"), fn: () => go("logs") },
+    { icon: "clock", label: tl("Booking", "Bookings"), fn: () => go("booking") },
+    { icon: "users", label: tl("Kontak Penjual", "Suppliers"), fn: () => go("suppliers") },
+  ];
+
+  return (
+    <>
+      <Top
+        title={tl("Profil", "Profile")}
+        sub={tl("Informasi akun kamu", "Your account information")}
+        right={<button className="icon-btn dark" onClick={() => go("home")}><Ic n="x" /></button>}
+      />
+      <div className="page pull">
+        <div className="card profile-hero">
+          <div className="profile-avatar">
+            <img src="/avatar2.png" alt="avatar" />
+          </div>
+          <h2 className="profile-name">{name}</h2>
+          <span className="profile-role">{role}</span>
+        </div>
+
+        <div className="card" style={{ marginTop: 12, padding: "6px 14px" }}>
+          {items.map((m) => (
+            <button key={m.label} type="button" className="profile-row" onClick={m.fn}>
+              <span className="cf-ic"><Ic n={m.icon} s={16} /></span>
+              <span className="grow">{m.label}</span>
+            </button>
+          ))}
+        </div>
+
+        <button
+          className="btn ghost"
+          style={{ width: "100%", marginTop: 16, color: "var(--err)", border: "1.5px solid var(--err)", fontWeight: 600, fontSize: 14 }}
+          onClick={askLogout}
+        >
+          <Ic n="logout" s={16} /> {t("logout")}
+        </button>
+      </div>
+    </>
+  );
+}
+
 // ---------- Kebijakan Privasi ----------
 function PrivacyPage({ go, back = "setting" }) {
   const { lang } = useT();
@@ -3763,6 +3828,8 @@ export default function App() {
           <Beranda txs={txs} products={products} bookings={bookings} suppliers={suppliers} go={setTab} closeDay={closeDay} openDay={openDay} closed={closed} askLogout={() => setShowLogout(true)} openDetail={openDetail} settings={settings} setSettings={setSettings} fund={fund} openFund={() => setShowFund(true)} />
         ) : tab === "setting" ? (
           <Setting settings={settings} setSettings={setSettings} go={setTab} txs={txs} onReset={() => { touch(); setTxs([]); reload(); }} />
+        ) : tab === "profile" ? (
+          <Profile go={setTab} askLogout={() => setShowLogout(true)} />
         ) : tab === "logs" ? (
           <ActivityLogPage go={setTab} />
         ) : tab === "privacy" ? (
